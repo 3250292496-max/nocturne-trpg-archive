@@ -51,7 +51,8 @@ a { color: inherit; text-decoration: none; }
 .module-hero h1 { max-width: 760px; margin: 10px 0 20px; font: 800 clamp(43px, 7vw, 78px)/1.14 var(--serif); letter-spacing: .05em; }
 .module-summary { max-width: 760px; margin: 0; color: #bcc5ce; font: 400 clamp(14px, 1.6vw, 17px)/2 var(--serif); }
 .module-author { display: flex; align-items: center; gap: 12px; margin-top: 30px; }
-.module-author > span { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--gold); }
+.module-author > span { display: grid; width: 40px; height: 40px; overflow: hidden; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--gold); }
+.module-author > span img { width: 100%; height: 100%; object-fit: cover; }
 .module-author p, .module-author strong, .module-author small { margin: 0; display: block; }
 .module-author small { color: var(--muted); font-size: 8px; letter-spacing: .15em; }
 .module-author strong { margin-top: 3px; font-size: 12px; }

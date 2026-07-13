@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260713b">
+  <link rel="stylesheet" href="styles.css?v=20260713f">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -368,29 +368,29 @@
       </div>
 
       <form class="auth-form" id="login-form" data-auth-panel="login">
-        <label for="login-account"><span>账号</span><input id="login-account" name="account" type="text" inputmode="numeric" autocomplete="username" placeholder="请输入账号" required></label>
+        <label for="login-account"><span>账号</span><input id="login-account" name="account" type="text" inputmode="text" autocomplete="username" placeholder="请输入账号" required></label>
         <label for="login-password"><span>密码</span><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" required></label>
         <button class="button button-primary" type="submit">登录并进入个人中心 <span aria-hidden="true">↗</span></button>
         <p class="auth-error" id="login-error" role="alert" hidden></p>
       </form>
 
       <form class="auth-form" id="register-form" data-auth-panel="register" hidden>
-        <label for="register-account"><span>账号</span><input id="register-account" name="account" type="text" inputmode="numeric" autocomplete="username" placeholder="设置用于登录的账号" required></label>
-        <label for="register-name"><span>显示名称</span><input id="register-name" name="displayName" type="text" autocomplete="nickname" maxlength="24" placeholder="大家将如何称呼你" required></label>
+        <label for="register-account"><span>账号</span><input id="register-account" name="account" type="text" inputmode="text" autocomplete="username" placeholder="设置用于登录的账号" required></label>
+        <label for="register-name"><span>用户昵称</span><input id="register-name" name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="大家将如何称呼你" required></label>
         <label for="register-password"><span>密码</span><input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="至少 8 位字符" required></label>
         <label for="register-password-confirm"><span>确认密码</span><input id="register-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="再次输入密码" required></label>
         <button class="button button-primary" type="submit">创建夜航账号 <span aria-hidden="true">↗</span></button>
         <p class="auth-error" id="register-error" role="alert" hidden></p>
       </form>
 
-      <p class="auth-footnote" id="auth-footnote">新账号默认为普通成员。作者认证与作品权限需在个人中心申请；网站站长身份由系统锁定，无法通过注册获得。</p>
+      <p class="auth-footnote" id="auth-footnote">本机账号、昵称和头像会长期保存在当前浏览器；密码只保存不可逆校验值。清除网站数据或更换浏览器、设备后不会同步。</p>
     </div>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="access.js?v=20260713e"></script>
-  <script src="modules-data.js?v=20260713a"></script>
-  <script src="site-auth.js?v=20260713d"></script>
-  <script src="app.js?v=20260713e"></script>
+  <script src="modules-data.js?v=20260713f"></script>
+  <script src="site-auth.js?v=20260713f"></script>
+  <script src="app.js?v=20260713f"></script>
 </body>
 </html>

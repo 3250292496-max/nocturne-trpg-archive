@@ -46,28 +46,29 @@
     var detail = path.match(/^\/api\/creator\/modules\/([^/]+)$/);
     var resource = path.match(/^\/api\/creator\/modules\/([^/]+)\/resources\/([^/]+)$/);
     try {
-      if (path === '/api/creator/modules' && method === 'GET') return Promise.resolve({ modules:clone(list), temporary:true });
+      if (path === '/api/creator/modules' && method === 'GET') return Promise.resolve({ modules:clone(list), deviceLocal:true, persistent:true });
       if (path === '/api/creator/modules' && method === 'POST') {
         var now = new Date().toISOString();
         var created = Object.assign({
           id:staticModuleId(settings.body && settings.body.title, list), english:'COMMUNITY MODULE', typeLabel:'完整战役模组',
           description:'', players:'', duration:'', era:'', difficulty:'', tags:[], status:'draft', resources:[],
-          ownerId:currentUser && currentUser.id, author:{ account:currentUser && currentUser.account, displayName:currentUser && currentUser.displayName },
+          ownerId:currentUser && currentUser.id,
+          author:{ displayName:currentUser && currentUser.displayName || '夜航创作者', name:currentUser && currentUser.displayName || '夜航创作者', avatar:currentUser && currentUser.avatar || '', label:'认证作者' },
           createdAt:now, updatedAt:now
         }, settings.body || {});
         list.push(created);
         saveStaticModules(list);
-        return Promise.resolve({ module:clone(created), temporary:true });
+        return Promise.resolve({ module:clone(created), deviceLocal:true, persistent:true });
       }
       if (detail) {
         var id = decodeURIComponent(detail[1]);
         var index = list.findIndex(function (module) { return module.id === id; });
         if (index < 0) throw new Error('没有找到这份浏览器草稿。');
-        if (method === 'GET') return Promise.resolve({ module:clone(list[index]), temporary:true });
+        if (method === 'GET') return Promise.resolve({ module:clone(list[index]), deviceLocal:true, persistent:true });
         if (method === 'PATCH') {
           list[index] = Object.assign({}, list[index], settings.body || {}, { id:list[index].id, updatedAt:new Date().toISOString() });
           saveStaticModules(list);
-          return Promise.resolve({ module:clone(list[index]), temporary:true });
+          return Promise.resolve({ module:clone(list[index]), deviceLocal:true, persistent:true });
         }
       }
       if (resource && method === 'DELETE') {
@@ -78,7 +79,7 @@
         list[moduleIndex].resources = (list[moduleIndex].resources || []).filter(function (item) { return item.id !== resourceId; });
         list[moduleIndex].updatedAt = new Date().toISOString();
         saveStaticModules(list);
-        return Promise.resolve({ module:clone(list[moduleIndex]), temporary:true });
+        return Promise.resolve({ module:clone(list[moduleIndex]), deviceLocal:true, persistent:true });
       }
       throw new Error('这个操作需要网站后端，GitHub Pages 只能保存浏览器草稿。');
     } catch (error) { return Promise.reject(error); }
@@ -457,7 +458,8 @@
     currentUser = user;
     byId('static-studio-note').hidden = !isStaticMode();
     if (!user) { showGate('请先登录创作者账号', '登录后才能读取你拥有的模组与创作资料。'); return; }
-    byId('studio-avatar').textContent = String(user.displayName || user.account || '航').charAt(0);
+    if (auth.renderAvatar) auth.renderAvatar(byId('studio-avatar'), user, { label: '进入{name}的个人中心' });
+    else byId('studio-avatar').textContent = Array.from(user.displayName || '夜航用户')[0] || '航';
     if (user.authorStatus !== 'verified' && user.role !== 'owner') { showGate('需要通过作者认证', '你可以在个人中心提交作品与创作计划；认证通过后即可创建模组。'); return; }
     loadModules();
   });
