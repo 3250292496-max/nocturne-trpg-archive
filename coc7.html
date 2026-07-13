@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="coc7">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1514">
+  <meta name="description" content="克苏鲁的呼唤第七版傻瓜车卡、角色卡导入与中文规则查看。">
+  <title>克苏鲁的呼唤 第七版 · 车卡与规则</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="coc7.css?v=20260713a">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#coc7-main">跳到主要内容</a>
+  <header class="coc-topbar">
+    <a class="coc-brand" href="index.html" aria-label="返回夜航模组馆">
+      <span class="coc-brand-mark" aria-hidden="true">◉</span>
+      <span><strong>夜航模组馆</strong><small>CALL OF CTHULHU · 7E</small></span>
+    </a>
+    <nav aria-label="页面导航">
+      <button type="button" data-tab-target="builder">傻瓜车卡</button>
+      <button type="button" data-tab-target="rules">七版规则</button>
+      <a href="gm.html?view=combat">守秘人战斗台</a>
+    </nav>
+  </header>
+
+  <main id="coc7-main">
+    <section class="coc-hero">
+      <div class="coc-hero-copy">
+        <p>INVESTIGATOR WORKBENCH · 1920s / MODERN</p>
+        <h1>克苏鲁的呼唤<br><em>第七版工具台</em></h1>
+        <p class="coc-hero-lead">选一个职业底稿，身份、属性、技能点、派生值与常用武器一次生成。已有角色可直接导入 JSON 或 COC7 Excel 卡，再提交给守秘人。</p>
+        <div class="coc-hero-actions">
+          <button class="primary" type="button" data-tab-target="builder">开始自动车卡</button>
+          <button type="button" data-tab-target="rules">查看七版规则</button>
+        </div>
+      </div>
+      <div class="coc-hero-seal" aria-hidden="true">
+        <span>7</span><i></i><b>百分骰</b><small>HP · SAN · MP · LUCK</small>
+      </div>
+    </section>
+
+    <div class="coc-tabbar" role="tablist" aria-label="COC7 工具">
+      <button id="tab-builder" type="button" role="tab" aria-controls="panel-builder" aria-selected="true" data-tab-target="builder"><span>01</span>傻瓜车卡</button>
+      <button id="tab-rules" type="button" role="tab" aria-controls="panel-rules" aria-selected="false" data-tab-target="rules"><span>02</span>七版规则查看</button>
+    </div>
+
+    <section class="coc-panel active" id="panel-builder" role="tabpanel" aria-labelledby="tab-builder" data-panel="builder">
+      <header class="panel-heading">
+        <div><p>ONE-CLICK INVESTIGATOR</p><h2>只选职业，其余自动算</h2></div>
+        <p>生成后仍可改姓名与背景；战斗属性由卡内数据自动派生，不需要守秘人再次抄写。</p>
+      </header>
+
+      <div class="builder-layout">
+        <section class="coc-card builder-controls" aria-labelledby="builder-input-title">
+          <header><span>STEP 1</span><h3 id="builder-input-title">选择调查员底稿</h3></header>
+          <form id="coc-builder-form">
+            <div class="form-grid two">
+              <label><span>调查员姓名</span><input id="coc-name" maxlength="80" placeholder="未命名调查员"></label>
+              <label><span>玩家姓名</span><input id="coc-player-name" maxlength="80"></label>
+              <label><span>年龄</span><input id="coc-age" type="number" min="15" max="89" step="1" value="28"></label>
+              <label><span>时代</span><select id="coc-era"><option value="classic">经典 1920 年代</option><option value="modern">现代</option></select></label>
+              <label><span>年龄减值分配</span><select id="coc-age-strategy"><option value="balanced">三项均衡（推荐）</option><option value="str">优先扣力量</option><option value="con">优先扣体质</option><option value="dex">优先扣敏捷</option></select></label>
+              <label><span>职业公式可选属性</span><select id="coc-formula-strategy"><option value="highest">自动取最高（推荐）</option><option value="str">力量</option><option value="dex">敏捷</option><option value="app">外貌</option><option value="pow">意志</option></select></label>
+            </div>
+            <label><span>职业</span><select id="coc-occupation"></select></label>
+            <div id="occupation-presets" class="occupation-presets" aria-label="职业快捷选择"></div>
+            <label><span>一句背景（可留空）</span><textarea id="coc-backstory" rows="3" maxlength="1000" placeholder="为何会走进这场调查？有什么绝不能失去？"></textarea></label>
+            <div class="builder-buttons">
+              <button class="primary" id="coc-generate" type="submit">一键生成完整角色</button>
+              <button id="coc-reroll" type="button">重新随机</button>
+            </div>
+          </form>
+          <div class="import-zone">
+            <div><strong>已有角色卡？</strong><p>支持本站 JSON 与所附 COC7 `.xlsx` 角色卡。文件只在本机解析。</p></div>
+            <button id="coc-import" type="button">导入角色卡</button>
+            <input id="coc-import-file" type="file" accept="application/json,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx" hidden>
+          </div>
+        </section>
+
+        <section class="coc-card character-preview" aria-labelledby="character-preview-title">
+          <header class="preview-heading">
+            <div><span>INVESTIGATOR SHEET</span><h3 id="character-preview-title">角色卡预览</h3></div>
+            <small id="coc-save-status">尚未生成</small>
+          </header>
+          <div id="coc-empty-preview" class="empty-preview">
+            <span aria-hidden="true">◇</span><strong>选好职业后点“一键生成”</strong><p>属性、技能点、生命值、魔法值、理智、闪避、伤害加值与移动力会一起完成。</p>
+          </div>
+          <div id="coc-character-sheet" hidden>
+            <div class="sheet-identity">
+              <div><span>调查员</span><strong id="sheet-name">—</strong><small id="sheet-occupation">—</small></div>
+              <div><span>玩家／年龄</span><strong id="sheet-player">—</strong><small id="sheet-era">—</small></div>
+            </div>
+            <div id="characteristic-grid" class="characteristic-grid"></div>
+            <div id="derived-grid" class="derived-grid"></div>
+            <div class="sheet-section">
+              <header><h4>职业与兴趣技能</h4><span id="skill-budget">自动分配</span></header>
+              <div id="skill-grid" class="skill-grid"></div>
+            </div>
+            <div class="sheet-section">
+              <header><h4>常用武器</h4><span>战斗台直接读取</span></header>
+              <div id="weapon-grid" class="weapon-grid"></div>
+            </div>
+            <div id="sheet-backstory" class="sheet-backstory"></div>
+            <div class="sheet-actions">
+              <button class="primary" id="coc-submit-keeper" type="button">提交给守秘人</button>
+              <button id="coc-export-json" type="button">导出 JSON</button>
+              <button id="coc-download-blank" type="button">下载空白 Excel 卡</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="coc-panel" id="panel-rules" role="tabpanel" aria-labelledby="tab-rules" data-panel="rules" hidden>
+      <header class="panel-heading rules-heading">
+        <div><p>KEEPER RULE INDEX</p><h2>七版规则快速查看</h2></div>
+        <label class="rule-search"><span class="sr-only">搜索规则摘要</span><input id="rule-search" type="search" placeholder="搜索：重伤、理智、闪避、幸运…"><kbd>/</kbd></label>
+      </header>
+      <div class="rules-layout">
+        <aside class="coc-card rule-index-card">
+          <header><span>QUICK REFERENCE</span><h3>桌边快速索引</h3></header>
+          <div id="rule-category-nav" class="rule-category-nav"></div>
+          <p class="rule-note">这里是便于开团的规则摘要；有争议时以右侧规则书原文为准。</p>
+        </aside>
+        <section class="coc-card quick-rules-card" aria-live="polite">
+          <header><span>RULE SUMMARY</span><h3 id="quick-rule-title">常用规则</h3></header>
+          <div id="quick-rule-list" class="quick-rule-list"></div>
+          <p id="rule-empty" class="rule-empty" hidden>没有命中。可以换一个关键词，或在整本规则书中使用浏览器搜索。</p>
+        </section>
+      </div>
+      <section class="coc-card rulebook-card" aria-labelledby="rulebook-title">
+        <header class="rulebook-toolbar">
+          <div><span>FULL RULEBOOK · PDF</span><h3 id="rulebook-title">克苏鲁的呼唤第七版守秘人规则书</h3></div>
+          <div><button id="rulebook-choose" type="button">选择本地 PDF</button><button id="rulebook-open" type="button" disabled>新窗口打开</button><a href="assets/rules/COC七版规则空白卡.xlsx">下载空白卡</a><input id="rulebook-file" type="file" accept="application/pdf,.pdf" hidden></div>
+        </header>
+        <div class="rulebook-empty" id="rulebook-empty"><span>PDF</span><strong>从电脑选择你拥有的规则书</strong><p>规则书只在本机浏览器中打开，不会上传或复制进公开站点。选择后可使用 PDF 查看器自身的目录、页码与搜索。</p></div>
+        <iframe id="rulebook-frame" title="克苏鲁的呼唤第七版守秘人规则书 PDF" hidden></iframe>
+        <noscript><p>请启用 JavaScript 后选择本地 PDF。</p></noscript>
+      </section>
+    </section>
+  </main>
+
+  <footer class="coc-footer"><span>夜航模组馆 · COC7 工具台</span><a href="module.html?id=coc7">返回作品档案</a></footer>
+  <div class="coc-toast" id="coc-toast" role="status" aria-live="polite"></div>
+
+  <script src="player-data.js?v=20260713g"></script>
+  <script src="coc7-data.js?v=20260713a"></script>
+  <script src="coc7-core.js?v=20260713a"></script>
+  <script src="coc7-xlsx.js?v=20260713a"></script>
+  <script src="coc7.js?v=20260713a"></script>
+</body>
+</html>

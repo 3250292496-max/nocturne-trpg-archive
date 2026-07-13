@@ -124,6 +124,15 @@
     if (module.id === 'null-grail') {
       byId('keeper-action').hidden = false;
       byId('player-action').hidden = false;
+    } else if (module.id === 'coc7') {
+      byId('keeper-action').href = 'gm.html?view=combat';
+      byId('keeper-action').querySelector('span').textContent = '打开守秘人自动战斗台';
+      byId('keeper-action').querySelector('small').textContent = '导入角色、建立场景并自动结算 →';
+      byId('keeper-action').hidden = false;
+      byId('player-action').href = 'coc7.html?tab=builder';
+      byId('player-action').querySelector('span').textContent = '进入 COC7 傻瓜车卡';
+      byId('player-action').querySelector('small').textContent = '一键生成、导入与规则查看 →';
+      byId('player-action').hidden = false;
     }
     byId('module-loading').hidden = true;
     byId('module-content').hidden = false;

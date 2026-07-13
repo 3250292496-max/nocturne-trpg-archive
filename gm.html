@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="gm.css?v=20260713f">
+  <link rel="stylesheet" href="gm.css?v=20260713j">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -50,7 +50,9 @@
     <button class="side-nav-button" type="button" data-view="npcs"><span>◫</span><b>人物</b></button>
     <button class="side-nav-button" type="button" data-view="clues"><span>⌁</span><b>线索</b></button>
     <button class="side-nav-button" type="button" data-view="handouts"><span>▱</span><b>发放</b></button>
+    <button class="side-nav-button" type="button" data-view="library"><span>册</span><b>正文</b></button>
     <button class="side-nav-button" type="button" data-view="tabletop"><span>⚄</span><b>战团</b></button>
+    <button class="side-nav-button" type="button" data-view="combat"><span>⚔</span><b>战斗</b></button>
     <button class="side-nav-button" type="button" data-view="log"><span>≡</span><b>场记</b></button>
   </aside>
 
@@ -167,6 +169,36 @@
       <div id="handout-grid" class="handout-grid"></div>
     </section>
 
+    <section class="view-panel" id="view-library" data-panel="library" aria-labelledby="library-heading">
+      <header class="view-heading library-heading">
+        <div><p class="section-kicker">CAMPAIGN LIBRARY · v3.2</p><h1 id="library-heading">四册正文</h1></div>
+        <p>第一、二、四册只在本机完成解密后下载；第三册为 PLAYER SAFE 公开手册。访问密钥不会写入下载文件或公开网页。</p>
+      </header>
+      <div class="volume-grid">
+        <article class="volume-card keeper-volume">
+          <span class="volume-number">01</span>
+          <div class="volume-copy"><small>KEEPER ONLY · 全剧透</small><h2>第一册 · 主模组</h2><p>完整七日流程、场景节点、真相结构、默认余波与结局运行方式。</p></div>
+          <button class="volume-download" type="button" data-secure-resource="main-module" data-server-resource="main-module-v3-2"><span>解密并下载 DOCX</span><small>v3.2 · 本机处理</small></button>
+        </article>
+        <article class="volume-card keeper-volume">
+          <span class="volume-number">02</span>
+          <div class="volume-copy"><small>KEEPER ONLY · 全剧透</small><h2>第二册 · NPC 与英灵手册</h2><p>人物动机、秘密、拒绝边界、行动逻辑与英灵资料。</p></div>
+          <button class="volume-download" type="button" data-secure-resource="npc-guide" data-server-resource="npc-guide-v3-2"><span>解密并下载 DOCX</span><small>v3.2 · 本机处理</small></button>
+        </article>
+        <article class="volume-card player-volume">
+          <span class="volume-number">03</span>
+          <div class="volume-copy"><small>PLAYER SAFE · 可公开</small><h2>第三册 · 玩家手册</h2><p>无剧透规则说明、角色准备、内容边界与玩家可见资料。</p></div>
+          <a class="volume-download" href="NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx"><span>下载公开 DOCX</span><small>v3.2 · 无需解密</small></a>
+        </article>
+        <article class="volume-card keeper-volume">
+          <span class="volume-number">04</span>
+          <div class="volume-copy"><small>KEEPER ONLY · 全剧透</small><h2>第四册 · 主持人工具书</h2><p>开团清单、阶段控制、桌边速查、主持提示与收尾工具。</p></div>
+          <button class="volume-download" type="button" data-secure-resource="keeper-toolkit" data-server-resource="keeper-toolkit-v3-2"><span>解密并下载 DOCX</span><small>v3.2 · 本机处理</small></button>
+        </article>
+      </div>
+      <div class="library-security-note"><strong>本地解密</strong><span>GitHub Pages 只保存 AES-256-GCM 加密文件；正确密钥只在当前标签页会话中使用，关闭标签后需要重新输入。</span></div>
+    </section>
+
     <section class="view-panel" id="view-tabletop" data-panel="tabletop" aria-labelledby="tabletop-heading">
       <header class="view-heading tabletop-heading">
         <div><p class="section-kicker">LOCAL TABLETOP DESK</p><h1 id="tabletop-heading">角色与判定</h1></div>
@@ -176,8 +208,8 @@
 
       <div class="tabletop-grid">
         <section class="console-card tabletop-card roster-card" aria-labelledby="roster-title">
-          <header class="card-heading"><div><span>CHARACTER ROSTER</span><h2 id="roster-title">已接收角色</h2></div><div class="tabletop-heading-actions"><button id="gm-import-character" class="text-action" type="button">导入</button><button id="gm-export-roster" class="text-action" type="button">导出全部</button></div></header>
-          <input id="gm-character-file" type="file" accept="application/json,.json" hidden>
+          <header class="card-heading"><div><span>CHARACTER ROSTER</span><h2 id="roster-title">已接收角色</h2></div><div class="tabletop-heading-actions"><button id="gm-import-character" class="text-action" type="button">导入 JSON / XLSX</button><button id="gm-export-roster" class="text-action" type="button">导出全部</button></div></header>
+          <input id="gm-character-file" type="file" accept="application/json,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx" hidden>
           <div id="gm-roster" class="gm-roster"></div>
         </section>
 
@@ -192,12 +224,12 @@
         </section>
 
         <section class="console-card tabletop-card check-card" aria-labelledby="check-composer-title">
-          <header class="card-heading"><div><span>LIGHT D20 RESOLUTION</span><h2 id="check-composer-title">公开风险后判定</h2></div><small id="active-request-label">新判定</small></header>
+          <header class="card-heading"><div><span>CORE D20 v2.0 RESOLUTION</span><h2 id="check-composer-title">公开风险后判定</h2></div><small id="active-request-label">新判定</small></header>
           <form id="gm-check-form" class="check-form">
             <div class="form-grid two-columns">
               <label><span>角色／接收者</span><select id="gm-check-character"></select></label>
-              <label><span>行动方式</span><select id="gm-check-approach"></select></label>
-              <label><span>适用专长</span><select id="gm-check-specialty"></select></label>
+              <label><span>属性</span><select id="gm-check-attribute"></select></label>
+              <label><span>通用技能</span><select id="gm-check-skill"></select></label>
               <label><span>掷骰方式</span><select id="gm-check-mode"><option value="normal">正常 · 1d20</option><option value="advantage">优势 · 2d20 取高</option><option value="disadvantage">劣势 · 2d20 取低</option></select></label>
               <label><span>团队协助</span><input id="gm-check-assist" type="number" min="0" max="3" step="1" value="0"></label>
               <label><span>额外修正</span><input id="gm-check-modifier" type="number" min="-20" max="20" step="1" value="0"></label>
@@ -207,7 +239,7 @@
             <label><span>正在争取的目标</span><textarea id="gm-check-goal" rows="2" maxlength="500" required placeholder="先说清成功将改变什么…"></textarea></label>
             <label><span>失败风险</span><textarea id="gm-check-risk" rows="2" maxlength="500" required placeholder="掷骰前公开最可能发生的后果…"></textarea></label>
             <label><span>公开结果／代价备注</span><textarea id="gm-check-public-note" rows="2" maxlength="800" placeholder="可在掷骰后补充具体代价、额外收益或现场变化。"></textarea></label>
-            <div class="check-preview" id="gm-check-preview" aria-live="polite"><span>尚未掷骰</span><p>1d20 ＋ 行动方式 ＋ 专长 ＋ 协助 ＋ 修正</p></div>
+            <div class="check-preview" id="gm-check-preview" aria-live="polite"><span>尚未掷骰</span><p>1d20 ＋ 属性 ＋ 通用技能 ＋ 协助 ＋ 修正</p></div>
             <div class="check-form-actions"><button class="primary-action" id="gm-roll-check" type="submit">掷骰并发布结果 <span>↗</span></button><button id="gm-clear-check" type="button">清空当前判定</button></div>
           </form>
         </section>
@@ -215,6 +247,70 @@
         <section class="console-card tabletop-card history-card check-history-card" aria-labelledby="check-history-title">
           <header class="card-heading"><div><span>PUBLIC RESULTS</span><h2 id="check-history-title">判定历史</h2></div><small>最近 100 条</small></header>
           <ol id="gm-check-history" class="check-history-list"></ol>
+        </section>
+      </div>
+    </section>
+
+    <section class="view-panel" id="view-combat" data-panel="combat" aria-labelledby="combat-heading">
+      <header class="view-heading combat-heading">
+        <div><p class="section-kicker">AUTOMATED COMBAT DESK</p><h1 id="combat-heading">守秘人自动战斗台</h1></div>
+        <p>先在“战团”导入角色卡，再勾选参战者建立场景。HP、护甲、DEX、闪避、武器、重伤、濒死、SAN、MP 与幸运均从卡内读取并自动结算。</p>
+      </header>
+      <div class="combat-safety-note"><strong>可撤销的事件结算</strong><span>每次攻击、伤害、治疗和资源变化都会写入本场日志；误操作可使用顶部“撤销”。</span></div>
+
+      <div class="combat-layout">
+        <aside class="console-card combat-setup-card" aria-labelledby="combat-setup-title">
+          <header class="card-heading"><div><span>SCENE SETUP</span><h2 id="combat-setup-title">建立战斗场景</h2></div><small>最近 12 场</small></header>
+          <form id="combat-create-form" class="combat-create-form">
+            <label><span>场景名称</span><input id="combat-scene-name" maxlength="100" placeholder="例：地下祭坛遭遇"></label>
+            <fieldset><legend>从已导入角色中加入</legend><div id="combat-roster-picker" class="combat-roster-picker"></div></fieldset>
+            <button class="primary-action" type="submit">建立并自动排先攻 <span>↗</span></button>
+          </form>
+          <div id="combat-scene-list" class="combat-scene-list"></div>
+        </aside>
+
+        <section class="console-card combat-live-card" aria-labelledby="combat-active-title">
+          <header class="card-heading combat-live-heading">
+            <div><span>LIVE COMBAT</span><h2 id="combat-active-title">尚未建立战斗</h2></div>
+            <div class="combat-round-actions"><strong id="combat-round">第 0 轮</strong><button id="combat-next-turn" type="button">下一位</button><button id="combat-end-scene" type="button">结束本场</button></div>
+          </header>
+          <div id="combat-empty" class="combat-empty"><span>⚔</span><strong>导入卡 → 勾选参战者 → 建立场景</strong><p>无需抄写属性。COC7 调查员按 DEX 自动排先攻；零之圣杯角色按体魄排序并保留当前 HP、MP 与状态。</p></div>
+          <div id="combat-active" hidden>
+            <div id="combat-participants" class="combat-participants"></div>
+
+            <div class="combat-console-grid">
+              <form id="combat-attack-form" class="combat-action-form">
+                <header><span>AUTO ATTACK</span><h3>掷骰并自动结算攻击</h3></header>
+                <div class="form-grid two-columns">
+                  <label><span>攻击者</span><select id="combat-attacker"></select></label>
+                  <label><span>武器</span><select id="combat-weapon"></select></label>
+                  <label><span>目标</span><select id="combat-target"></select></label>
+                  <label><span>目标反应</span><select id="combat-defense"><option value="dodge">闪避</option><option value="fightBack">反击</option><option value="none">不反应</option></select></label>
+                  <label><span>奖励／惩罚骰</span><select id="combat-bonus"><option value="0">正常</option><option value="1">1 个奖励骰</option><option value="2">2 个奖励骰</option><option value="-1">1 个惩罚骰</option><option value="-2">2 个惩罚骰</option></select></label>
+                  <label><span>射击已准备</span><select id="combat-ready-firearm"><option value="false">否</option><option value="true">是 · 本轮 DEX +50</option></select></label>
+                </div>
+                <button class="primary-action" type="submit">自动掷骰、判定并扣血</button>
+                <p id="combat-attack-hint">选择 COC7 攻击者后，武器成功率、伤害骰、贯穿、目标闪避和护甲会自动带入。</p>
+              </form>
+
+              <form id="combat-adjust-form" class="combat-action-form">
+                <header><span>QUICK ADJUSTMENT</span><h3>环境伤害、治疗与资源</h3></header>
+                <div class="form-grid two-columns">
+                  <label><span>目标</span><select id="combat-adjust-target"></select></label>
+                  <label><span>操作</span><select id="combat-adjust-kind"><option value="damage">受到伤害</option><option value="heal">恢复 HP</option><option value="sanity">理智检定与损失</option><option value="mp-spend">消耗 MP</option><option value="mp-restore">恢复 MP</option><option value="luck-spend">消耗幸运</option><option value="first-aid">急救稳定</option><option value="medicine">医学治疗</option><option value="dying-check">濒死 CON 检定</option><option value="stress">零之圣杯：压力变化</option><option value="injury">零之圣杯：伤势升级</option></select></label>
+                  <label class="combat-value-field"><span>数值／骰式</span><input id="combat-adjust-value" value="1" maxlength="40" placeholder="例：6、1D6、0/1D6"></label>
+                  <label class="combat-checkbox"><input id="combat-ignore-armor" type="checkbox"><span>伤害忽略护甲</span></label>
+                </div>
+                <button class="primary-action" type="submit">应用并记录</button>
+                <p>理智可填 `0/1D6`；伤害默认自动扣目标护甲；急救、医学与濒死检定会按七版状态机处理。</p>
+              </form>
+            </div>
+
+            <section class="combat-event-section" aria-labelledby="combat-event-title">
+              <header><div><span>EVENT LEDGER</span><h3 id="combat-event-title">本场自动结算记录</h3></div><button id="combat-clear-events" type="button">清空显示</button></header>
+              <ol id="combat-event-list" class="combat-event-list"></ol>
+            </section>
+          </div>
         </section>
       </div>
     </section>
@@ -268,7 +364,9 @@
     <button type="button" data-view="npcs"><span>◫</span>人物</button>
     <button type="button" data-view="clues"><span>⌁</span>线索</button>
     <button type="button" data-view="handouts"><span>▱</span>发放</button>
+    <button type="button" data-view="library"><span>册</span>正文</button>
     <button type="button" data-view="tabletop"><span>⚄</span>战团</button>
+    <button type="button" data-view="combat"><span>⚔</span>战斗</button>
   </nav>
 
   <dialog class="archive-dialog scene-dialog" id="scene-dialog">
@@ -317,8 +415,11 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="player-data.js?v=20260713f"></script>
+  <script src="player-data.js?v=20260713h"></script>
+  <script src="coc7-data.js?v=20260713a"></script>
+  <script src="coc7-core.js?v=20260713a"></script>
+  <script src="coc7-xlsx.js?v=20260713a"></script>
   <script src="access.js?v=20260713e"></script>
-  <script src="gm-gate.js?v=20260713f"></script>
+  <script src="gm-gate.js?v=20260713j"></script>
 </body>
 </html>

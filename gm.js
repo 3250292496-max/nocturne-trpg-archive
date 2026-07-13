@@ -5,19 +5,27 @@
   if (!data) return;
 
   var STORAGE_KEY = 'ng-session:null-grail-v3.2';
-  var STATE_SCHEMA_VERSION = 3;
-  var RULESET_ID = data.rulesetId || 'null-grail-v3.2-light-d20';
+  var STATE_SCHEMA_VERSION = 5;
   var playerData = window.NG_PLAYER_DATA || {};
+  var RULESET_ID = playerData.rulesetId || data.rulesetId || 'null-grail-core-d20-v2.0';
+  var coc7 = window.COC7_CORE || null;
+  var coc7Xlsx = window.COC7_XLSX || null;
   var MESSAGE_PROTOCOL = playerData.protocol || 'null-grail-player-v3';
   var CHARACTER_PROTOCOL = playerData.characterProtocol || 'null-grail-character-v1';
   var CHARACTER_COLLECTION_PROTOCOL = playerData.characterCollectionProtocol || 'null-grail-character-collection-v1';
   var CHANNEL_NAME = playerData.channelName || 'null-grail-player';
-  var approaches = Array.isArray(playerData.approaches) ? playerData.approaches : [];
+  var attributes = Array.isArray(playerData.attributes) ? playerData.attributes : [];
+  var skills = Array.isArray(playerData.skills) ? playerData.skills : [];
   var difficulties = Array.isArray(playerData.difficulties) ? playerData.difficulties : [];
   var resultBands = Array.isArray(playerData.resultBands) ? playerData.resultBands : [];
+  var LEGACY_RULESET_IDS = ['null-grail-v3.2-light-d20'];
+  var LEGACY_CHARACTER_PROTOCOLS = ['null-grail-character-v1','null-grail-character-v2'];
+  var LEGACY_COLLECTION_PROTOCOLS = ['null-grail-character-collection-v1','null-grail-character-collection-v2'];
+  var LEGACY_CHECK_PROTOCOLS = ['null-grail-check-v1'];
   var channel = null;
   var undoStack = [];
-  var currentView = 'current';
+  var requestedView = new URLSearchParams(window.location.search).get('view');
+  var currentView = ['current','timeline','map','npcs','truths','handouts','tabletop','combat','log'].indexOf(requestedView) !== -1 ? requestedView : 'current';
   var npcFilter = 'all';
   var mapFilter = 'all';
   var selectedLocationId = null;
@@ -76,6 +84,8 @@
       npcLocations: {},
       conflictClocks: { goal:0, threat:0, goalLabel:'玩家目标', threatLabel:'敌方／环境威胁' },
       roster: [],
+      combatScenes: [],
+      activeCombatId: null,
       characterInbox: [],
       checkRequests: [],
       checkHistory: [],
@@ -118,8 +128,71 @@
     return createWhenMissing ? createId(prefix) : '';
   }
 
-  function approachDefinition(id) {
-    return approaches.find(function (item) { return item.id === id; }) || approaches[0] || { id:'physique', label:'体魄' };
+  function firstDefined() {
+    for (var index = 0; index < arguments.length; index += 1) {
+      if (arguments[index] !== undefined && arguments[index] !== null) return arguments[index];
+    }
+    return undefined;
+  }
+
+  function compatibleRulesetId(id) {
+    return !id || id === RULESET_ID || LEGACY_RULESET_IDS.indexOf(id) !== -1;
+  }
+
+  function compatibleCharacterProtocol(protocol) {
+    return !protocol || protocol === CHARACTER_PROTOCOL || LEGACY_CHARACTER_PROTOCOLS.indexOf(protocol) !== -1;
+  }
+
+  function compatibleCollectionProtocol(protocol) {
+    return protocol === CHARACTER_COLLECTION_PROTOCOL || LEGACY_COLLECTION_PROTOCOLS.indexOf(protocol) !== -1;
+  }
+
+  function compatibleCheckProtocol(protocol) {
+    return !protocol || protocol === (playerData.checkProtocol || 'null-grail-check-v2') || LEGACY_CHECK_PROTOCOLS.indexOf(protocol) !== -1;
+  }
+
+  function attributeDefinition(id) {
+    return attributes.find(function (item) { return item.id === id; }) || attributes[0] || { id:'physique', label:'体魄' };
+  }
+
+  function migratedAttributeId(id) {
+    return { insight:'perception', lore:'knowledge', rapport:'will' }[id] || id;
+  }
+
+  function skillDefinition(idOrLabel) {
+    return skills.find(function (item) { return item.id === idOrLabel || item.label === idOrLabel; }) || null;
+  }
+
+  function skillLevel(value) {
+    if (value === 'trained') return 1;
+    if (value === 'expert') return 2;
+    return clampInteger(value, 0, 2, 0);
+  }
+
+  function skillBonus(value) {
+    return skillLevel(value) * 2;
+  }
+
+  function blankAttributes() {
+    var output = {};
+    attributes.forEach(function (item) { output[item.id] = 0; });
+    return output;
+  }
+
+  function blankSkills() {
+    var output = {};
+    skills.forEach(function (item) { output[item.id] = 0; });
+    return output;
+  }
+
+  function derivedCharacterValues(character) {
+    var values = character && character.attributes || {};
+    var servant = character && character.identityType === 'servant';
+    var magus = character && character.identityType === 'magus';
+    return {
+      maxHp:(servant ? 18 : 8) + Number(values.endurance || 0) * (servant ? 3 : 2),
+      maxMp:servant ? 6 + Number(values.mana || 0) * 2 : (magus ? 4 + Number(values.mana || 0) * 2 : 0)
+    };
   }
 
   function bandDefinition(id) {
@@ -129,78 +202,217 @@
   function normalizeCharacter(raw, createWhenMissing) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
     if (raw.character && typeof raw.character === 'object') raw = raw.character;
-    if (raw.protocol && raw.protocol !== CHARACTER_PROTOCOL && raw.protocol !== 'null-grail-character-v1') return null;
-    if (raw.rulesetId && raw.rulesetId !== RULESET_ID) return null;
-    var supplied = raw.approaches && typeof raw.approaches === 'object' ? raw.approaches : {};
-    var approachValues = {};
-    approaches.forEach(function (definition, index) {
-      approachValues[definition.id] = clampInteger(supplied[definition.id], 0, 5, [3,2,2,1,0][index] || 0);
-    });
-    var specialties = [];
-    if (Array.isArray(raw.specialties)) raw.specialties.slice(0, 3).forEach(function (entry) {
-      var name = safeText(typeof entry === 'string' ? entry : entry && entry.name, 80);
-      if (name && specialties.indexOf(name) === -1) specialties.push(name);
-    });
-    var trauma = [];
-    if (Array.isArray(raw.trauma)) raw.trauma.slice(0, 12).forEach(function (entry) {
-      var item = safeText(entry, 160); if (item) trauma.push(item);
-    });
-    else if (typeof raw.trauma === 'string') raw.trauma.split(/\r?\n/).slice(0, 12).forEach(function (entry) {
-      var item = safeText(entry, 160); if (item) trauma.push(item);
-    });
-    return {
+    if (coc7 && (raw.protocol === coc7.protocol || raw.rulesetId === coc7.rulesetId)) {
+      try {
+        var investigator = coc7.normalizeCharacter(raw, createWhenMissing !== false ? function () { return createId('coc7'); } : false);
+        if (!investigator.id || !investigator.name) return investigator;
+        investigator.updatedAt = safeText(raw.updatedAt, 40) || new Date().toISOString();
+        return investigator;
+      } catch (error) { return null; }
+    }
+    if (!compatibleCharacterProtocol(raw.protocol) || !compatibleRulesetId(raw.rulesetId)) return null;
+
+    var legacyExistence = safeText(raw.existenceType, 24);
+    var identityType = ['mortal','magus','servant'].indexOf(raw.identityType) !== -1
+      ? raw.identityType
+      : (legacyExistence === 'servant' ? 'servant' : 'mortal');
+    var output = {
       protocol:CHARACTER_PROTOCOL,
       rulesetId:RULESET_ID,
+      rulesetVersion:safeText(raw.rulesetVersion, 80) || 'v2.0·车卡增订',
       id:normalizeId(raw.id, 'pc', createWhenMissing !== false),
       name:safeText(raw.name, 80),
       playerName:safeText(raw.playerName, 80),
       pronouns:safeText(raw.pronouns, 80),
-      origin:safeText(raw.origin, 120),
-      identity:safeText(raw.identity, 400),
-      wish:safeText(raw.wish, 600),
-      fearedIdentity:safeText(raw.fearedIdentity, 400),
-      anchor:safeText(raw.anchor, 400),
-      existenceType:['present','master','servant'].indexOf(raw.existenceType) !== -1 ? raw.existenceType : 'present',
-      approaches:approachValues,
-      specialties:specialties,
-      resolve:clampInteger(raw.resolve, 0, 3, 3),
-      stress:clampInteger(raw.stress, 0, 3, 0),
-      injury:['none','light','serious','critical'].indexOf(raw.injury) !== -1 ? raw.injury : 'none',
-      trauma:trauma,
-      coreLoad:clampInteger(raw.coreLoad, 0, 3, 0),
-      noblePhantasmReady:raw.noblePhantasmReady !== false,
-      notes:safeText(raw.notes, 1600),
+      origin:safeText(firstDefined(raw.origin, raw.realIdentity), 160),
+      identity:safeText(firstDefined(raw.identity, raw.realIdentity), 400),
+      wish:safeText(firstDefined(raw.wish, raw.wishMotivation), 600),
+      boundary:safeText(firstDefined(raw.boundary, raw.fearedIdentity, raw.boundaryFear), 500),
+      identityType:identityType,
+      isMaster:identityType !== 'servant' && (raw.isMaster === true || legacyExistence === 'master'),
+      attributes:blankAttributes(),
+      skills:blankSkills(),
+      ordinary:{ backgroundId:'', realAdvantage:'', contacts:['',''], safePlace:'', equipment:'', signatureTalent:'' },
+      magus:{ lineages:[], spellIds:[], mysticCodeId:'', limitation:'' },
+      servant:{ classId:'saber', publicTitle:'', trueName:'', legendCore:'', luck:'C', weaknesses:['',''], refusedCommand:'', retainedSkills:[], noblePhantasm:{ name:'', rank:'C', type:'对人', cost:'5 MP', effect:'', counter:'' } },
+      master:{ servantName:'', supplyLevel:'stable', communicationDistance:'', source:'', termination:'', masterRefusal:'', servantRefusal:'', commandSeals:3 },
+      current:{ hp:null, mp:null, resolve:3, armor:0, conditions:[], notes:'' },
+      createdAt:safeText(raw.createdAt, 40) || new Date().toISOString(),
       updatedAt:safeText(raw.updatedAt, 40) || new Date().toISOString()
     };
+
+    var suppliedAttributes = raw.attributes && typeof raw.attributes === 'object' ? raw.attributes : {};
+    var legacyApproaches = raw.approaches && typeof raw.approaches === 'object' ? raw.approaches : null;
+    attributes.forEach(function (definition) {
+      var legacyValue;
+      if (legacyApproaches) {
+        if (definition.id === 'physique') legacyValue = legacyApproaches.physique;
+        if (definition.id === 'perception') legacyValue = legacyApproaches.insight;
+        if (definition.id === 'knowledge') legacyValue = legacyApproaches.lore;
+        if (definition.id === 'will') legacyValue = Math.max(Number(legacyApproaches.will || 0), Number(legacyApproaches.rapport || 0));
+      }
+      output.attributes[definition.id] = clampInteger(firstDefined(suppliedAttributes[definition.id], legacyValue), 0, 4, 0);
+    });
+
+    var suppliedSkills = raw.skills && typeof raw.skills === 'object' ? raw.skills : {};
+    skills.forEach(function (definition) { output.skills[definition.id] = skillLevel(suppliedSkills[definition.id]); });
+    var unmappedSpecialties = [];
+    if (Array.isArray(raw.specialties)) raw.specialties.slice(0, 12).forEach(function (entry) {
+      var name = safeText(typeof entry === 'string' ? entry : entry && entry.name, 80);
+      var definition = skillDefinition(name);
+      if (definition) output.skills[definition.id] = Math.max(output.skills[definition.id], 1);
+      else if (name && unmappedSpecialties.indexOf(name) === -1) unmappedSpecialties.push(name);
+    });
+
+    var ordinary = raw.ordinary || {};
+    output.ordinary.backgroundId = safeText(firstDefined(ordinary.backgroundId, raw.backgroundId), 80);
+    output.ordinary.realAdvantage = safeText(firstDefined(ordinary.realAdvantage, ordinary.realAdvantageId, raw.realAdvantageId), 160);
+    var contacts = firstDefined(ordinary.contacts, raw.contacts);
+    output.ordinary.contacts = Array.isArray(contacts) ? contacts.slice(0, 2).map(function (item) { return safeText(item, 120); }) : ['',''];
+    while (output.ordinary.contacts.length < 2) output.ordinary.contacts.push('');
+    output.ordinary.safePlace = safeText(firstDefined(ordinary.safePlace, raw.safePlace), 160);
+    var equipment = firstDefined(ordinary.equipment, raw.equipment);
+    output.ordinary.equipment = safeText(Array.isArray(equipment) ? equipment.join('、') : equipment, 220);
+    var signatureTalent = firstDefined(ordinary.signatureTalent, raw.signatureTalent);
+    output.ordinary.signatureTalent = safeText(typeof signatureTalent === 'object' ? JSON.stringify(signatureTalent) : signatureTalent, 1000);
+
+    var magus = raw.magus || {};
+    output.magus.lineages = (Array.isArray(firstDefined(magus.lineages, raw.lineages)) ? firstDefined(magus.lineages, raw.lineages) : []).map(function (item) { return safeText(item, 80); }).filter(Boolean).slice(0, 2);
+    output.magus.spellIds = (Array.isArray(firstDefined(magus.spellIds, raw.spellIds)) ? firstDefined(magus.spellIds, raw.spellIds) : []).map(function (item) { return safeText(item, 100); }).filter(Boolean).slice(0, 4);
+    output.magus.mysticCodeId = safeText(firstDefined(magus.mysticCodeId, raw.mysticCodeId), 100);
+    output.magus.limitation = safeText(firstDefined(magus.limitation, raw.mediumRestriction, raw.mysticCodeRestriction), 300);
+
+    var servant = raw.servant || {};
+    output.servant.classId = safeText(servant.classId, 80) || 'saber';
+    output.servant.publicTitle = safeText(firstDefined(servant.publicTitle, servant.publicName), 120);
+    output.servant.trueName = safeText(servant.trueName, 160);
+    output.servant.legendCore = safeText(servant.legendCore, 600);
+    output.servant.luck = ['D','C','B','A'].indexOf(firstDefined(servant.luck, servant.luckRank)) !== -1 ? firstDefined(servant.luck, servant.luckRank) : 'C';
+    var weaknesses = firstDefined(servant.weaknesses, servant.conceptWeaknesses);
+    output.servant.weaknesses = Array.isArray(weaknesses) ? weaknesses.slice(0, 3).map(function (item) { return safeText(item, 180); }) : ['',''];
+    while (output.servant.weaknesses.length < 2) output.servant.weaknesses.push('');
+    output.servant.refusedCommand = safeText(firstDefined(servant.refusedCommand, servant.neverAccepts), 220);
+    output.servant.retainedSkills = (Array.isArray(servant.retainedSkills) ? servant.retainedSkills : []).slice(0, 3).map(function (item) {
+      item = item && typeof item === 'object' ? item : {};
+      return { name:safeText(item.name, 120), rank:['E','D','C','B','A'].indexOf(item.rank) !== -1 ? item.rank : 'C', effect:safeText(firstDefined(item.effect, item.summary), 1200) };
+    });
+    while (output.servant.retainedSkills.length < 3) output.servant.retainedSkills.push({ name:'', rank:output.servant.retainedSkills.length ? 'C' : 'B', effect:'' });
+    var noble = servant.noblePhantasm && typeof servant.noblePhantasm === 'object' ? servant.noblePhantasm : {};
+    output.servant.noblePhantasm = {
+      name:safeText(noble.name, 180), rank:['E','D','C','B','A'].indexOf(noble.rank) !== -1 ? noble.rank : 'C',
+      type:safeText(noble.type, 80) || '对人', cost:safeText(noble.cost, 80) || '5 MP',
+      effect:safeText(firstDefined(noble.effect, noble.summary), 1200), counter:safeText(noble.counter, 800)
+    };
+
+    var master = firstDefined(raw.master, raw.masterContract) || {};
+    output.master = {
+      servantName:safeText(firstDefined(master.servantName, master.servantPublicName), 160),
+      supplyLevel:safeText(master.supplyLevel, 80) || 'stable',
+      communicationDistance:safeText(master.communicationDistance, 160),
+      source:safeText(firstDefined(master.source, master.contractSource), 220),
+      termination:safeText(firstDefined(master.termination, master.terminationConditions), 220),
+      masterRefusal:safeText(firstDefined(master.masterRefusal, master.masterNeverCommands), 220),
+      servantRefusal:safeText(firstDefined(master.servantRefusal, master.servantNeverAccepts), 220),
+      commandSeals:clampInteger(master.commandSeals, 0, 3, 3)
+    };
+
+    var current = raw.current && typeof raw.current === 'object' ? raw.current : {};
+    var legacyConditions = [];
+    var injury = ['light','serious','critical'].indexOf(raw.injury) !== -1 ? raw.injury : '';
+    if (injury) legacyConditions.push({ light:'轻伤', serious:'重伤', critical:'濒危' }[injury]);
+    var legacyStress = clampInteger(raw.stress, 0, 3, 0);
+    if (legacyStress) legacyConditions.push('压力 ' + legacyStress + '/3');
+    var trauma = Array.isArray(raw.trauma) ? raw.trauma : (typeof raw.trauma === 'string' ? raw.trauma.split(/\r?\n/) : []);
+    trauma.forEach(function (item) { item = safeText(item, 120); if (item) legacyConditions.push(item); });
+    var coreLoad = clampInteger(raw.coreLoad, 0, 3, 0);
+    if (coreLoad) legacyConditions.push('灵核负荷 ' + coreLoad + '/3');
+    if (raw.noblePhantasmReady === false) legacyConditions.push('宝具已使用');
+    output.current.conditions = (Array.isArray(current.conditions) ? current.conditions : legacyConditions).slice(0, 12).map(function (item) { return safeText(item, 120); }).filter(Boolean);
+    output.current.resolve = clampInteger(firstDefined(current.resolve, raw.resolve), 0, 3, 3);
+    output.current.armor = clampInteger(firstDefined(current.armor, raw.armor), 0, 20, 0);
+    var notes = safeText(firstDefined(current.notes, raw.notes), 1600);
+    if (unmappedSpecialties.length && notes.indexOf('旧版专长：') === -1) notes = safeText((notes ? notes + '\n' : '') + '旧版专长：' + unmappedSpecialties.join('、'), 1600);
+    output.current.notes = notes;
+    var derived = derivedCharacterValues(output);
+    output.current.hp = current.hp === null || current.hp === '' || current.hp === undefined ? derived.maxHp : clampInteger(current.hp, 0, 99, derived.maxHp);
+    output.current.mp = current.mp === null || current.mp === '' || current.mp === undefined ? derived.maxMp : clampInteger(current.mp, 0, 99, derived.maxMp);
+    return output;
   }
 
   function normalizeSubmission(raw) {
     if (!raw || typeof raw !== 'object') return null;
-    if (!raw.character || (raw.character.protocol !== CHARACTER_PROTOCOL && raw.character.protocol !== 'null-grail-character-v1') || raw.character.rulesetId !== RULESET_ID) return null;
+    if (!raw.character || typeof raw.character !== 'object') return null;
     var character = normalizeCharacter(raw.character, false);
     var id = normalizeId(raw.id || raw.submissionId, 'submission', false);
     if (!id || !character || !character.id || !character.name) return null;
     return { id:id, receivedAt:safeText(raw.receivedAt || raw.sentAt, 40) || new Date().toISOString(), character:character };
   }
 
+  function isCoc7Character(character) {
+    return Boolean(coc7 && character && (character.protocol === coc7.protocol || character.rulesetId === coc7.rulesetId));
+  }
+
+  function normalizeCombatScene(raw, roster) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    var validIds = (Array.isArray(roster) ? roster : []).map(function (character) { return character.id; });
+    var participantIds = [];
+    (Array.isArray(raw.participantIds) ? raw.participantIds : []).slice(0, 40).forEach(function (value) {
+      var id = normalizeId(value, 'pc', false);
+      if (id && validIds.indexOf(id) !== -1 && participantIds.indexOf(id) === -1) participantIds.push(id);
+    });
+    var events = [];
+    (Array.isArray(raw.events) ? raw.events : []).slice(0, 160).forEach(function (event) {
+      if (!event || typeof event !== 'object') return;
+      events.push({
+        id:normalizeId(event.id, 'combat-event', true),
+        at:safeText(event.at, 40) || new Date().toISOString(),
+        type:['attack','damage','heal','resource','turn','status','system'].indexOf(event.type) !== -1 ? event.type : 'system',
+        label:safeText(event.label, 180),
+        detail:safeText(event.detail, 1200)
+      });
+    });
+    var status = raw.status === 'ended' ? 'ended' : 'active';
+    var readyFirearmIds = [];
+    (Array.isArray(raw.readyFirearmIds) ? raw.readyFirearmIds : []).forEach(function (value) {
+      var id = normalizeId(value, 'pc', false);
+      if (participantIds.indexOf(id) !== -1 && readyFirearmIds.indexOf(id) === -1) readyFirearmIds.push(id);
+    });
+    return {
+      id:normalizeId(raw.id, 'combat', true),
+      name:safeText(raw.name, 100) || '未命名战斗',
+      status:status,
+      round:clampInteger(raw.round, 1, 999, 1),
+      turnIndex:participantIds.length ? clampInteger(raw.turnIndex, 0, participantIds.length - 1, 0) : 0,
+      participantIds:participantIds,
+      readyFirearmIds:readyFirearmIds,
+      events:events,
+      createdAt:safeText(raw.createdAt, 40) || new Date().toISOString(),
+      updatedAt:safeText(raw.updatedAt, 40) || new Date().toISOString()
+    };
+  }
+
   function normalizeCheckRequest(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-    if (raw.protocol && raw.protocol !== (playerData.checkProtocol || 'null-grail-check-v1')) return null;
-    if (raw.rulesetId && raw.rulesetId !== RULESET_ID) return null;
+    if (!compatibleCheckProtocol(raw.protocol) || !compatibleRulesetId(raw.rulesetId)) return null;
     var id = normalizeId(raw.id, 'request', false);
     var characterId = normalizeId(raw.characterId, 'pc', false);
     var goal = safeText(raw.goal, 500);
     if (!id || !characterId || !goal) return null;
+    var attribute = attributeDefinition(migratedAttributeId(safeText(firstDefined(raw.attributeId, raw.approachId), 24)));
+    var requestedSkill = skillDefinition(safeText(firstDefined(raw.skillId, raw.skillLabel, raw.specialty), 80));
+    var legacySkillLabel = safeText(firstDefined(raw.skillLabel, raw.specialty), 80);
     return {
       id:id,
       characterId:characterId,
       characterName:safeText(raw.characterName, 80) || '未命名角色',
       goal:goal,
       risk:safeText(raw.risk, 500),
-      approachId:approachDefinition(safeText(raw.approachId, 24)).id,
-      approachValue:clampInteger(raw.approachValue, 0, 5, 0),
-      specialty:safeText(raw.specialty, 80),
-      specialtyBonus:clampInteger(raw.specialtyBonus, 0, 2, raw.specialty ? 2 : 0),
+      attributeId:attribute.id,
+      attributeLabel:attribute.label,
+      attributeValue:clampInteger(firstDefined(raw.attributeValue, raw.approachValue), 0, 5, 0),
+      skillId:requestedSkill ? requestedSkill.id : '',
+      skillLabel:requestedSkill ? requestedSkill.label : legacySkillLabel,
+      skillBonus:clampInteger(firstDefined(raw.skillBonus, raw.specialtyBonus), 0, 4, legacySkillLabel ? 2 : 0),
       mode:['normal','advantage','disadvantage'].indexOf(raw.mode) !== -1 ? raw.mode : 'normal',
       assist:clampInteger(raw.assist, 0, 3, 0),
       modifier:clampInteger(raw.modifier, -20, 20, 0),
@@ -215,7 +427,9 @@
     var tier = ['exceptional','success','costly','severe'].indexOf(raw.tier) !== -1 ? raw.tier : '';
     var dice = Array.isArray(raw.dice) ? raw.dice.slice(0, 2).map(function (die) { return clampInteger(die, 1, 20, 1); }) : [];
     if (!id || !tier || !dice.length) return null;
-    var approach = approachDefinition(safeText(raw.approachId, 24));
+    var attribute = attributeDefinition(migratedAttributeId(safeText(firstDefined(raw.attributeId, raw.approachId), 24)));
+    var resultSkill = skillDefinition(safeText(firstDefined(raw.skillId, raw.skillLabel, raw.specialty), 80));
+    var legacySkillLabel = safeText(firstDefined(raw.skillLabel, raw.specialty), 80);
     return {
       id:id,
       requestId:normalizeId(raw.requestId, 'request', false),
@@ -224,11 +438,12 @@
       goal:safeText(raw.goal, 500),
       risk:safeText(raw.risk, 500),
       costOwner:safeText(raw.costOwner, 80),
-      approachId:approach.id,
-      approachLabel:approach.label,
-      approachValue:clampInteger(raw.approachValue, 0, 5, 0),
-      specialty:safeText(raw.specialty, 80),
-      specialtyBonus:clampInteger(raw.specialtyBonus, 0, 2, 0),
+      attributeId:attribute.id,
+      attributeLabel:attribute.label,
+      attributeValue:clampInteger(firstDefined(raw.attributeValue, raw.approachValue), 0, 5, 0),
+      skillId:resultSkill ? resultSkill.id : '',
+      skillLabel:resultSkill ? resultSkill.label : legacySkillLabel,
+      skillBonus:clampInteger(firstDefined(raw.skillBonus, raw.specialtyBonus), 0, 4, 0),
       assist:clampInteger(raw.assist, 0, 3, 0),
       modifier:clampInteger(raw.modifier, -20, 20, 0),
       mode:['normal','advantage','disadvantage'].indexOf(raw.mode) !== -1 ? raw.mode : 'normal',
@@ -264,10 +479,13 @@
     migrated.sealMeta = migrated.sealMeta.map(function (item) {
       return { reflownLoop:clampNumber(item && item.reflownLoop, -1, 2, -1), note:String(item && item.note || '').slice(0, 200) };
     });
-    ['completedScenes','resolvedNodes','resetHistory','anchoredFacts','revealedHandouts','visitedLocations','roster','characterInbox','checkRequests','checkHistory','log','activeNpcs'].forEach(function (key) {
+    ['completedScenes','resolvedNodes','resetHistory','anchoredFacts','revealedHandouts','visitedLocations','roster','combatScenes','characterInbox','checkRequests','checkHistory','log','activeNpcs'].forEach(function (key) {
       if (!Array.isArray(migrated[key])) migrated[key] = [];
     });
     migrated.roster = migrated.roster.map(function (item) { return normalizeCharacter(item, false); }).filter(function (item) { return item && item.id && item.name; }).slice(0, 40);
+    migrated.combatScenes = migrated.combatScenes.map(function (item) { return normalizeCombatScene(item, migrated.roster); }).filter(Boolean).slice(0, 12);
+    migrated.activeCombatId = normalizeId(migrated.activeCombatId, 'combat', false) || null;
+    if (!migrated.combatScenes.some(function (scene) { return scene.id === migrated.activeCombatId; })) migrated.activeCombatId = null;
     migrated.characterInbox = migrated.characterInbox.map(normalizeSubmission).filter(Boolean).slice(0, 40);
     migrated.checkRequests = migrated.checkRequests.map(normalizeCheckRequest).filter(Boolean).slice(0, 60);
     migrated.checkHistory = migrated.checkHistory.map(normalizeCheckResult).filter(Boolean).slice(0, 100);
@@ -376,6 +594,53 @@
     toast.classList.add('show');
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(function () { toast.classList.remove('show'); }, 2200);
+  }
+
+  function startServerResourceDownload(resourceId) {
+    var anchor = document.createElement('a');
+    anchor.href = '/api/modules/null-grail/resources/' + encodeURIComponent(resourceId);
+    anchor.hidden = true;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  }
+
+  function downloadKeeperVolume(button) {
+    var access = window.NG_ACCESS;
+    var secureResource = button.getAttribute('data-secure-resource');
+    var serverResource = button.getAttribute('data-server-resource');
+    var status = button.querySelector('small');
+    var originalStatus = status.textContent;
+
+    if (!access || !secureResource || !serverResource) {
+      showToast('正文下载配置不完整');
+      return;
+    }
+
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    status.textContent = access.getMode && access.getMode() === 'server' ? '正在准备下载…' : '正在本机解密…';
+
+    if (access.getMode && access.getMode() === 'server') {
+      startServerResourceDownload(serverResource);
+      window.setTimeout(function () {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        status.textContent = originalStatus;
+      }, 600);
+      showToast('正文下载已开始');
+      return;
+    }
+
+    access.downloadSecureResource(secureResource).then(function () {
+      showToast('正文已在本机解密并开始下载');
+    }).catch(function () {
+      showToast('无法解密正文，请重新验证访问密钥');
+    }).finally(function () {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      status.textContent = originalStatus;
+    });
   }
 
   function openView(view) {
@@ -684,8 +949,8 @@
     showToast('收到 ' + request.characterName + ' 的判定申请');
   }
 
-  function upsertCharacter(rawCharacter) {
-    var character = normalizeCharacter(rawCharacter, false);
+  function upsertCharacter(rawCharacter, createWhenMissing) {
+    var character = normalizeCharacter(rawCharacter, createWhenMissing === true);
     if (!character || !character.id || !character.name) return null;
     var index = state.roster.findIndex(function (item) { return item.id === character.id; });
     if (index === -1) state.roster.unshift(character); else state.roster[index] = character;
@@ -729,15 +994,18 @@
   }
 
   function exportCharacter(character) {
-    downloadJson(character, '零之圣杯-角色卡-' + character.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40) + '.json');
+    var prefix = isCoc7Character(character) ? 'COC7-调查员-' : '零之圣杯-角色卡-';
+    downloadJson(character, prefix + character.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40) + '.json');
     showToast('已导出 ' + character.name + ' 的角色卡');
   }
 
   function exportRoster() {
     if (!state.roster.length) { showToast('角色列表还是空的'); return; }
+    var containsCoc7 = state.roster.some(isCoc7Character);
     downloadJson({
-      protocol:CHARACTER_COLLECTION_PROTOCOL,
-      rulesetId:RULESET_ID,
+      protocol:containsCoc7 ? 'zero-grail-mixed-character-collection-v1' : CHARACTER_COLLECTION_PROTOCOL,
+      rulesetId:containsCoc7 ? undefined : RULESET_ID,
+      systems:containsCoc7 ? [RULESET_ID].concat(coc7 ? [coc7.rulesetId] : []) : undefined,
       exportedAt:new Date().toISOString(),
       characters:state.roster
     }, '零之圣杯-全队角色-' + new Date().toISOString().slice(0,10) + '.json');
@@ -745,14 +1013,31 @@
   }
 
   function importCharacters(file) {
-    if (!file || file.size > 1048576) { showToast('角色文件过大，上限 1 MB'); return; }
+    if (!file) return;
+    if (/\.xlsx$/i.test(file.name)) {
+      if (!coc7Xlsx || !coc7) { showToast('当前浏览器未载入 COC7 Excel 导入器'); return; }
+      if (file.size > 15728640) { showToast('Excel 角色卡过大，上限 15 MB'); return; }
+      showToast('正在读取 Excel 角色卡…');
+      coc7Xlsx.importCharacter(file).then(function (rawCharacter) {
+        var character = upsertCharacter(rawCharacter, true);
+        if (!character) throw new Error('character');
+        addLog('导入 COC7 Excel 角色卡：' + character.name);
+        saveState();
+        renderAll();
+        showToast(character.name + ' 已加入战团，可直接建立战斗');
+      }).catch(function (error) {
+        showToast('Excel 导入失败：请确认文件是 COC7 七版 .xlsx 角色卡');
+      });
+      return;
+    }
+    if (file.size > 2097152) { showToast('JSON 角色文件过大，上限 2 MB'); return; }
     var reader = new FileReader();
     reader.onload = function () {
       try {
         var payload = JSON.parse(reader.result);
         var list = [];
-        if (payload && (payload.protocol === CHARACTER_PROTOCOL || payload.protocol === 'null-grail-character-v1') && payload.rulesetId === RULESET_ID) list = [payload];
-        if (payload && (payload.protocol === CHARACTER_COLLECTION_PROTOCOL || payload.protocol === 'null-grail-character-collection-v1') && payload.rulesetId === RULESET_ID && Array.isArray(payload.characters)) list = payload.characters.slice(0, 40);
+        if (payload && Array.isArray(payload.characters)) list = payload.characters.slice(0, 40);
+        else if (payload && typeof payload === 'object') list = [payload];
         if (!list.length) throw new Error('protocol');
         var accepted = 0;
         list.forEach(function (entry) { if (upsertCharacter(entry)) accepted += 1; });
@@ -762,88 +1047,138 @@
         renderTabletop();
         showToast('已导入 ' + accepted + ' 份角色卡');
       } catch (error) {
-        showToast('无法导入：只接受本网站导出的相同规则版本 JSON');
+        showToast('无法导入：请选择本站导出的角色 JSON，或 COC7 七版角色卡');
       }
     };
     reader.readAsText(file);
   }
 
-  function refreshGmSpecialtyOptions(extraSpecialty) {
+  function refreshGmSkillOptions(extraSkill) {
     var characterSelect = document.getElementById('gm-check-character');
-    var specialtySelect = document.getElementById('gm-check-specialty');
-    if (!characterSelect || !specialtySelect) return;
-    var previous = specialtySelect.value;
+    var skillSelect = document.getElementById('gm-check-skill');
+    if (!characterSelect || !skillSelect) return;
+    var previous = skillSelect.value;
     var character = state.roster.find(function (item) { return item.id === characterSelect.value; });
-    var specialties = character ? character.specialties.slice() : [];
-    var extra = safeText(extraSpecialty, 80);
-    if (extra && specialties.indexOf(extra) === -1) specialties.push(extra);
-    specialtySelect.innerHTML = '<option value="">不使用专长</option>' + specialties.slice(0, 4).map(function (specialty) {
-      return '<option value="' + escapeHtml(specialty) + '">' + escapeHtml(specialty) + ' ＋2</option>';
+    var extra = extraSkill && typeof extraSkill === 'object' ? extraSkill : { skillLabel:safeText(extraSkill, 80), skillBonus:extraSkill ? 2 : 0 };
+    var requestedId = safeText(extra.skillId, 80);
+    var requestedLabel = safeText(extra.skillLabel, 80);
+    var requestedBonus = clampInteger(extra.skillBonus, 0, 4, requestedLabel ? 2 : 0);
+    var options = '<option value="" data-skill-label="" data-skill-bonus="0">不加入通用技能（+0）</option>';
+    options += skills.map(function (definition) {
+      var bonus = character && !isCoc7Character(character)
+        ? skillBonus(character.skills && character.skills[definition.id])
+        : (requestedId === definition.id ? requestedBonus : 0);
+      return '<option value="' + escapeHtml(definition.id) + '" data-skill-label="' + escapeHtml(definition.label) + '" data-skill-bonus="' + bonus + '">' + escapeHtml(definition.label) + '（+' + bonus + '）</option>';
     }).join('');
-    if (specialties.indexOf(previous) !== -1) specialtySelect.value = previous;
+    if (requestedLabel && !skillDefinition(requestedId || requestedLabel)) {
+      options += '<option value="__legacy__" data-skill-label="' + escapeHtml(requestedLabel) + '" data-skill-bonus="' + requestedBonus + '">' + escapeHtml(requestedLabel) + '（旧版，+' + requestedBonus + '）</option>';
+    }
+    skillSelect.innerHTML = options;
+    var preferred = requestedId && skillDefinition(requestedId) ? requestedId : (requestedLabel && !skillDefinition(requestedId || requestedLabel) ? '__legacy__' : previous);
+    if (Array.from(skillSelect.options).some(function (option) { return option.value === preferred; })) skillSelect.value = preferred;
   }
 
-  function injuryLabel(injury) {
-    return { none:'无伤', light:'轻伤', serious:'重伤', critical:'濒危' }[injury] || '无伤';
+  function coc7StatusLabels(character) {
+    if (!isCoc7Character(character)) return [];
+    var labels = [];
+    var status = character.status || {};
+    if (status.dead) labels.push('死亡');
+    else if (status.dying) labels.push('濒死');
+    if (status.unconscious && !status.dead) labels.push('昏迷');
+    if (status.majorWound) labels.push('重伤');
+    if (status.prone) labels.push('倒地');
+    if (status.temporaryInsanity) labels.push('临时疯狂');
+    if (status.indefiniteInsanity) labels.push('不定期疯狂');
+    if (status.permanentInsanity) labels.push('永久疯狂');
+    return labels;
+  }
+
+  function renderRosterCharacter(character) {
+    if (isCoc7Character(character)) {
+      var cocAttributes = character.characteristics || {};
+      var dodge = character.derived && Number.isFinite(Number(character.derived.dodge)) ? character.derived.dodge : Math.floor((cocAttributes.dex || 0) / 2);
+      var stats = [
+        ['HP', character.hp + '/' + character.maxHp], ['SAN', character.san + '/' + character.maxSan],
+        ['MP', character.mp + '/' + character.maxMp], ['幸运', character.luck], ['DEX', cocAttributes.dex || 0],
+        ['闪避', dodge], ['DB', character.damageBonus || '0'], ['体格', character.build], ['护甲', character.armor || 0]
+      ].map(function (entry) { return '<i>' + entry[0] + ' ' + escapeHtml(entry[1]) + '</i>'; }).join('');
+      var conditions = coc7StatusLabels(character);
+      return '<article class="roster-row coc7-roster" data-roster-id="' + character.id + '"><div class="roster-row-main"><span class="roster-rule-badge">COC7 调查员</span><strong>' + escapeHtml(character.name) + '</strong><span>' + escapeHtml(character.playerName || '未填写玩家名') + ' · ' + escapeHtml(character.occupation || '职业未填写') + '</span><p>' + escapeHtml((character.age ? character.age + ' 岁 · ' : '') + (character.era || '时代未填写') + (conditions.length ? ' · ' + conditions.join(' / ') : '')) + '</p><div class="character-statline">' + stats + '</div><div class="roster-resource-editor"><label><span>HP</span><input type="number" min="0" max="' + character.maxHp + '" value="' + character.hp + '" data-coc-resource="hp"></label><label><span>SAN</span><input type="number" min="0" max="' + character.maxSan + '" value="' + character.san + '" data-coc-resource="san"></label><label><span>MP</span><input type="number" min="0" max="' + character.maxMp + '" value="' + character.mp + '" data-coc-resource="mp"></label><label><span>幸运</span><input type="number" min="0" max="99" value="' + character.luck + '" data-coc-resource="luck"></label><label><span>护甲</span><input type="number" min="0" max="999" value="' + character.armor + '" data-coc-resource="armor"></label></div></div><div class="row-actions"><button type="button" data-roster-combat="' + character.id + '">加入战斗</button><button type="button" data-roster-export="' + character.id + '">导出</button><button class="danger-action" type="button" data-roster-remove="' + character.id + '">移除</button></div></article>';
+    }
+    var attributeStats = attributes.map(function (definition) { return '<i>' + escapeHtml(definition.label) + ' ' + character.attributes[definition.id] + '</i>'; }).join('');
+    var trainedSkills = skills.filter(function (definition) { return skillLevel(character.skills[definition.id]) > 0; }).map(function (definition) { return '<i>' + escapeHtml(definition.label) + ' +' + skillBonus(character.skills[definition.id]) + '</i>'; }).join('');
+    var derived = derivedCharacterValues(character);
+    var identityLabel = { mortal:'普通人', magus:'魔术师', servant:'从者' }[character.identityType] || '普通人';
+    return '<article class="roster-row" data-roster-id="' + character.id + '"><div class="roster-row-main"><span class="roster-rule-badge">零之圣杯 v2.0 · ' + identityLabel + (character.isMaster ? '／御主' : '') + '</span><strong>' + escapeHtml(character.name) + '</strong><span>' + escapeHtml(character.playerName || '未填写玩家名') + ' · ' + escapeHtml(character.origin || '来源未填写') + '</span><p>' + escapeHtml(character.identity || '尚未填写一句角色概念') + '</p><div class="character-statline">' + attributeStats + trainedSkills + '</div><div class="roster-resource-editor"><label><span>HP／' + derived.maxHp + '</span><input type="number" min="0" max="99" value="' + character.current.hp + '" data-roster-resource="hp"></label><label><span>MP／' + derived.maxMp + '</span><input type="number" min="0" max="99" value="' + character.current.mp + '" data-roster-resource="mp"></label><label><span>决意</span><input type="number" min="0" max="3" value="' + character.current.resolve + '" data-roster-resource="resolve"></label><label><span>护甲</span><input type="number" min="0" max="20" value="' + character.current.armor + '" data-roster-resource="armor"></label><label class="roster-trauma"><span>状态（每行一项）</span><textarea rows="2" data-roster-resource="conditions">' + escapeHtml(character.current.conditions.join('\n')) + '</textarea></label></div></div><div class="row-actions"><button type="button" data-roster-combat="' + character.id + '">加入战斗</button><button type="button" data-roster-check="' + character.id + '">判定</button><button type="button" data-roster-export="' + character.id + '">导出</button><button class="danger-action" type="button" data-roster-remove="' + character.id + '">移除</button></div></article>';
   }
 
   function renderTabletop() {
     var roster = document.getElementById('gm-roster');
     if (!roster) return;
-    roster.innerHTML = state.roster.length ? state.roster.map(function (character) {
-      var stats = approaches.map(function (definition) { return '<i>' + escapeHtml(definition.label) + ' +' + character.approaches[definition.id] + '</i>'; }).join('');
-      var injuryOptions = [['none','无伤'],['light','轻伤'],['serious','重伤'],['critical','濒危']].map(function (item) { return '<option value="' + item[0] + '"' + (character.injury === item[0] ? ' selected' : '') + '>' + item[1] + '</option>'; }).join('');
-      var servantResources = character.existenceType === 'servant' ? '<label><span>灵核负荷</span><input type="number" min="0" max="3" value="' + character.coreLoad + '" data-roster-resource="coreLoad"></label><label><span>宝具</span><select data-roster-resource="noblePhantasmReady"><option value="true"' + (character.noblePhantasmReady ? ' selected' : '') + '>可用</option><option value="false"' + (!character.noblePhantasmReady ? ' selected' : '') + '>已用</option></select></label>' : '';
-      return '<article class="roster-row" data-roster-id="' + character.id + '"><div class="roster-row-main"><strong>' + escapeHtml(character.name) + '</strong><span>' + escapeHtml(character.playerName || '未填写玩家名') + ' · ' + escapeHtml(character.origin || '来源未填写') + '</span><p>' + escapeHtml(character.identity || character.anchor || '尚未填写一句身份') + '</p><div class="character-statline">' + stats + '</div><div class="roster-resource-editor"><label><span>决意</span><input type="number" min="0" max="3" value="' + character.resolve + '" data-roster-resource="resolve"></label><label><span>压力</span><input type="number" min="0" max="3" value="' + character.stress + '" data-roster-resource="stress"></label><label><span>伤势</span><select data-roster-resource="injury">' + injuryOptions + '</select></label>' + servantResources + '<label class="roster-trauma"><span>创伤（每行一项）</span><textarea rows="2" data-roster-resource="trauma">' + escapeHtml(character.trauma.join('\n')) + '</textarea></label></div></div><div class="row-actions"><button type="button" data-roster-check="' + character.id + '">判定</button><button type="button" data-roster-export="' + character.id + '">导出</button><button class="danger-action" type="button" data-roster-remove="' + character.id + '">移除</button></div></article>';
-    }).join('') : '<p class="tabletop-empty">尚无角色。可导入本网站角色 JSON，或让玩家在 PLAYER SAFE 页提交。</p>';
+    roster.innerHTML = state.roster.length ? state.roster.map(renderRosterCharacter).join('') : '<p class="tabletop-empty">尚无角色。可导入本站角色 JSON、COC7 Excel 卡，或让玩家在线提交。</p>';
 
     document.getElementById('character-inbox-count').textContent = state.characterInbox.length + ' 份';
     document.getElementById('gm-character-inbox').innerHTML = state.characterInbox.length ? state.characterInbox.map(function (submission) {
-      return '<article class="inbox-row"><div class="inbox-row-main"><strong>' + escapeHtml(submission.character.name) + '</strong><span>' + escapeHtml(submission.character.playerName || '未填写玩家名') + '</span><p>' + escapeHtml(submission.character.identity || '未填写一句身份') + '</p></div><div class="row-actions"><button type="button" data-submission-accept="' + submission.id + '">接收</button><button class="danger-action" type="button" data-submission-reject="' + submission.id + '">移除</button></div></article>';
+      var cocCard = isCoc7Character(submission.character);
+      return '<article class="inbox-row"><div class="inbox-row-main"><strong>' + escapeHtml(submission.character.name) + '</strong><span>' + escapeHtml(submission.character.playerName || '未填写玩家名') + ' · ' + (cocCard ? 'COC7' : '零之圣杯') + '</span><p>' + escapeHtml(cocCard ? (submission.character.occupation || '职业未填写') : (submission.character.identity || '未填写一句身份')) + '</p></div><div class="row-actions"><button type="button" data-submission-accept="' + submission.id + '">接收</button><button class="danger-action" type="button" data-submission-reject="' + submission.id + '">移除</button></div></article>';
     }).join('') : '<p class="tabletop-empty">没有待确认的玩家角色卡。</p>';
 
     document.getElementById('check-request-count').textContent = state.checkRequests.length + ' 条';
     document.getElementById('gm-check-requests').innerHTML = state.checkRequests.length ? state.checkRequests.map(function (request) {
-      var approach = approachDefinition(request.approachId);
-      return '<article class="inbox-row"><div class="inbox-row-main"><strong>' + escapeHtml(request.characterName) + '</strong><span>' + escapeHtml(approach.label) + (request.specialty ? ' ＋ ' + escapeHtml(request.specialty) : '') + (request.suggestedDc ? ' · 建议 DC ' + request.suggestedDc : '') + '</span><p>' + escapeHtml(request.goal) + '</p></div><div class="row-actions"><button type="button" data-request-load="' + request.id + '">载入</button><button class="danger-action" type="button" data-request-dismiss="' + request.id + '">忽略</button></div></article>';
+      return '<article class="inbox-row"><div class="inbox-row-main"><strong>' + escapeHtml(request.characterName) + '</strong><span>' + escapeHtml(request.attributeLabel) + (request.skillLabel ? ' ＋ ' + escapeHtml(request.skillLabel) + ' +' + request.skillBonus : '') + (request.suggestedDc ? ' · 建议 DC ' + request.suggestedDc : '') + '</span><p>' + escapeHtml(request.goal) + '</p></div><div class="row-actions"><button type="button" data-request-load="' + request.id + '">载入</button><button class="danger-action" type="button" data-request-dismiss="' + request.id + '">忽略</button></div></article>';
     }).join('') : '<p class="tabletop-empty">没有等待处理的判定申请。</p>';
 
     var characterSelect = document.getElementById('gm-check-character');
     var previousCharacter = characterSelect.value;
-    characterSelect.innerHTML = '<option value="all">全体玩家／公开判定</option>' + state.roster.map(function (character) {
+    var nullGrailRoster = state.roster.filter(function (character) { return !isCoc7Character(character); });
+    characterSelect.innerHTML = '<option value="all">全体玩家／公开判定</option>' + nullGrailRoster.map(function (character) {
       return '<option value="' + character.id + '">' + escapeHtml(character.name) + '</option>';
     }).join('');
-    if (previousCharacter === 'all' || state.roster.some(function (item) { return item.id === previousCharacter; })) characterSelect.value = previousCharacter;
+    if (previousCharacter === 'all' || nullGrailRoster.some(function (item) { return item.id === previousCharacter; })) characterSelect.value = previousCharacter;
 
-    var approachSelect = document.getElementById('gm-check-approach');
-    if (!approachSelect.options.length) approachSelect.innerHTML = approaches.map(function (definition) {
+    var attributeSelect = document.getElementById('gm-check-attribute');
+    if (!attributeSelect.options.length) attributeSelect.innerHTML = attributes.map(function (definition) {
       return '<option value="' + definition.id + '">' + escapeHtml(definition.label) + '</option>';
     }).join('');
     var dcSelect = document.getElementById('gm-check-dc');
     if (!dcSelect.options.length) dcSelect.innerHTML = difficulties.map(function (definition) {
       return '<option value="' + definition.value + '"' + (definition.value === 13 ? ' selected' : '') + '>' + escapeHtml(definition.label) + '</option>';
     }).join('');
-    refreshGmSpecialtyOptions();
+    refreshGmSkillOptions();
 
     var history = document.getElementById('gm-check-history');
     history.innerHTML = state.checkHistory.length ? state.checkHistory.map(function (result) {
       var modeLabel = result.mode === 'advantage' ? '优势' : result.mode === 'disadvantage' ? '劣势' : '正常';
-      var formula = result.dice.join(' / ') + '（' + modeLabel + '取 ' + result.kept + '）＋' + result.approachLabel + ' ' + result.approachValue + (result.specialty ? '＋' + result.specialty + ' ' + result.specialtyBonus : '') + '＋协助 ' + result.assist + '＋修正 ' + result.modifier;
+      var formula = result.dice.join(' / ') + '（' + modeLabel + '取 ' + result.kept + '）＋' + result.attributeLabel + ' ' + result.attributeValue + (result.skillLabel ? '＋' + result.skillLabel + ' ' + result.skillBonus : '') + '＋协助 ' + result.assist + '＋修正 ' + result.modifier;
       return '<li class="check-history-item"><div class="result-tier ' + result.tier + '"><strong>' + result.total + '</strong><span>' + escapeHtml(result.tierLabel) + '</span></div><div class="check-history-copy"><strong>' + escapeHtml(result.goal || '未命名判定') + '</strong><span>' + escapeHtml(result.characterName) + ' · DC ' + result.dc + '</span><p>' + escapeHtml(formula) + '</p>' + (result.publicNote ? '<p>公开结果：' + escapeHtml(result.publicNote) + '</p>' : '') + '</div><div class="check-history-meta"><time>' + escapeHtml(new Date(result.createdAt).toLocaleString('zh-CN')) + '</time><div class="row-actions"><button type="button" data-result-resend="' + result.id + '">再次发送</button></div></div></li>';
     }).join('') : '<li class="tabletop-empty">尚无判定历史。</li>';
 
-    document.querySelectorAll('[data-roster-check]').forEach(function (button) { button.addEventListener('click', function () { clearCheckForm(); document.getElementById('gm-check-character').value = button.getAttribute('data-roster-check'); refreshGmSpecialtyOptions(); openView('tabletop'); document.getElementById('gm-check-goal').focus(); }); });
+    document.querySelectorAll('[data-roster-check]').forEach(function (button) { button.addEventListener('click', function () { clearCheckForm(); document.getElementById('gm-check-character').value = button.getAttribute('data-roster-check'); refreshGmSkillOptions(); openView('tabletop'); document.getElementById('gm-check-goal').focus(); }); });
     document.querySelectorAll('[data-roster-id]').forEach(function (card) { card.querySelectorAll('[data-roster-resource]').forEach(function (control) { control.addEventListener('change', function () {
       var character = state.roster.find(function (item) { return item.id === card.getAttribute('data-roster-id'); }); if (!character) return;
       var key = control.getAttribute('data-roster-resource');
-      if (key === 'trauma') character.trauma = control.value.split(/\r?\n/).map(function (item) { return safeText(item,160); }).filter(Boolean).slice(0,12);
-      else if (key === 'injury') character.injury = ['none','light','serious','critical'].indexOf(control.value) !== -1 ? control.value : 'none';
-      else if (key === 'noblePhantasmReady') character.noblePhantasmReady = control.value === 'true';
-      else character[key] = clampInteger(control.value,0,3,0);
+      if (key === 'conditions') character.current.conditions = control.value.split(/\r?\n/).map(function (item) { return safeText(item,120); }).filter(Boolean).slice(0,12);
+      else if (key === 'hp' || key === 'mp') character.current[key] = clampInteger(control.value,0,99,0);
+      else if (key === 'armor') character.current.armor = clampInteger(control.value,0,20,0);
+      else if (key === 'resolve') character.current.resolve = clampInteger(control.value,0,3,0);
       character.updatedAt = new Date().toISOString(); addLog('更新角色资源：' + character.name + ' · ' + key); saveState(); renderTabletop();
     }); }); });
+    document.querySelectorAll('[data-roster-id]').forEach(function (card) { card.querySelectorAll('[data-coc-resource]').forEach(function (control) { control.addEventListener('change', function () {
+      var index = state.roster.findIndex(function (item) { return item.id === card.getAttribute('data-roster-id'); });
+      if (index === -1 || !isCoc7Character(state.roster[index])) return;
+      var key = control.getAttribute('data-coc-resource');
+      var character = state.roster[index];
+      if (key === 'armor') {
+        var raw = clone(character); raw.armor = clampInteger(control.value, 0, 999, character.armor); state.roster[index] = normalizeCharacter(raw, false);
+      } else {
+        var desired = clampInteger(control.value, 0, key === 'hp' ? character.maxHp : key === 'mp' ? character.maxMp : key === 'san' ? character.maxSan : 99, character[key]);
+        state.roster[index] = coc7.adjustResource(character, key, desired - character[key]).character;
+      }
+      state.roster[index].updatedAt = new Date().toISOString(); addLog('更新 COC7 资源：' + character.name + ' · ' + key); saveState(); renderAll();
+    }); }); });
+    document.querySelectorAll('[data-roster-combat]').forEach(function (button) { button.addEventListener('click', function () { addCharacterToActiveCombat(button.getAttribute('data-roster-combat')); }); });
     document.querySelectorAll('[data-roster-export]').forEach(function (button) { button.addEventListener('click', function () { var item = state.roster.find(function (character) { return character.id === button.getAttribute('data-roster-export'); }); if (item) exportCharacter(item); }); });
-    document.querySelectorAll('[data-roster-remove]').forEach(function (button) { button.addEventListener('click', function () { var id = button.getAttribute('data-roster-remove'); var item = state.roster.find(function (character) { return character.id === id; }); if (!item || !window.confirm('从本次战役移除 ' + item.name + '？玩家本机角色卡不会被删除。')) return; state.roster = state.roster.filter(function (character) { return character.id !== id; }); addLog('移除角色：' + item.name); saveState(); renderTabletop(); }); });
+    document.querySelectorAll('[data-roster-remove]').forEach(function (button) { button.addEventListener('click', function () { var id = button.getAttribute('data-roster-remove'); var item = state.roster.find(function (character) { return character.id === id; }); if (!item || !window.confirm('从本次战役移除 ' + item.name + '？玩家本机角色卡不会被删除。')) return; state.roster = state.roster.filter(function (character) { return character.id !== id; }); state.combatScenes.forEach(function (scene) { scene.participantIds = scene.participantIds.filter(function (participantId) { return participantId !== id; }); if (scene.turnIndex >= scene.participantIds.length) scene.turnIndex = 0; }); addLog('移除角色：' + item.name); saveState(); renderAll(); }); });
     document.querySelectorAll('[data-submission-accept]').forEach(function (button) { button.addEventListener('click', function () { acceptCharacterSubmission(button.getAttribute('data-submission-accept')); }); });
     document.querySelectorAll('[data-submission-reject]').forEach(function (button) { button.addEventListener('click', function () { rejectCharacterSubmission(button.getAttribute('data-submission-reject')); }); });
     document.querySelectorAll('[data-request-load]').forEach(function (button) { button.addEventListener('click', function () { loadCheckRequest(button.getAttribute('data-request-load')); }); });
@@ -857,7 +1192,7 @@
     form.reset();
     activeCheckRequestId = null;
     document.getElementById('active-request-label').textContent = '新判定';
-    document.getElementById('gm-check-preview').innerHTML = '<span>尚未掷骰</span><p>1d20 ＋ 行动方式 ＋ 专长 ＋ 协助 ＋ 修正</p>';
+    document.getElementById('gm-check-preview').innerHTML = '<span>尚未掷骰</span><p>1d20 ＋ 属性 ＋ 通用技能 ＋ 协助 ＋ 修正</p>';
     renderTabletop();
   }
 
@@ -867,9 +1202,8 @@
     activeCheckRequestId = request.id;
     var characterSelect = document.getElementById('gm-check-character');
     characterSelect.value = state.roster.some(function (item) { return item.id === request.characterId; }) ? request.characterId : 'all';
-    document.getElementById('gm-check-approach').value = request.approachId;
-    refreshGmSpecialtyOptions(request.specialty);
-    document.getElementById('gm-check-specialty').value = request.specialty;
+    document.getElementById('gm-check-attribute').value = request.attributeId;
+    refreshGmSkillOptions(request);
     document.getElementById('gm-check-mode').value = request.mode;
     document.getElementById('gm-check-assist').value = request.assist;
     document.getElementById('gm-check-modifier').value = request.modifier;
@@ -900,9 +1234,9 @@
   }
 
   function defaultResultNote(tier) {
-    if (tier === 'exceptional') return '目标达成；可额外选择改善关系、保持隐蔽、清除 1 压力、抢先行动或取得额外线索。';
+    if (tier === 'exceptional') return '目标达成；可额外选择 +2 伤害、提高范围、节省 1 成本、获得额外情报或取得抢先位置之一。';
     if (tier === 'success') return '目标按掷骰前的声明达成。';
-    if (tier === 'costly') return '玩家可接受已公开的代价以继续推进，也可拒绝并让局势行动。';
+    if (tier === 'costly') return '玩家可接受一个已公开代价以达成目标；若拒绝代价，则本次行动失败。';
     return '目标未达成并发生严重后果；核心线索保留新的路径、余波或替代来源。';
   }
 
@@ -916,10 +1250,17 @@
     var character = state.roster.find(function (item) { return item.id === selectedId; });
     var targetCharacterId = request ? request.characterId : (character ? character.id : 'all');
     var characterName = request ? request.characterName : (character ? character.name : '全体玩家');
-    var approach = approachDefinition(document.getElementById('gm-check-approach').value);
-    var approachValue = character ? character.approaches[approach.id] : (request ? request.approachValue : 0);
-    var specialty = safeText(document.getElementById('gm-check-specialty').value, 80);
-    var specialtyBonus = specialty ? 2 : 0;
+    var attribute = attributeDefinition(document.getElementById('gm-check-attribute').value);
+    var attributeValue = character ? character.attributes[attribute.id] : (request ? request.attributeValue : 0);
+    var skillSelect = document.getElementById('gm-check-skill');
+    var selectedSkillOption = skillSelect.options[skillSelect.selectedIndex];
+    var selectedSkillId = safeText(skillSelect.value, 80);
+    var selectedSkillDefinition = selectedSkillId === '__legacy__' ? null : skillDefinition(selectedSkillId);
+    var selectedSkillLabel = safeText(selectedSkillOption && selectedSkillOption.getAttribute('data-skill-label'), 80);
+    var selectedSkillBonus = selectedSkillDefinition && character
+      ? skillBonus(character.skills[selectedSkillDefinition.id])
+      : clampInteger(selectedSkillOption && selectedSkillOption.getAttribute('data-skill-bonus'), 0, 4, request ? request.skillBonus : 0);
+    if (!selectedSkillLabel) selectedSkillBonus = 0;
     var assist = clampInteger(document.getElementById('gm-check-assist').value, 0, 3, 0);
     var modifier = clampInteger(document.getElementById('gm-check-modifier').value, -20, 20, 0);
     var dc = clampInteger(document.getElementById('gm-check-dc').value, 1, 40, 13);
@@ -927,15 +1268,16 @@
     var dice = [rollD20()];
     if (mode === 'advantage' || mode === 'disadvantage') dice.push(rollD20());
     var kept = mode === 'advantage' ? Math.max.apply(Math, dice) : mode === 'disadvantage' ? Math.min.apply(Math, dice) : dice[0];
-    var total = kept + approachValue + specialtyBonus + assist + modifier;
+    var total = kept + attributeValue + selectedSkillBonus + assist + modifier;
     var tier = resultTier(total, dc);
     var publicNote = safeText(document.getElementById('gm-check-public-note').value, 800) || defaultResultNote(tier);
     var result = normalizeCheckResult({
       id:createId('result'), requestId:request && request.id, targetCharacterId:targetCharacterId,
       characterName:characterName, goal:goal, risk:risk,
       costOwner:safeText(document.getElementById('gm-check-cost-owner').value, 80),
-      approachId:approach.id, approachValue:approachValue, specialty:specialty,
-      specialtyBonus:specialtyBonus, assist:assist, modifier:modifier, mode:mode,
+      attributeId:attribute.id, attributeValue:attributeValue,
+      skillId:selectedSkillDefinition ? selectedSkillDefinition.id : '', skillLabel:selectedSkillLabel,
+      skillBonus:selectedSkillBonus, assist:assist, modifier:modifier, mode:mode,
       dice:dice, kept:kept, dc:dc, total:total, tier:tier,
       publicNote:publicNote, createdAt:new Date().toISOString()
     });
@@ -948,7 +1290,7 @@
     saveState();
     sendPlayerMessage({ type:'check-result', result:result });
     renderTabletop();
-    document.getElementById('gm-check-preview').innerHTML = '<span>' + escapeHtml(result.tierLabel) + ' · <strong>' + total + '</strong> / DC ' + dc + '</span><p>骰点 ' + dice.join(' / ') + '，取 ' + kept + '；' + escapeHtml(approach.label) + ' +' + approachValue + (specialty ? '，' + escapeHtml(specialty) + ' +2' : '') + '，协助 +' + assist + '，额外修正 ' + (modifier >= 0 ? '+' : '') + modifier + '。</p>';
+    document.getElementById('gm-check-preview').innerHTML = '<span>' + escapeHtml(result.tierLabel) + ' · <strong>' + total + '</strong> / DC ' + dc + '</span><p>骰点 ' + dice.join(' / ') + '，取 ' + kept + '；' + escapeHtml(attribute.label) + ' +' + attributeValue + (selectedSkillLabel ? '，' + escapeHtml(selectedSkillLabel) + ' +' + selectedSkillBonus : '') + '，协助 +' + assist + '，额外修正 ' + (modifier >= 0 ? '+' : '') + modifier + '。</p>';
     document.getElementById('active-request-label').textContent = '已发布';
     showToast('判定结果已发送给 ' + characterName);
   }
@@ -1269,7 +1611,7 @@
       try {
         var payload = JSON.parse(reader.result);
         if (payload.campaign && payload.campaign !== data.id) throw new Error('campaign');
-        if (payload.rulesetId && payload.rulesetId !== RULESET_ID) throw new Error('ruleset');
+        if (!compatibleRulesetId(payload.rulesetId)) throw new Error('ruleset');
         if (Number(payload.schemaVersion || payload.state && payload.state.schemaVersion || 1) > STATE_SCHEMA_VERSION) throw new Error('newer-schema');
         var imported = payload.state || payload;
         if (!imported || !imported.dayId || !imported.trackers) throw new Error('invalid');
@@ -1326,12 +1668,14 @@
       draft.finaleSeal = 'unavailable';
       draft.conflictClocks = { goal:0, threat:0, goalLabel:'玩家目标', threatLabel:'敌方／环境威胁' };
       draft.roster.forEach(function (character) {
+        if (isCoc7Character(character)) return;
         var injuryAnchored = facts.some(function (fact) { return fact.indexOf(character.name) !== -1 && /(伤势|疤痕)/.test(fact); });
-        character.resolve = 3;
-        character.stress = 0;
-        character.coreLoad = 0;
-        character.noblePhantasmReady = true;
-        character.injury = injuryAnchored ? 'light' : 'none';
+        var derived = derivedCharacterValues(character);
+        character.current.hp = derived.maxHp;
+        character.current.mp = derived.maxMp;
+        character.current.resolve = 3;
+        character.current.conditions = injuryAnchored ? ['伤势／疤痕（已锚定）'] : [];
+        character.updatedAt = new Date().toISOString();
       });
       draft.activeHandoutId = null;
     });
@@ -1365,6 +1709,9 @@
     document.getElementById('open-recovery-scene').addEventListener('click', function () { openScene('E28'); });
     document.getElementById('clue-notes').addEventListener('input', function (event) { state.clueNotes = event.target.value; saveState(); });
     document.getElementById('session-notes').addEventListener('input', function (event) { state.sessionNotes = event.target.value; saveState(); });
+    document.querySelectorAll('[data-secure-resource][data-server-resource]').forEach(function (button) {
+      button.addEventListener('click', function () { downloadKeeperVolume(button); });
+    });
 
     document.getElementById('gm-import-character').addEventListener('click', function () { document.getElementById('gm-character-file').click(); });
     document.getElementById('gm-character-file').addEventListener('change', function (event) {
@@ -1372,7 +1719,7 @@
       event.target.value = '';
     });
     document.getElementById('gm-export-roster').addEventListener('click', exportRoster);
-    document.getElementById('gm-check-character').addEventListener('change', function () { refreshGmSpecialtyOptions(); });
+    document.getElementById('gm-check-character').addEventListener('change', function () { refreshGmSkillOptions(); });
     document.getElementById('gm-check-form').addEventListener('submit', publishCheckResult);
     document.getElementById('gm-clear-check').addEventListener('click', clearCheckForm);
 
