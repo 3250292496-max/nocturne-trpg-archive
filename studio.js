@@ -15,6 +15,8 @@
 
   function byId(id) { return document.getElementById(id); }
   function isStaticMode() { return auth && auth.getMode && auth.getMode() === 'static'; }
+  function apiUrl(path) { return auth && auth.apiUrl ? auth.apiUrl(path) : path; }
+  function apiCredentials(path) { return auth && auth.apiCredentials ? auth.apiCredentials(path) : 'same-origin'; }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function staticAccessKey() {
     var bytes = new Uint8Array(12);
@@ -101,13 +103,13 @@
   }
 
   function request(path, options) {
-    var settings = Object.assign({ credentials:'same-origin', cache:'no-store' }, options || {});
+    var settings = Object.assign({ credentials:apiCredentials(path), cache:'no-store' }, options || {});
     if (isStaticMode()) return staticRequest(path, settings);
     if (settings.body && !(settings.body instanceof Blob) && typeof settings.body !== 'string') {
       settings.headers = Object.assign({}, settings.headers || {}, { 'Content-Type':'application/json' });
       settings.body = JSON.stringify(settings.body);
     }
-    return window.fetch(path, settings).then(function (response) {
+    return window.fetch(apiUrl(path), settings).then(function (response) {
       return response.text().then(function (raw) {
         var payload = {};
         try { payload = raw ? JSON.parse(raw) : {}; } catch (error) {}
@@ -499,8 +501,9 @@
     state.classList.remove('error');
     state.textContent = '正在上传 ' + file.name + '…';
     setSaveState('saving', '正在归档资源…');
-    window.fetch('/api/creator/modules/' + encodeURIComponent(currentModule.id) + '/resources?' + query.toString(), {
-      method:'POST', credentials:'same-origin', headers:{ 'Content-Type':file.type || 'application/octet-stream' }, body:file
+    var uploadPath = '/api/creator/modules/' + encodeURIComponent(currentModule.id) + '/resources?' + query.toString();
+    window.fetch(apiUrl(uploadPath), {
+      method:'POST', credentials:apiCredentials(uploadPath), headers:{ 'Content-Type':file.type || 'application/octet-stream' }, body:file
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (payload) {
         if (!response.ok) throw new Error(payload.message || '文件上传失败。');

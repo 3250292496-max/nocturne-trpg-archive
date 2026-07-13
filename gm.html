@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#090d14">
-  <meta name="description" content="《零之圣杯》v3.2 守秘人互动控制台：七日流程、东湖市地图、人物、线索、手卡与状态追踪。">
+  <meta name="description" content="《零之圣杯》守秘人互动控制台：七日流程、东湖市地图、人物、线索、手卡与状态追踪。">
   <title>零之圣杯 · 守秘人控制台</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="gm.css?v=20260713n">
+  <link rel="stylesheet" href="gm.css?v=20260713u">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -20,7 +20,7 @@
   <header class="command-bar">
     <a class="command-brand" href="index.html" aria-label="返回夜航模组馆">
       <span class="brand-sigil" aria-hidden="true">◇</span>
-      <span><strong>零之圣杯</strong><small>KEEPER CONSOLE · v3.2</small></span>
+      <span><strong>零之圣杯</strong><small>KEEPER CONSOLE</small></span>
     </a>
     <div class="command-now" aria-live="polite">
       <span id="top-day">第一日</span>
@@ -165,6 +165,7 @@
             <button id="publish-today-map" type="button">投送今日地点与场景</button>
             <button id="sync-player-map" type="button">重发玩家地图</button>
           </div>
+          <div class="map-broadcast-status" id="map-broadcast-status" aria-live="polite">玩家地图 · 尚未投送战役情报</div>
         </div>
       </header>
       <div class="map-layout">
@@ -221,29 +222,29 @@
 
     <section class="view-panel" id="view-library" data-panel="library" aria-labelledby="library-heading">
       <header class="view-heading library-heading">
-        <div><p class="section-kicker">CAMPAIGN LIBRARY · v3.2</p><h1 id="library-heading">四册正文</h1></div>
+        <div><p class="section-kicker">CAMPAIGN LIBRARY</p><h1 id="library-heading">四册正文</h1></div>
         <p>第一、二、四册只在本机完成解密后下载；第三册为 PLAYER SAFE 公开手册。访问密钥不会写入下载文件或公开网页。</p>
       </header>
       <div class="volume-grid">
         <article class="volume-card keeper-volume">
           <span class="volume-number">01</span>
           <div class="volume-copy"><small>KEEPER ONLY · 全剧透</small><h2>第一册 · 主模组</h2><p>完整七日流程、场景节点、真相结构、默认余波与结局运行方式。</p></div>
-          <button class="volume-download" type="button" data-secure-resource="main-module" data-server-resource="main-module-v3-2"><span>解密并下载 DOCX</span><small>v3.2 · 本机处理</small></button>
+          <button class="volume-download" type="button" data-secure-resource="main-module" data-server-resource="main-module-v3-2"><span>解密并下载 DOCX</span><small>本机处理</small></button>
         </article>
         <article class="volume-card keeper-volume">
           <span class="volume-number">02</span>
           <div class="volume-copy"><small>KEEPER ONLY · 全剧透</small><h2>第二册 · NPC 与英灵手册</h2><p>人物动机、秘密、拒绝边界、行动逻辑与英灵资料。</p></div>
-          <button class="volume-download" type="button" data-secure-resource="npc-guide" data-server-resource="npc-guide-v3-2"><span>解密并下载 DOCX</span><small>v3.2 · 本机处理</small></button>
+          <button class="volume-download" type="button" data-secure-resource="npc-guide" data-server-resource="npc-guide-v3-2"><span>解密并下载 DOCX</span><small>本机处理</small></button>
         </article>
         <article class="volume-card player-volume">
           <span class="volume-number">03</span>
           <div class="volume-copy"><small>PLAYER SAFE · 可公开</small><h2>第三册 · 玩家手册</h2><p>无剧透规则说明、角色准备、内容边界与玩家可见资料。</p></div>
-          <a class="volume-download" href="NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx"><span>下载公开 DOCX</span><small>v3.2 · 无需解密</small></a>
+          <a class="volume-download" href="NullGrail《零之圣杯》/四册正文/《零之圣杯》第三册·玩家手册.docx"><span>下载公开 DOCX</span><small>无需解密</small></a>
         </article>
         <article class="volume-card keeper-volume">
           <span class="volume-number">04</span>
           <div class="volume-copy"><small>KEEPER ONLY · 全剧透</small><h2>第四册 · 主持人工具书</h2><p>开团清单、阶段控制、桌边速查、主持提示与收尾工具。</p></div>
-          <button class="volume-download" type="button" data-secure-resource="keeper-toolkit" data-server-resource="keeper-toolkit-v3-2"><span>解密并下载 DOCX</span><small>v3.2 · 本机处理</small></button>
+          <button class="volume-download" type="button" data-secure-resource="keeper-toolkit" data-server-resource="keeper-toolkit-v3-2"><span>解密并下载 DOCX</span><small>本机处理</small></button>
         </article>
       </div>
       <div class="library-security-note"><strong>本地解密</strong><span>GitHub Pages 只保存 AES-256-GCM 加密文件；正确密钥只在当前标签页会话中使用，关闭标签后需要重新输入。</span></div>
@@ -274,7 +275,7 @@
         </section>
 
         <section class="console-card tabletop-card check-card" aria-labelledby="check-composer-title">
-          <header class="card-heading"><div><span>CORE D20 v2.0 RESOLUTION</span><h2 id="check-composer-title">公开风险后判定</h2></div><small id="active-request-label">新判定</small></header>
+          <header class="card-heading"><div><span>CORE D20 2.1 RESOLUTION</span><h2 id="check-composer-title">公开风险后判定</h2></div><small id="active-request-label">新判定</small></header>
           <form id="gm-check-form" class="check-form">
             <div class="form-grid two-columns">
               <label><span>角色／接收者</span><select id="gm-check-character"></select></label>
@@ -470,6 +471,6 @@
   <script src="coc7-core.js?v=20260713d"></script>
   <script src="coc7-xlsx.js?v=20260713d"></script>
   <script src="access.js?v=20260713e"></script>
-  <script src="gm-gate.js?v=20260713k"></script>
+  <script src="gm-gate.js?v=20260713u"></script>
 </body>
 </html>

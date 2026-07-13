@@ -139,6 +139,20 @@
           handouts:handouts
         };
       }).filter(Boolean) : [];
+      var characters = Array.isArray(rawLocation.characters) ? rawLocation.characters.slice(0, 20).map(function (rawCharacter) {
+        if (!rawCharacter || typeof rawCharacter !== 'object') return null;
+        var characterId = safeText(rawCharacter.id, 40);
+        if (!/^[a-z0-9][a-z0-9-]{0,39}$/i.test(characterId)) return null;
+        var characterImage = safeText(rawCharacter.image, 200).replace(/\\/g, '/');
+        if (!/^assets\/art\/[a-z0-9._-]+$/i.test(characterImage)) characterImage = 'assets/art/hero-null-grail.webp';
+        return {
+          id:characterId,
+          name:safeText(rawCharacter.name,120) || '未署名人物',
+          kind:safeText(rawCharacter.kind,32) || '人物',
+          image:characterImage,
+          summary:safeText(rawCharacter.summary,800)
+        };
+      }).filter(Boolean) : [];
       return {
         id:id,
         name:safeText(rawLocation.name,160) || id,
@@ -153,7 +167,8 @@
         routeNote:safeText(rawLocation.routeNote,800),
         current:rawLocation.current === true,
         visited:rawLocation.visited === true,
-        scenes:scenes
+        scenes:scenes,
+        characters:characters
       };
     }).filter(Boolean) : [];
     var activeLocationId = safeText(value.activeLocationId,16).toUpperCase();
@@ -191,7 +206,8 @@
         summary:update.summary || baseLocation.summary,
         tags:update.tags.length ? update.tags : baseLocation.tags,
         routeNote:update.routeNote || baseLocation.routeNote,
-        scenes:update.scenes
+        scenes:update.scenes,
+        characters:update.characters
       });
     });
     projected.locations.forEach(function (locationItem) {
@@ -274,13 +290,20 @@
     selectedMapLocationId = id;
     var detail = document.getElementById('player-map-detail');
     var tags = locationItem.tags.map(function (tag) { return '<span>' + escapeHtml(tag) + '</span>'; }).join('');
+    var intelItems = [];
     var scenes = locationItem.scenes.map(function (scene) {
-      var clues = scene.clues.length ? '<ul class="player-map-clues">' + scene.clues.map(function (clue) { return '<li>' + escapeHtml(clue) + '</li>'; }).join('') + '</ul>' : '';
+      scene.clues.forEach(function (clue) { intelItems.push({ sceneId:scene.id, text:clue }); });
       var handouts = scene.handouts.length ? '<p>已发资料：' + scene.handouts.map(function (item) { return escapeHtml(item.id + ' · ' + item.title); }).join('；') + '</p>' : '';
       var result = scene.resultNote ? '<p><strong>公开结算：</strong>' + escapeHtml(scene.resultNote) + '</p>' : '';
-      return '<article class="player-map-scene' + (scene.active ? ' active' : '') + (scene.completed ? ' completed' : '') + '"><header><h3>' + escapeHtml(scene.id + ' · ' + scene.title) + '</h3><time>' + escapeHtml(scene.time) + '</time></header><p>' + escapeHtml(scene.visible) + '</p>' + clues + handouts + result + '</article>';
+      return '<article class="player-map-scene' + (scene.active ? ' active' : '') + (scene.completed ? ' completed' : '') + '"><header><h3>' + escapeHtml(scene.id + ' · ' + scene.title) + '</h3><time>' + escapeHtml(scene.time) + '</time></header><p>' + escapeHtml(scene.visible) + '</p>' + handouts + result + '</article>';
     }).join('');
-    detail.innerHTML = '<p>PLAYER MAP · ' + escapeHtml(locationItem.id) + '</p><h2>' + escapeHtml(locationItem.name) + '</h2><span class="player-map-detail-copy">' + escapeHtml(locationItem.summary || '守秘人尚未公开更多地点说明。') + '</span>' + (tags ? '<div class="player-map-tags">' + tags + '</div>' : '') + (locationItem.routeNote ? '<div class="player-route-note"><strong>公开路线提示</strong><br>' + escapeHtml(locationItem.routeNote) + '</div>' : '') + (scenes ? '<section class="player-map-scenes"><header><span>已公开场景</span><b>' + locationItem.scenes.length + ' 个</b></header>' + scenes + '</section>' : '<div class="player-map-empty">地点已经标上地图；场景内容尚未投送。你仍可以用此标记讨论路线和行动目标。</div>');
+    var characters = locationItem.characters.map(function (character) {
+      return '<article class="player-map-character"><img src="' + character.image + '" alt="' + escapeHtml(character.name) + '肖像"><div><strong>' + escapeHtml(character.name) + '</strong><small>' + escapeHtml(character.kind) + ' · 当前登场</small>' + (character.summary ? '<p>' + escapeHtml(character.summary) + '</p>' : '') + '</div></article>';
+    }).join('');
+    var presence = characters ? '<section class="player-map-presence-panel"><header><span>当前可见人物</span><b>' + locationItem.characters.length + ' 人</b></header>' + characters + '</section>' : '';
+    var intel = intelItems.length ? '<section class="player-map-intel"><header><span>守秘人投放的地图情报</span><b>' + intelItems.length + ' 条</b></header><ul>' + intelItems.map(function (item) { return '<li><strong>' + escapeHtml(item.sceneId) + '</strong> · ' + escapeHtml(item.text) + '</li>'; }).join('') + '</ul></section>' : '';
+    var empty = !scenes && !characters && !intel ? '<div class="player-map-empty">这是公共导览地点；守秘人尚未向这里投放场景、人物或线索。你仍可以用此标记讨论路线和行动目标。</div>' : '';
+    detail.innerHTML = '<p>PLAYER MAP · ' + escapeHtml(locationItem.id) + '</p><h2>' + escapeHtml(locationItem.name) + '</h2><span class="player-map-detail-copy">' + escapeHtml(locationItem.summary || '守秘人尚未公开更多地点说明。') + '</span>' + (tags ? '<div class="player-map-tags">' + tags + '</div>' : '') + (locationItem.routeNote ? '<div class="player-route-note"><strong>公开路线提示</strong><br>' + escapeHtml(locationItem.routeNote) + '</div>' : '') + presence + intel + (scenes ? '<section class="player-map-scenes"><header><span>已公开场景</span><b>' + locationItem.scenes.length + ' 个</b></header>' + scenes + '</section>' : '') + empty;
     Array.prototype.forEach.call(document.querySelectorAll('[data-player-map-location]'), function (button) {
       var selected = button.getAttribute('data-player-map-location') === id;
       button.classList.toggle('active', selected);
@@ -292,26 +315,50 @@
     publicMap = normalizeMapPayload(payload);
     if (!publicMap) return false;
     rememberMap(publicMap);
+    var iconPaths = {
+      crossroad:'<path d="M4 12h16M12 4v16M4 12l3-3m-3 3 3 3M12 4l-3 3m3-3 3 3"/>',
+      school:'<path d="m4 10 8-5 8 5-8 5-8-5Zm3 3v5h10v-5M9 19h6"/>',
+      construction:'<path d="M5 19h14M7 19V9h10v10M9 9V6h6v3M7 13h10"/>',
+      church:'<path d="M12 3v5M9.5 5.5h5M7 21V10h10v11M10 21v-5h4v5"/>',
+      shrine:'<path d="M4 8h16M6 8l1-4h10l1 4M7 8v12m10-12v12M4 20h16M9 12h6"/>',
+      food:'<path d="M5 10h14c0 5-2.5 8-7 8s-7-3-7-8Zm2 9h10M8 6c0-1 1-1.5 1-2.5M12 6c0-1 1-1.5 1-2.5M16 6c0-1 1-1.5 1-2.5"/>',
+      repair:'<path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5L16 12l-4-4 2.5-2.5Z"/>',
+      library:'<path d="M4 5.5A3.5 3.5 0 0 1 7.5 9H12v10H7.5A3.5 3.5 0 0 0 4 22V5.5ZM20 5.5A3.5 3.5 0 0 0 16.5 9H12v10h4.5A3.5 3.5 0 0 1 20 22V5.5Z"/>',
+      mansion:'<path d="m4 10 8-6 8 6M6 9v11h12V9M9 20v-6h6v6M9 10h.01M15 10h.01"/>',
+      workshop:'<path d="M4 20h16M6 20V9l5 3V9l7 4v7M8 6h3M9.5 4.5v3M14 16h2"/>',
+      clock:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2M8 3h8"/>',
+      plaza:'<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>',
+      factory:'<path d="M4 20V10l5 3v-3l5 3V7h4l2 13H4ZM7 17h2m3 0h2m3 0h2"/>',
+      water:'<path d="M3 8c2 0 2 1.5 4 1.5S9 8 11 8s2 1.5 4 1.5S17 8 19 8s2 1.5 2 1.5M3 13c2 0 2 1.5 4 1.5S9 13 11 13s2 1.5 4 1.5S17 13 19 13s2 1.5 2 1.5M5 18h14"/>',
+      memorial:'<path d="M8 20h8M9 17h6l-1-11h-4L9 17ZM8 6h8M12 3v3"/>',
+      core:'<path d="m12 3 6 9-6 9-6-9 6-9Z"/><circle cx="12" cy="12" r="3"/><path d="M3 12h3m12 0h3"/>'
+    };
+    function iconSvg(icon) { return '<svg aria-hidden="true" viewBox="0 0 24 24">' + (iconPaths[icon] || iconPaths.plaza) + '</svg>'; }
     var locationCount = publicMap.locations.length;
     var clueCount = publicMap.locations.reduce(function (total, locationItem) { return total + locationClueCount(locationItem); }, 0);
+    var visibleCharacterIds = [];
+    publicMap.locations.forEach(function (locationItem) { locationItem.characters.forEach(function (character) { if (visibleCharacterIds.indexOf(character.id) === -1) visibleCharacterIds.push(character.id); }); });
     document.getElementById('player-map-title').textContent = publicMap.title;
     document.getElementById('player-map-image').src = publicMap.image;
     document.getElementById('player-map-location-count').textContent = String(locationCount);
     document.getElementById('player-map-clue-count').textContent = String(clueCount);
-    document.getElementById('player-map-summary').textContent = locationCount ? '公共地点始终可浏览；守秘人投送后会追加剧情地点、公开场景与已取得线索。点击文字标记查看详情。' : '等待守秘人投送地点标记。';
+    document.getElementById('player-map-character-count').textContent = String(visibleCharacterIds.length);
+    document.getElementById('player-map-summary').textContent = locationCount ? '圆形地点标记保持地图清爽；数字徽标表示当前登场人物。守秘人投放的场景与线索会即时写入地点详情。' : '等待守秘人投送地点标记。';
     document.getElementById('player-map-hotspots').innerHTML = publicMap.locations.map(function (locationItem) {
       var style = 'left:' + locationItem.x + '%;top:' + locationItem.y + '%;--pin-x:' + locationItem.pinX + 'px;--pin-y:' + locationItem.pinY + 'px';
       var sceneCount = locationItem.scenes.length;
       var clues = locationClueCount(locationItem);
-      return '<button class="player-map-hotspot' + (locationItem.current ? ' current' : '') + (locationItem.visited ? ' visited' : '') + '" type="button" style="' + style + '" data-player-map-location="' + locationItem.id + '" aria-label="' + escapeHtml(locationItem.name) + '，' + sceneCount + ' 个公开场景，' + clues + ' 条线索" aria-pressed="false"><span class="player-map-pin">' + escapeHtml(locationItem.id) + '</span><strong>' + escapeHtml(locationItem.shortName) + '</strong><small>' + sceneCount + ' 场景 · ' + clues + ' 线索</small></button>';
+      var castNames = locationItem.characters.map(function (character) { return character.name; }).join('、');
+      var tooltip = locationItem.name + ' · ' + sceneCount + ' 场景 · ' + clues + ' 情报' + (castNames ? ' · 登场：' + castNames : '');
+      return '<button class="player-map-hotspot' + (locationItem.current ? ' current' : '') + (locationItem.visited ? ' visited' : '') + (locationItem.characters.length ? ' has-presence' : '') + '" type="button" style="' + style + '" data-tooltip="' + escapeHtml(tooltip) + '" data-player-map-location="' + locationItem.id + '" aria-label="' + escapeHtml(tooltip) + '" aria-pressed="false"><span class="player-map-pin">' + iconSvg(locationItem.icon) + '</span>' + (locationItem.characters.length ? '<span class="player-map-presence" aria-hidden="true">' + locationItem.characters.length + '</span>' : '') + '</button>';
     }).join('');
     document.getElementById('player-map-list').innerHTML = publicMap.locations.map(function (locationItem) {
-      return '<button type="button" data-player-map-location="' + locationItem.id + '" aria-pressed="false"><span>' + escapeHtml(locationItem.name) + '</span><small>' + locationItem.scenes.length + ' 场景／' + locationClueCount(locationItem) + ' 线索</small></button>';
+      return '<button type="button" data-player-map-location="' + locationItem.id + '" aria-pressed="false"><span>' + escapeHtml(locationItem.name) + '</span><small>' + locationItem.scenes.length + ' 场景／' + locationClueCount(locationItem) + ' 情报' + (locationItem.characters.length ? '／' + locationItem.characters.length + ' 人登场' : '') + '</small></button>';
     }).join('');
     Array.prototype.forEach.call(document.querySelectorAll('[data-player-map-location]'), function (button) { button.addEventListener('click', function () { showMapLocation(button.getAttribute('data-player-map-location')); }); });
     selectedMapLocationId = mapLocation(focusLocationId) ? focusLocationId : mapLocation(selectedMapLocationId) ? selectedMapLocationId : publicMap.activeLocationId;
     if (selectedMapLocationId) showMapLocation(selectedMapLocationId);
-    else document.getElementById('player-map-detail').innerHTML = '<p>MAP EMPTY</p><h2>尚无已公开地点</h2><span>守秘人投送地图、地点或场景后，这里会出现可点击文字标记。</span>';
+    else document.getElementById('player-map-detail').innerHTML = '<p>MAP EMPTY</p><h2>尚无已公开地点</h2><span>守秘人投送地图、地点或场景后，这里会出现可点击圆形标记。</span>';
     handoutTab.disabled = !currentHandoutId;
     mapTab.disabled = !publicMap.visible;
     if (openMap === true && publicMap.visible) requestPlayerView('map');

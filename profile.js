@@ -136,6 +136,8 @@
     byId('logout-button').hidden = true;
     if (isStaticMode()) {
       byId('profile-storage-note').textContent = '当前为 GitHub Pages 本机账号：账号资料和登录状态会长期保存在这个浏览器中。清除网站数据或更换浏览器、设备后不会同步。';
+    } else {
+      byId('profile-storage-note').textContent = '当前已连接账号服务；账号、作者认证和作品归属可在不同设备间同步。';
     }
   }
 
@@ -165,7 +167,7 @@
     form.hidden = user.authorStatus === 'verified' || user.authorStatus === 'pending';
     if (isStaticMode() && user.authorStatus !== 'verified') {
       form.hidden = false;
-      form.querySelector('p').textContent = 'GitHub Pages 本机账号不能真正提交作者认证；作者审核需要网站后端。';
+      form.querySelector('p').textContent = '当前静态站点没有共享审核数据库，不能跨设备提交或审核作者认证。请改用已配置账号后端的站点地址；站点管理员可按 README 配置 NG API 地址。';
       form.querySelector('textarea').disabled = true;
       form.querySelector('[type="submit"]').disabled = true;
     }
@@ -180,9 +182,14 @@
   function workMarkup(work, index) {
     var staticMode = isStaticMode();
     var value = work.accessKey || '';
-    var hint = work.accessKeyConfigured
-      ? '只用于进入这份作品的开团控制台；不要公开发给玩家。'
-      : (work.id === 'null-grail' ? '尚未配置 NG_ACCESS_KEY 或 .keeper-key。' : '尚未生成作品密钥。');
+    var inputId = 'work-key-' + index;
+    var hint = work.accessKeySource === 'local-vault'
+      ? '已用站长账号密码加密保存在当前浏览器；不会上传或写入公开文件。'
+      : work.id === 'null-grail' && !staticMode
+        ? '由服务端 NG_ACCESS_KEY 或 .keeper-key 提供；它同时保护加密剧透资料，轮换时必须重新构建安全资源。'
+        : work.accessKeyConfigured
+          ? '只用于进入这份作品的开团控制台；不要公开发给玩家。'
+          : (work.id === 'null-grail' ? '服务端尚未配置 NG_ACCESS_KEY 或 .keeper-key。' : '尚未生成作品密钥。');
     var showKey = Boolean(work.accessKeyConfigured || value);
     var consoleHref = work.id === 'null-grail' ? 'gm.html' : 'run.html?id=' + encodeURIComponent(work.id);
     var publicHref = work.status === 'published'
@@ -193,13 +200,29 @@
       '<h3>' + escapeHtml(work.title) + ' <small>' + escapeHtml(work.edition || '') + '</small></h3>' +
       '<p>' + escapeHtml(work.relationship || '作品所有者') + ' · ' + escapeHtml(work.status === 'published' ? '已发布' : '草稿') + '</p>' +
       '<div class="work-actions">' + publicHref + '<a href="' + consoleHref + '">开团控制台</a><a class="manage" href="studio.html?id=' + encodeURIComponent(work.id) + '">编辑作品 →</a></div></div>' +
-      (showKey ? '<div class="work-key"><label for="work-key-' + index + '">作品密钥</label>' +
-      '<div class="key-control"><input id="work-key-' + index + '" type="password" readonly value="' + escapeAttribute(value) + '" placeholder="尚未配置">' +
-      '<button type="button" data-key-toggle="work-key-' + index + '">显示</button>' +
-      '<button type="button" data-key-copy="work-key-' + index + '"' + (value ? '' : ' disabled') + '>复制</button></div>' +
-      '<small>' + escapeHtml(hint) + '</small></div>' : staticMode && work.secretUnavailableOnStatic
-        ? '<div class="work-key static-key-note"><label>作品密钥</label><small>公开版不保存作品密钥；创作者工作台的在线展示数据仅保存在当前浏览器。守秘人控制台仍需独立作品密钥。</small></div>'
-        : '') + '</article>';
+      (showKey ? '<div class="work-key"><label for="' + inputId + '">作品密钥</label>' +
+      '<div class="key-control"><input id="' + inputId + '" type="password" readonly value="' + escapeAttribute(value) + '" placeholder="尚未配置">' +
+      '<button type="button" data-key-toggle="' + inputId + '">显示</button>' +
+      '<button type="button" data-key-copy="' + inputId + '"' + (value ? '' : ' disabled') + '>复制</button>' +
+      (work.accessKeyRotatable ? '<button type="button" data-key-reset="' + escapeAttribute(work.id) + '">轮换</button>' : '') +
+      (staticMode && work.accessKeySource === 'local-vault' ? '<button type="button" data-key-forget="' + escapeAttribute(work.id) + '">移除本机副本</button>' : '') +
+      '</div><small>' + escapeHtml(hint) + '</small></div>' : staticMode && work.secretUnavailableOnStatic
+        ? staticVaultMarkup(work, index)
+        : '<div class="work-key static-key-note"><label>作品密钥</label><small>' + escapeHtml(hint) + '</small></div>') + '</article>';
+  }
+
+  function staticVaultMarkup(work, index) {
+    var state = work.accessKeyVaultState || 'locked';
+    if (state === 'unlocked') {
+      return '<div class="work-key static-key-note"><label for="vault-key-' + index + '">本机密钥保险库</label>' +
+        '<small>首次输入现有作品密钥后，会先用公开加密校验器验证，再以站长账号密码派生的密钥加密保存在本机。</small>' +
+        '<div class="key-control"><input id="vault-key-' + index + '" type="password" autocomplete="off" placeholder="输入现有作品密钥">' +
+        '<button type="button" data-key-save="' + escapeAttribute(work.id) + '" data-key-input="vault-key-' + index + '">验证并保存</button></div></div>';
+    }
+    return '<div class="work-key static-key-note"><label for="vault-password-' + index + '">解锁本机密钥保险库</label>' +
+      '<small>公开站点不会包含作品密钥。请输入站长账号登录密码在本机解锁；密码和密钥都不会上传。</small>' +
+      '<div class="key-control"><input id="vault-password-' + index + '" type="password" autocomplete="current-password" placeholder="站长账号密码">' +
+      '<button type="button" data-vault-unlock="vault-password-' + index + '">解锁</button></div></div>';
   }
 
   function escapeHtml(value) {
@@ -365,6 +388,10 @@
     byId('works-list').addEventListener('click', function (event) {
       var toggle = event.target.closest('[data-key-toggle]');
       var copy = event.target.closest('[data-key-copy]');
+      var unlock = event.target.closest('[data-vault-unlock]');
+      var save = event.target.closest('[data-key-save]');
+      var forget = event.target.closest('[data-key-forget]');
+      var reset = event.target.closest('[data-key-reset]');
       if (toggle) {
         var target = byId(toggle.getAttribute('data-key-toggle'));
         var showing = target.type === 'text';
@@ -376,6 +403,55 @@
         if (!input || !input.value) return;
         navigator.clipboard.writeText(input.value).then(function () { toast('作品密钥已复制。'); })
           .catch(function () { input.type = 'text'; input.select(); toast('请按 Ctrl+C 复制作品密钥。'); });
+      }
+      if (unlock) {
+        var passwordInput = byId(unlock.getAttribute('data-vault-unlock'));
+        if (!passwordInput || !passwordInput.value) { toast('请输入站长账号密码。'); return; }
+        unlock.disabled = true;
+        auth.unlockWorkKeyVault(passwordInput.value).then(function (payload) {
+          passwordInput.value = '';
+          renderProfile(payload);
+          toast('本机密钥保险库已解锁。');
+        }).catch(function (error) {
+          toast(error.message);
+          unlock.disabled = false;
+        });
+      }
+      if (save) {
+        var keyInput = byId(save.getAttribute('data-key-input'));
+        if (!keyInput || !keyInput.value) { toast('请输入现有作品密钥。'); return; }
+        save.disabled = true;
+        auth.saveWorkKey(save.getAttribute('data-key-save'), keyInput.value).then(function (payload) {
+          keyInput.value = '';
+          renderProfile(payload);
+          toast('作品密钥已验证并加密保存在本机。');
+        }).catch(function (error) {
+          toast(error.message);
+          save.disabled = false;
+        });
+      }
+      if (forget) {
+        if (!window.confirm('只移除当前浏览器中的加密密钥副本？服务端密钥和加密资料不会改变。')) return;
+        forget.disabled = true;
+        auth.forgetWorkKey(forget.getAttribute('data-key-forget')).then(function (payload) {
+          renderProfile(payload);
+          toast('本机密钥副本已移除。');
+        }).catch(function (error) {
+          toast(error.message);
+          forget.disabled = false;
+        });
+      }
+      if (reset) {
+        if (!window.confirm('轮换后旧密钥和已有开团密钥会话将立即失效。继续吗？')) return;
+        reset.disabled = true;
+        auth.resetWorkAccessKey(reset.getAttribute('data-key-reset')).then(function () {
+          return loadProfile();
+        }).then(function () {
+          toast('新作品密钥已经生成；请复制并妥善保存。');
+        }).catch(function (error) {
+          toast(error.message);
+          reset.disabled = false;
+        });
       }
     });
 

@@ -5,8 +5,22 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(resolve(root, 'secure/manifest.json'), 'utf8'));
-const passphrase = String(process.env.NG_ARCHIVE_KEY || '').trim().toUpperCase();
-if (!passphrase) throw new Error('NG_ARCHIVE_KEY is required.');
+
+async function requirePassphrase() {
+  const environmentPassphrase = String(process.env.NG_ARCHIVE_KEY || '').trim();
+  if (environmentPassphrase) return environmentPassphrase.toUpperCase();
+
+  try {
+    const localPassphrase = String(await readFile(resolve(root, '.keeper-key'), 'utf8')).trim();
+    if (localPassphrase) return localPassphrase.toUpperCase();
+  } catch (error) {
+    if (error && error.code !== 'ENOENT') throw error;
+  }
+
+  throw new Error('NG_ARCHIVE_KEY or a local .keeper-key is required.');
+}
+
+const passphrase = await requirePassphrase();
 
 const key = pbkdf2Sync(
   passphrase,
@@ -34,13 +48,13 @@ if (data.id !== 'null-grail-v3.2' || !Array.isArray(data.scenes) || !Array.isArr
   throw new Error('Keeper data did not round-trip.');
 }
 
-const archive = resolve(root, 'NullGrail《零之圣杯》v3.2 最终版');
+const archive = resolve(root, 'NullGrail《零之圣杯》');
 const sources = {
-  'main-module': resolve(archive, '四册正文', '《零之圣杯》第一册·主模组（v3.2）.docx'),
-  'npc-guide': resolve(archive, '四册正文', '《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx'),
-  'keeper-toolkit': resolve(archive, '四册正文', '《零之圣杯》第四册·主持人工具书（v3.2）.docx'),
-  'staged-clues': resolve(archive, '配套资料', '《零之圣杯》分阶段线索发放包（v3.2）.docx'),
-  'player-handouts': resolve(archive, '配套资料', '《零之圣杯》玩家手卡打印包（v3.2）.docx')
+  'main-module': resolve(archive, '四册正文', '《零之圣杯》第一册·主模组.docx'),
+  'npc-guide': resolve(archive, '四册正文', '《零之圣杯》第二册·NPC与英灵手册.docx'),
+  'keeper-toolkit': resolve(archive, '四册正文', '《零之圣杯》第四册·主持人工具书.docx'),
+  'staged-clues': resolve(archive, '配套资料', '《零之圣杯》分阶段线索发放包.docx'),
+  'player-handouts': resolve(archive, '配套资料', '《零之圣杯》玩家手卡打印包.docx')
 };
 
 for (const [id, source] of Object.entries(sources)) {

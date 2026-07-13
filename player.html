@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="player.css?v=20260713s">
+  <link rel="stylesheet" href="player.css?v=20260713u">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -31,16 +31,16 @@
     <article class="player-map-view" id="player-map-view" hidden aria-labelledby="player-map-title">
       <header class="player-map-heading">
         <div><p>PLAYER SAFE · EASTLAKE ATLAS</p><h1 id="player-map-title">东湖市互动地图</h1><span id="player-map-summary">等待守秘人投送地点标记。</span></div>
-        <div class="player-map-counts"><strong id="player-map-location-count">0</strong><span>已公开地点</span><strong id="player-map-clue-count">0</strong><span>地图线索</span></div>
+        <div class="player-map-counts"><strong id="player-map-location-count">0</strong><span>已公开地点</span><strong id="player-map-clue-count">0</strong><span>地图线索</span><strong id="player-map-character-count">0</strong><span>当前登场</span></div>
       </header>
       <div class="player-map-layout">
         <div class="player-atlas" id="player-atlas">
-          <img id="player-map-image" src="assets/art/eastlake-map.webp" alt="东湖市雨夜地图，已公开地点会显示可点击文字标记">
+          <img id="player-map-image" src="assets/art/eastlake-map.webp" alt="东湖市雨夜地图，已公开地点会显示可点击圆形标记">
           <div class="player-map-hotspots" id="player-map-hotspots" aria-label="已公开地点标记"></div>
-          <div class="player-map-legend"><span><i></i>点击文字标记查看详情</span><span><i class="current"></i>当前阶段</span><span><i class="visited"></i>已到访</span></div>
+          <div class="player-map-legend"><span><i></i>点击地点标记查看详情</span><span><i class="current"></i>当前阶段</span><span><i class="visited"></i>已到访</span><span><i class="presence"></i>人物在场</span></div>
         </div>
         <aside class="player-map-detail" id="player-map-detail" aria-live="polite">
-          <p>MAP READY</p><h2>选择地图上的地点</h2><span>每个标记都有常显文字；点击后可查看公开场景、路线提示和已经取得的线索。</span>
+          <p>MAP READY</p><h2>选择地图上的地点</h2><span>点击精简的圆形标记，可查看公开场景、路线提示、守秘人投放的线索与当前登场人物。</span>
         </aside>
       </div>
       <details class="player-map-list-wrap">
@@ -304,6 +304,6 @@
   </section>
   <div class="projection-note" id="projection-note">同机投屏模式 · 守秘人发放后会自动更新</div>
   <script src="player-data.js?v=20260713s"></script>
-  <script src="player.js?v=20260713s"></script>
+  <script src="player.js?v=20260713u"></script>
 </body>
 </html>

@@ -128,12 +128,14 @@ body.profile-page {
 .works-empty p { margin: 5px 0 0; font-size: 11px; }
 .works-empty a { padding: 9px 12px; border: 1px solid rgba(209,173,108,.35); color: var(--profile-gold); font-size: 10px; text-decoration: none; }
 .work-key label { display: block; margin-bottom: 7px; color: var(--profile-gold); font-size: 10px; letter-spacing: .12em; }
-.key-control { display: flex; }
+.key-control { display: flex; flex-wrap: wrap; }
 .key-control input { min-width: 0; flex: 1; height: 44px; padding: 0 12px; border: 1px solid rgba(255,255,255,.12); color: var(--profile-paper); background: #080f18; font: 13px monospace; }
 .key-control button { padding: 0 13px; border: 1px solid rgba(209,173,108,.35); color: var(--profile-gold); background: transparent; cursor: pointer; }
+.key-control button:disabled { opacity: .55; cursor: wait; }
 .work-key small { display: block; margin-top: 7px; color: var(--profile-muted); }
 .static-key-note { padding: 14px; border: 1px solid rgba(209,173,108,.18); background: rgba(209,173,108,.045); }
 .static-key-note small { margin: 0; font-size: 13px; line-height: 1.7; }
+.static-key-note .key-control { margin-top: 10px; }
 
 .application-card { display: grid; grid-template-columns: 1fr auto; gap: 18px; padding: 20px; border: 1px solid rgba(255,255,255,.09); background: rgba(8,15,24,.46); }
 .application-card h3 { margin: 0 0 4px; font-size: 16px; }

@@ -23,7 +23,8 @@
     });
   }
   function resourceUrl(resource) {
-    return resource.url || resource.href || ('/api/modules/' + encodeURIComponent(moduleId) + '/resources/' + encodeURIComponent(resource.id));
+    var href = resource.url || resource.href || ('/api/modules/' + encodeURIComponent(moduleId) + '/resources/' + encodeURIComponent(resource.id));
+    return auth && auth.apiUrl && /^\/api\//.test(href) ? auth.apiUrl(href) : href;
   }
   function formatBytes(value) {
     var size = Number(value || 0);
@@ -151,7 +152,10 @@
     byId('module-error-message').textContent = error && error.message ? error.message : '模组可能尚未公开，或链接已经失效。';
   }
 
-  window.fetch('/api/modules/' + encodeURIComponent(moduleId), { credentials: 'same-origin', cache: 'no-store' })
+  var modulePath = '/api/modules/' + encodeURIComponent(moduleId);
+  var moduleUrl = auth && auth.apiUrl ? auth.apiUrl(modulePath) : modulePath;
+  var moduleCredentials = auth && auth.apiCredentials ? auth.apiCredentials(modulePath) : 'same-origin';
+  window.fetch(moduleUrl, { credentials: moduleCredentials, cache: 'no-store' })
     .then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (payload) {
         if (!response.ok) throw new Error(payload.message || '无法读取这份模组档案。');

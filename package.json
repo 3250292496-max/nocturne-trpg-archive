@@ -9,7 +9,12 @@
     "start": "node server.mjs",
     "build:secure": "node scripts/build-secure-assets.mjs",
     "verify:secure": "node scripts/verify-secure-assets.mjs",
-    "check": "node --check access.js && node --check app.js && node --check gm-gate.js && node --check gm.js && node --check player-data.js && node --check player.js && node --check server.mjs",
+    "build:public": "node scripts/build-public-package.mjs",
+    "verify:public": "node scripts/verify-public-package.mjs",
+    "build:release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-upgrade-bundle.ps1",
+    "verify:console": "node scripts/verify-console-data.mjs",
+    "check": "node --check font-size.js && node --check access.js && node --check modules-data.js && node --check site-auth.js && node --check profile.js && node --check app.js && node --check module.js && node --check studio.js && node --check run.js && node --check combat.js && node --check gm-gate.js && node --check coc7-data.js && node --check coc7-core.js && node --check coc7-xlsx.js && node --check coc7.js && node --check gm.js && node --check player-data.js && node --check player.js && node --check server.mjs",
+    "test": "node --test tests/*.test.mjs",
     "check:private": "npm run check && node --check gm-data.js"
   }
 }

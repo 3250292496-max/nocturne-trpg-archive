@@ -7,4 +7,5 @@ node_modules/
 Thumbs.db
 .keeper-key
 .secure-publish/
+.data/
 *.bundle

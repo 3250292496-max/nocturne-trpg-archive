@@ -19,6 +19,7 @@
   var staticMode = false;
   var toastTimer = null;
   var notesTimer = null;
+  var auth = window.NG_AUTH;
 
   function byId(id) { return document.getElementById(id); }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -30,6 +31,7 @@
   function safeHref(value) {
     var text = String(value || '').trim();
     if (!text) return '#';
+    if (auth && auth.apiUrl && /^\/api\//.test(text)) text = auth.apiUrl(text);
     try {
       var parsed = new URL(text, window.location.href);
       if (!/^https?:$/.test(parsed.protocol) && parsed.origin !== window.location.origin) return '#';
@@ -47,12 +49,14 @@
     };
   }
   function api(path, options) {
-    var settings = Object.assign({ credentials:'same-origin', cache:'no-store' }, options || {});
+    var target = auth && auth.apiUrl ? auth.apiUrl(path) : path;
+    var credentials = auth && auth.apiCredentials ? auth.apiCredentials(path) : 'same-origin';
+    var settings = Object.assign({ credentials:credentials, cache:'no-store' }, options || {});
     if (settings.body && typeof settings.body !== 'string') {
       settings.headers = Object.assign({}, settings.headers || {}, { 'Content-Type':'application/json' });
       settings.body = JSON.stringify(settings.body);
     }
-    return window.fetch(path, settings).then(function (response) {
+    return window.fetch(target, settings).then(function (response) {
       return response.text().then(function (raw) {
         var payload = {};
         try { payload = raw ? JSON.parse(raw) : {}; }

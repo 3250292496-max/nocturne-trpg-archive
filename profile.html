@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="夜航模组馆个人中心：管理账号资料、作者认证与作品权限。">
   <meta name="theme-color" content="#0b1019">
+  <meta name="ng-api-base" content="">
   <title>个人中心 · 夜航模组馆</title>
   <link rel="stylesheet" href="styles.css?v=20260713f">
-  <link rel="stylesheet" href="profile.css?v=20260713f">
+  <link rel="stylesheet" href="profile.css?v=20260713u">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -37,7 +38,7 @@
     <section class="signed-out-card" id="signed-out-card" hidden aria-labelledby="signed-out-title">
       <p class="profile-eyebrow">MEMBER SIGN IN</p>
       <h1 id="signed-out-title">登录后继续航行</h1>
-      <p id="profile-storage-note">账号资料会长期保存在当前浏览器中；清除网站数据或更换浏览器、设备后不会自动同步。</p>
+      <p id="profile-storage-note">当前已连接账号服务；账号、作者认证和作品归属可在不同设备间同步。</p>
       <form id="profile-login-form" class="compact-form">
         <label><span>账号</span><input name="account" type="text" autocomplete="username" required></label>
         <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -48,7 +49,7 @@
     </section>
 
     <div id="profile-content" hidden>
-      <p class="static-session-note" id="static-session-note" hidden><strong>GitHub Pages 本机账号</strong>账号、登录状态、昵称和头像会长期保存在当前浏览器中；密码只保存不可逆校验值。清除网站数据或更换浏览器、设备后不会同步。作品密钥与守秘口令仍需单独验证。</p>
+      <p class="static-session-note" id="static-session-note" hidden><strong>静态站点 · 本机账号</strong>账号、登录状态、昵称和头像只保存在当前浏览器，不能跨设备审核作者。站长可将已验证的作品密钥用账号密码加密保存在本机；公开文件不会包含密钥。</p>
       <section class="identity-hero" aria-labelledby="identity-name">
         <div class="identity-avatar" id="identity-avatar" role="img" aria-label="当前用户头像">航</div>
         <div class="identity-copy">
@@ -135,7 +136,8 @@
   </main>
 
   <div class="profile-toast" id="profile-toast" role="status" aria-live="polite"></div>
-  <script src="site-auth.js?v=20260713h"></script>
-  <script src="profile.js?v=20260713h"></script>
+  <script src="site-auth.js?v=20260713u"></script>
+  <script src="access.js?v=20260713u"></script>
+  <script src="profile.js?v=20260713v"></script>
 </body>
 </html>

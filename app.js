@@ -10,8 +10,8 @@
       title: '零之圣杯',
       english: 'NULL GRAIL',
       systems: ['fate', 'agnostic'],
-      rulesetId: 'null-grail-core-d20-v2.0',
-      systemLabel: '《零之圣杯》通用圣杯战争规则 v2.0 · 轻量 d20',
+      rulesetId: 'null-grail-core-d20-v2.1',
+      systemLabel: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
       type: 'campaign',
       typeLabel: '完整长篇战役模组',
       tone: 'gold',
@@ -32,16 +32,16 @@
       highlights: ['规则书与自动车卡器已并入同一作品入口', '完整七日节点、人物、线索、手卡与主持控制台', '玩家角色卡可导入、导出并提交给主持人', '判定请求由主持人裁定，结果会回传到玩家面板'],
       spoiler: '完整世界真相、人物秘密、终局条件与坏结局只在通过作品密钥验证后的创作者控制台中提供。',
       resources: [
-        { name: '通用圣杯战争规则书 v2.0 · 车卡与资源库增订版（现行）', meta: 'DOCX · PLAYER SAFE · 本站车卡器当前采用的统一规则', format: 'DOCX', href: '《零之圣杯》通用圣杯战争规则书_v2.0_车卡与资源库增订版.docx' },
+        { name: '通用圣杯战争规则书 · 规则版本 2.1（现行）', meta: 'DOCX · PLAYER SAFE · 四册共同采用的通用规则', format: 'DOCX', href: 'NullGrail《零之圣杯》/规则书/《零之圣杯》通用圣杯战争规则书.docx' },
         { name: '完整自动车卡器 v1.1', meta: 'XLSX · PLAYER SAFE · 建议使用此最新版', format: 'XLSX', href: '圣杯/零之圣杯_完整套件/自动车卡/《零之圣杯》完整自动车卡表_v1.1.xlsx' },
-        { name: '第三册 · 玩家手册 v3.2', meta: 'DOCX · PLAYER SAFE · 无剧透导读与角色创建', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx' },
-        { name: '玩家公开资料包 v3.2', meta: 'DOCX · PLAYER SAFE · 可直接发给全团', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' },
-        { name: '四册统一编排与跨册索引 v3.2', meta: 'DOCX · PLAYER SAFE · 战役导航（非规则版本）', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》统一规则与跨册索引（v3.2）.docx' },
-        { name: '第一册 · 主模组 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 完整战役', format: 'DOCX', secureId: 'main-module', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第一册·主模组（v3.2）.docx', secret: true },
-        { name: '第二册 · NPC 与英灵手册 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 完全剧透', format: 'DOCX', secureId: 'npc-guide', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx', secret: true },
-        { name: '第四册 · 主持人工具书 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 桌边工具', format: 'DOCX', secureId: 'keeper-toolkit', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第四册·主持人工具书（v3.2）.docx', secret: true },
-        { name: '玩家手卡打印包 v3.2', meta: 'DOCX · 守秘人按进度发放', format: 'DOCX', secureId: 'player-handouts', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家手卡打印包（v3.2）.docx', secret: true },
-        { name: '分阶段线索发放包 v3.2', meta: 'DOCX · 守秘索引 + PLAYER SAFE 单卡', format: 'DOCX', secureId: 'staged-clues', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》分阶段线索发放包（v3.2）.docx', secret: true }
+        { name: '第三册 · 玩家手册', meta: 'DOCX · PLAYER SAFE · 无剧透导读与角色创建', format: 'DOCX', href: 'NullGrail《零之圣杯》/四册正文/《零之圣杯》第三册·玩家手册.docx' },
+        { name: '玩家公开资料包', meta: 'DOCX · PLAYER SAFE · 可直接发给全团', format: 'DOCX', href: 'NullGrail《零之圣杯》/配套资料/《零之圣杯》玩家公开资料包.docx' },
+        { name: '统一规则与跨册索引', meta: 'DOCX · PLAYER SAFE · 规则入口与战役导航', format: 'DOCX', href: 'NullGrail《零之圣杯》/配套资料/《零之圣杯》统一规则与跨册索引.docx' },
+        { name: '第一册 · 主模组', meta: 'DOCX · 创作者 / 守秘人专用 · 完整战役', format: 'DOCX', secureId: 'main-module', href: 'NullGrail《零之圣杯》/四册正文/《零之圣杯》第一册·主模组.docx', secret: true },
+        { name: '第二册 · NPC 与英灵手册', meta: 'DOCX · 创作者 / 守秘人专用 · 完全剧透', format: 'DOCX', secureId: 'npc-guide', href: 'NullGrail《零之圣杯》/四册正文/《零之圣杯》第二册·NPC与英灵手册.docx', secret: true },
+        { name: '第四册 · 主持人工具书', meta: 'DOCX · 创作者 / 守秘人专用 · 桌边工具', format: 'DOCX', secureId: 'keeper-toolkit', href: 'NullGrail《零之圣杯》/四册正文/《零之圣杯》第四册·主持人工具书.docx', secret: true },
+        { name: '玩家手卡打印包', meta: 'DOCX · 守秘人按进度发放', format: 'DOCX', secureId: 'player-handouts', href: 'NullGrail《零之圣杯》/配套资料/《零之圣杯》玩家手卡打印包.docx', secret: true },
+        { name: '分阶段线索发放包', meta: 'DOCX · 守秘索引 + PLAYER SAFE 单卡', format: 'DOCX', secureId: 'staged-clues', href: 'NullGrail《零之圣杯》/配套资料/《零之圣杯》分阶段线索发放包.docx', secret: true }
       ]
     }
   ];
@@ -669,7 +669,10 @@
   var staticPublished = staticPublishedModules();
   if (staticPublished.length) usePublishedModules(staticPublished);
 
-  window.fetch('/api/modules', { credentials: 'same-origin', cache: 'no-store' }).then(function (response) {
+  var modulesApiPath = '/api/modules';
+  var modulesApiUrl = window.NG_AUTH && window.NG_AUTH.apiUrl ? window.NG_AUTH.apiUrl(modulesApiPath) : modulesApiPath;
+  var modulesApiCredentials = window.NG_AUTH && window.NG_AUTH.apiCredentials ? window.NG_AUTH.apiCredentials(modulesApiPath) : 'same-origin';
+  window.fetch(modulesApiUrl, { credentials: modulesApiCredentials, cache: 'no-store' }).then(function (response) {
     if (!response.ok) throw new Error('module-list-unavailable');
     return response.json();
   }).then(function (payload) {
