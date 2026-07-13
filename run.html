@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#071019">
+  <title>模组开团控制台 · 夜航模组馆</title>
+  <link rel="stylesheet" href="font-size.css">
+  <link rel="stylesheet" href="run.css">
+</head>
+<body>
+  <a class="skip-link" href="#run-main">跳到主持内容</a>
+
+  <section class="run-loading" id="run-loading" aria-live="polite">
+    <span aria-hidden="true"></span>
+    <p>正在读取模组与访问权限……</p>
+  </section>
+
+  <main class="run-gate" id="run-gate" hidden>
+    <a class="gate-brand" href="index.html"><span>夜</span><div><strong>夜航模组馆</strong><small>MODULE SESSION CONSOLE</small></div></a>
+    <p class="eyebrow">KEEPER ACCESS · 作品独立密钥</p>
+    <h1 id="gate-title">打开模组开团台</h1>
+    <p id="gate-copy">请输入这份模组自己的开团密钥。密钥由作者在个人中心查看并交给本团主持人。</p>
+    <form id="access-form">
+      <label for="access-key">本作品开团密钥</label>
+      <div><input id="access-key" name="key" type="password" autocomplete="current-password" required maxlength="80" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"><button type="submit">验证并进入</button></div>
+      <p class="gate-message" id="gate-message" role="status" hidden></p>
+    </form>
+    <div class="gate-links"><a id="gate-module-link" href="index.html#modules">查看模组介绍</a><a href="profile.html">作者个人中心</a><a href="index.html#direct-run">返回选择模组</a></div>
+  </main>
+
+  <div class="run-shell" id="run-shell" hidden>
+    <header class="run-topbar">
+      <a class="run-brand" href="index.html"><span>夜</span><div><strong>开团控制台</strong><small>GENERAL MODULE DESK</small></div></a>
+      <div class="run-title"><small id="top-system">TABLETOP MODULE</small><strong id="top-title">未命名模组</strong></div>
+      <label class="module-switch"><span>切换模组</span><select id="module-switch" aria-label="切换开团模组"></select></label>
+      <div class="top-actions"><a id="module-detail-link" href="index.html#modules">模组页 ↗</a><button id="lock-console" type="button">锁定</button></div>
+    </header>
+
+    <aside class="run-sidebar" aria-label="开团台分区">
+      <nav>
+        <button class="active" type="button" data-run-tab="overview"><span>总</span><b>团务总览</b><small>OVERVIEW</small></button>
+        <button type="button" data-run-tab="scenes"><span>景</span><b>场景推进</b><small id="scene-count">0</small></button>
+        <button type="button" data-run-tab="cast"><span>人</span><b>人物与 NPC</b><small id="cast-count">0</small></button>
+        <button type="button" data-run-tab="clues"><span>索</span><b>线索桌面</b><small id="clue-count">0</small></button>
+        <button type="button" data-run-tab="resources"><span>档</span><b>模组资料</b><small id="resource-count">0</small></button>
+      </nav>
+      <div class="sidebar-meta"><small>当前会话</small><strong id="sidebar-module">未命名模组</strong><p>进度只保存在当前浏览器；作品正文与密钥由网站后端隔离。</p></div>
+    </aside>
+
+    <main class="run-main" id="run-main">
+      <section class="run-panel active" data-run-panel="overview">
+        <header class="panel-heading"><div><p class="eyebrow">SESSION OVERVIEW</p><h1 id="module-title">未命名模组</h1><p id="module-summary">尚无简介。</p></div><div class="module-author"><span id="author-avatar">作</span><div><small>作品作者</small><strong id="module-author">未知作者</strong></div></div></header>
+        <div class="overview-layout">
+          <article class="desk-card opening-card"><header><p class="eyebrow">KEEPER BRIEFING</p><h2>主持总览</h2></header><div id="run-opening" class="prose"></div></article>
+          <article class="desk-card tracker-card"><header><p class="eyebrow">CAMPAIGN TRACKERS</p><h2>战役轨道</h2></header><div id="tracker-list" class="tracker-list"></div></article>
+          <article class="desk-card notes-card"><header><div><p class="eyebrow">SESSION NOTES</p><h2>本次团务记录</h2></div><small id="notes-state">自动保存</small></header><textarea id="session-notes" rows="12" placeholder="记录临场裁定、玩家决定、下次开团待办……"></textarea></article>
+          <article class="desk-card tools-card"><header><p class="eyebrow">QUICK TOOLS</p><h2>轮次与骰子</h2></header><div class="round-control"><button type="button" data-round="-1" aria-label="轮次减一">−</button><div><small>当前轮次</small><strong id="round-value">1</strong></div><button type="button" data-round="1" aria-label="轮次加一">＋</button></div><div class="dice-row" aria-label="快捷掷骰"><button type="button" data-die="4">d4</button><button type="button" data-die="6">d6</button><button type="button" data-die="8">d8</button><button type="button" data-die="10">d10</button><button type="button" data-die="20">d20</button><button type="button" data-die="100">d100</button></div><ol id="session-log" class="session-log"></ol></article>
+        </div>
+        <div class="session-actions"><button id="export-session" type="button">导出本次团务 JSON</button><button class="danger" id="reset-session" type="button">清空本地进度</button></div>
+      </section>
+
+      <section class="run-panel" data-run-panel="scenes">
+        <header class="panel-heading"><div><p class="eyebrow">SCENE FLOW</p><h1>场景推进</h1><p>点击状态按钮，在“未开始 / 进行中 / 已完成”之间推进；不会改动作者原稿。</p></div></header>
+        <div class="card-list" id="scene-list"></div>
+      </section>
+
+      <section class="run-panel" data-run-panel="cast">
+        <header class="panel-heading"><div><p class="eyebrow">CAST DESK</p><h1>人物与 NPC</h1><p>标记本场人物是否在场，快速读取身份、动机与扮演提示。</p></div></header>
+        <div class="card-list cast-list" id="cast-list"></div>
+      </section>
+
+      <section class="run-panel" data-run-panel="clues">
+        <header class="panel-heading"><div><p class="eyebrow">CLUE DESK</p><h1>线索桌面</h1><p>线索默认折叠；主持人揭示后可以复制文字发给玩家。</p></div></header>
+        <div class="card-list clue-list" id="clue-list"></div>
+      </section>
+
+      <section class="run-panel" data-run-panel="resources">
+        <header class="panel-heading"><div><p class="eyebrow">MODULE ARCHIVE</p><h1>模组资料</h1><p>仅显示玩家公开与本模组主持人可读的资料；作者私稿不会进入这里。</p></div></header>
+        <div class="resource-list" id="resource-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="run-toast" id="run-toast" role="status" aria-live="polite"></div>
+  <script src="font-size.js"></script>
+  <script src="modules-data.js"></script>
+  <script src="run.js"></script>
+</body>
+</html>

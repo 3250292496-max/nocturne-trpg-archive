@@ -1,9 +1,9 @@
 (function (root, factory) {
   'use strict';
-  var api = factory();
+  var api = factory(root);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.COC7_XLSX = api;
-}(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+}(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
 
   var textDecoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
@@ -246,7 +246,6 @@
     function number(reference, minimum, maximum) {
       var parsed = numericValue(value(reference));
       if (parsed == null || parsed < minimum || parsed > maximum) return null;
-      if (parsed > 0 && parsed <= 1 && maximum === 100) parsed *= 100;
       return Math.round(parsed);
     }
     function text(reference, maximum) { return cleanText(value(reference), maximum || 160); }
@@ -287,7 +286,7 @@
       weapons.push({
         id:'xlsx-weapon-' + weaponRow, name:weaponName, type:text('G' + weaponRow, 50), skill:skillName,
         skillValue:skillValue, damage:damage && !/#(?:NAME|VALUE|REF|N\/A)/i.test(damage) ? damage : (weaponRow === 53 ? '1D3+DB' : '1D6'),
-        range:text('AA' + weaponRow, 50), impale:/^(?:是|Y|YES|TRUE|1|可)$/i.test(text('AC' + weaponRow, 20)),
+        range:text('AA' + weaponRow, 50), impale:/^(?:是|Y|YES|TRUE|1|可|√|✓|✔)$/i.test(text('AC' + weaponRow, 20)),
         attacks:text('AE' + weaponRow, 30) || '1', ammo:text('AG' + weaponRow, 30), malfunction:text('AJ' + weaponRow, 30),
         sourceRow:weaponRow
       });
@@ -298,21 +297,36 @@
     var sanLossToday = number('N12', 0, 100) || 0;
     var sanEffective = number('R12', 0, 100);
     if (sanEffective == null && sanSheetValue != null) sanEffective = Math.max(0, sanSheetValue - sanLossToday);
+    var sanDayStart = Math.max(0, (sanEffective == null ? sanSheetValue || 0 : sanEffective) + sanLossToday);
+    var healthState = text('I11', 80);
+    var sanityState = text('R11', 80);
+    var status = {
+      majorWound:/(重伤|濒死)/.test(healthState), prone:/(倒地)/.test(healthState),
+      unconscious:/(昏迷|不省人事|濒死|死亡)/.test(healthState), dying:/(濒死)/.test(healthState), dead:/(死亡|已死)/.test(healthState),
+      temporaryInsanity:/(临时|短暂|疯狂发作)/.test(sanityState), indefiniteInsanity:/(不定期|不定性)/.test(sanityState), permanentInsanity:/(永久)/.test(sanityState)
+    };
+    var insanity = { temporary:status.temporaryInsanity, temporaryHours:0, indefinite:status.indefiniteInsanity, permanent:status.permanentInsanity };
     var warnings = [];
     if (text('E3', 80) === '雪莱') warnings.push('模板仍保留示例人物“雪莱”，请确认这确实是要导入的角色。');
     if (sanSheetValue != null && sanEffective != null && sanSheetValue !== sanEffective) warnings.push('卡面 SAN 与扣除今日损失后的有效 SAN 不同，已采用 R12 有效值。');
+    if (healthState && !/(健康|正常|重伤|濒死|昏迷|不省人事|倒地|死亡)/.test(healthState)) warnings.push('健康状态“' + healthState + '”无法可靠映射，请在战斗台复核。');
+    if (sanityState && !/(正常|清醒|临时|短暂|疯狂发作|不定期|不定性|永久)/.test(sanityState)) warnings.push('精神状态“' + sanityState + '”无法可靠映射，请在战斗台复核。');
+    if ((number('I12', 0, 99) || 0) > 0) warnings.push('模板含临时 HP；站点不会把它并入永久 HP，请在战斗台单独复核。');
+    weapons.forEach(function (weapon) { if (/[\/／]|燃烧|眩晕|毒|窒息/.test(weapon.damage || '')) warnings.push(weapon.name + ' 的伤害含射程分支或附加状态，自动攻击会采用第一段数值并提示守秘人复核。'); });
     return {
       protocol:'coc7-character-v1', rulesetId:'coc7-7e', id:'',
       name:text('E3', 80) || 'Excel 导入调查员', playerName:text('E4', 80), age:number('E6', 15, 99) || 28,
-      sex:text('M6', 40), era:text('M4', 80), occupation:text('E5', 100), occupationId:text('M5', 40) || 'custom',
+      sex:text('M6', 40), era:text('M4', 80), occupation:text('E5', 100), occupationId:'custom',
       residence:text('E7', 120), birthplace:text('M7', 120), characteristics:characteristics, skills:skills, skillRows:skillRows,
       armor:number('AN10', 0, 30) || 0, armorName:text('AN12', 80), armorCoverage:text('AP11', 80),
       current:{ hp:number('E10', 0, 99), mp:number('W10', 0, 99), san:sanEffective, luck:characteristics.luck },
+      status:status, insanity:insanity, sanDayStart:sanDayStart, sanDayLoss:sanLossToday,
+      runtime:{ sanDayStart:sanDayStart, sanDayLoss:sanLossToday, insanity:insanity },
       sheetDerived:{ maxHp:number('G10', 1, 99), majorWoundThreshold:number('D12', 1, 99), temporaryHp:number('I12', 0, 99),
-        healthState:text('I11', 80), sanSheetValue:sanSheetValue, sanDayLoss:sanLossToday, sanityState:text('R11', 80),
+        healthState:healthState, sanSheetValue:sanSheetValue, sanDayLoss:sanLossToday, sanityState:sanityState,
         maxMp:number('Y10', 0, 99), move:number('AF10', 0, 20), damageBonus:text('AP52', 30), build:number('AP55', -10, 30), dodge:number('AP57', 0, 100) },
       weapons:weapons, conditions:[], notes:'从 ' + book.fileName + ' 的“人物卡”导入',
-      source:{ format:'xlsx', fileName:book.fileName, template:'神秘桜-2021-01', sourceSheet:'人物卡', warnings:warnings }
+      source:{ format:'xlsx', fileName:book.fileName, template:'神秘桜-2021-01', sourceSheet:'人物卡', sheetOccupationId:text('M5', 40), warnings:warnings }
     };
   }
 
@@ -330,7 +344,7 @@
     var characteristics = {};
     Object.keys(characteristicAliases).forEach(function (key) {
       var value = findNumber(cells, characteristicAliases[key], 1, 100);
-      if (value != null && value > 0 && value <= 1) value *= 100;
+      if (value != null && value > 0 && value < 1) value *= 100;
       characteristics[key] = value == null ? 0 : Math.round(value);
     });
     var populated = Object.keys(characteristics).filter(function (key) { return key !== 'luck' && characteristics[key] >= 15; });
@@ -352,7 +366,7 @@
     Object.keys(skillAliases).forEach(function (name) {
       var value = findNumber(cells, skillAliases[name], 0, 100);
       if (value != null) {
-        if (value > 0 && value <= 1) value *= 100;
+        if (value > 0 && value < 1) value *= 100;
         skills[name] = Math.round(value);
       }
     });
@@ -384,10 +398,22 @@
     return extractCharacter(book);
   }
 
+  async function importFromUrl(url) {
+    if (!root.location || typeof root.fetch !== 'function') throw new Error('URL import is only available in a browser');
+    var resolved = new root.URL(String(url || ''), root.location.href);
+    if (resolved.origin !== root.location.origin) throw new Error('only same-origin workbook URLs are allowed');
+    var response = await root.fetch(resolved.href, { credentials:'same-origin' });
+    if (!response.ok) throw new Error('unable to load workbook: HTTP ' + response.status);
+    var bytes = await response.arrayBuffer();
+    var fileName = decodeURIComponent(resolved.pathname.split('/').pop() || 'character.xlsx');
+    return importCharacter({ name:fileName, arrayBuffer:function () { return Promise.resolve(bytes); } });
+  }
+
   return Object.freeze({
     parseWorkbook:parseWorkbook,
     extractCharacter:extractCharacter,
     importCharacter:importCharacter,
+    importFromUrl:importFromUrl,
     normalizedLabel:normalizedLabel,
     numericValue:numericValue
   });

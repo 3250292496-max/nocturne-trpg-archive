@@ -15,6 +15,13 @@
   function byId(id) { return document.getElementById(id); }
   function isStaticMode() { return auth && auth.getMode && auth.getMode() === 'static'; }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  function staticAccessKey() {
+    var bytes = new Uint8Array(12);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+    else for (var index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    return Array.prototype.map.call(bytes, function (value) { return value.toString(16).padStart(2, '0'); })
+      .join('').toUpperCase().match(/.{1,4}/g).join('-');
+  }
 
   function staticModules() {
     var merged = {};
@@ -52,6 +59,7 @@
         var created = Object.assign({
           id:staticModuleId(settings.body && settings.body.title, list), english:'COMMUNITY MODULE', typeLabel:'完整战役模组',
           description:'', players:'', duration:'', era:'', difficulty:'', tags:[], status:'draft', resources:[],
+          accessKey:staticAccessKey(), runbook:{ opening:'', scenes:[], npcs:[], clues:[], trackers:[] },
           ownerId:currentUser && currentUser.id,
           author:{ displayName:currentUser && currentUser.displayName || '夜航创作者', name:currentUser && currentUser.displayName || '夜航创作者', avatar:currentUser && currentUser.avatar || '', label:'认证作者' },
           createdAt:now, updatedAt:now
@@ -146,11 +154,30 @@
   function isInformationReady() {
     return Boolean(currentModule.title && currentModule.summary && currentModule.description && currentModule.systemLabel);
   }
+  function emptyRunbook() {
+    return { opening:'', scenes:[], npcs:[], clues:[], trackers:[] };
+  }
+  function normalizedRunbook(value) {
+    var source = value && typeof value === 'object' ? value : {};
+    var result = emptyRunbook();
+    result.opening = String(source.opening || '');
+    ['scenes','npcs','clues','trackers'].forEach(function (kind) {
+      result[kind] = Array.isArray(source[kind]) ? source[kind].map(function (item) {
+        return item && typeof item === 'object' ? Object.assign({}, item) : {};
+      }) : [];
+    });
+    return result;
+  }
+  function runbookCount() {
+    var runbook = normalizedRunbook(currentModule && currentModule.runbook);
+    return ['scenes','npcs','clues','trackers'].reduce(function (total, kind) { return total + runbook[kind].length; }, 0);
+  }
   function completion() {
     var checks = [
       Boolean(currentModule.title), Boolean(currentModule.summary), Boolean(currentModule.description), Boolean(currentModule.systemLabel),
       resourcesOf('map').length > 0, resourcesOf('rules').length > 0, resourcesOf('builder').length > 0,
-      resourcesOf('module').length > 0 || resourcesOf('handouts').length > 0
+      resourcesOf('module').length > 0 || resourcesOf('handouts').length > 0,
+      Boolean(normalizedRunbook(currentModule.runbook).opening || runbookCount())
     ];
     return Math.round(checks.filter(Boolean).length / checks.length * 100);
   }
@@ -173,10 +200,13 @@
     setCheck('check-map', resourcesOf('map').length, resourcesOf('map').length + ' 份', '未导入');
     setCheck('check-rules', resourcesOf('rules').length, resourcesOf('rules').length + ' 份', '未导入');
     setCheck('check-builder', resourcesOf('builder').length, resourcesOf('builder').length + ' 份', '未导入');
+    var configuredRunbook = Boolean(normalizedRunbook(currentModule.runbook).opening || runbookCount());
+    setCheck('check-runbook', configuredRunbook, runbookCount() + ' 个条目', '未配置');
     var imported = ['map','rules','builder','module'].filter(function (category) { return resourcesOf(category).length; }).length;
     byId('nav-info').textContent = isInformationReady() ? '已就绪' : '待完善';
     byId('nav-imports').textContent = imported + ' / 4';
     byId('nav-resources').textContent = String((currentModule.resources || []).length);
+    byId('nav-runbook').textContent = configuredRunbook ? runbookCount() + ' 个条目' : '未配置';
     byId('nav-status').textContent = currentModule.status === 'published' ? '已发布' : '草稿';
     byId('overview-status').textContent = currentModule.status === 'published' ? '已发布' : '草稿';
     var next = [];
@@ -185,6 +215,7 @@
     if (!resourcesOf('map').length) next.push('添加至少一份地图或场景视觉稿。');
     if (!resourcesOf('rules').length) next.push('上传玩家可阅读的规则资料，并确认可见范围。');
     if (!resourcesOf('builder').length) next.push('添加自动车卡器附件，或为后续站内 Builder 准备 JSON Schema。');
+    if (!configuredRunbook) next.push('配置场景、人物、线索或轨道，让这份模组拥有独立的开团控制台。');
     if (!next.length) next.push('资料已经齐备，可以前往“版本与发布”检查玩家公开边界。');
     byId('next-steps-list').innerHTML = next.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join('');
   }
@@ -204,6 +235,90 @@
       var input = byId('module-form').elements[counter.getAttribute('data-count-for')];
       counter.textContent = String(input.value.length);
     });
+  }
+
+  function newRunbookId(prefix) {
+    return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+  }
+  function runbookRow(kind, item, index) {
+    var id = item.id || newRunbookId(kind.slice(0, 2));
+    var start = '<article class="runbook-row ' + kind + '" data-runbook-kind="' + kind + '" data-runbook-index="' + index + '" data-runbook-id="' + escapeHtml(id) + '">';
+    var remove = '<button class="runbook-remove" type="button" data-runbook-remove aria-label="移除此条">×</button>';
+    if (kind === 'scenes') return start +
+      '<input data-runbook-field="title" maxlength="120" value="' + escapeHtml(item.title) + '" placeholder="场景标题">' +
+      '<input data-runbook-field="goal" maxlength="240" value="' + escapeHtml(item.goal) + '" placeholder="本场景目标 / 推进条件">' + remove +
+      '<textarea data-runbook-field="summary" maxlength="2000" rows="3" placeholder="场景内容、进入方式、可能结果……">' + escapeHtml(item.summary) + '</textarea></article>';
+    if (kind === 'npcs') return start +
+      '<input data-runbook-field="name" maxlength="120" value="' + escapeHtml(item.name) + '" placeholder="人物姓名">' +
+      '<input data-runbook-field="role" maxlength="180" value="' + escapeHtml(item.role) + '" placeholder="身份 / 阵营 / 功能">' + remove +
+      '<textarea data-runbook-field="note" maxlength="1600" rows="3" placeholder="扮演提示、动机、秘密或数据……">' + escapeHtml(item.note) + '</textarea></article>';
+    if (kind === 'clues') return start +
+      '<input data-runbook-field="title" maxlength="120" value="' + escapeHtml(item.title) + '" placeholder="线索标题">' + remove +
+      '<textarea data-runbook-field="text" maxlength="2400" rows="3" placeholder="仅主持人可见，开团时可一键揭示或复制给玩家。">' + escapeHtml(item.text) + '</textarea></article>';
+    return start +
+      '<input data-runbook-field="name" maxlength="120" value="' + escapeHtml(item.name) + '" placeholder="轨道名称，例如：仪式进度">' +
+      '<input data-runbook-field="maximum" type="number" min="1" max="20" value="' + escapeHtml(item.maximum || 6) + '" aria-label="轨道最大值">' + remove + '</article>';
+  }
+  function renderRunbookEditor() {
+    if (!currentModule || !byId('runbook-form')) return;
+    currentModule.runbook = normalizedRunbook(currentModule.runbook);
+    byId('runbook-form').elements.opening.value = currentModule.runbook.opening;
+    ['scenes','npcs','clues','trackers'].forEach(function (kind) {
+      var list = byId('runbook-' + kind);
+      var items = currentModule.runbook[kind];
+      list.innerHTML = items.length
+        ? items.map(function (item, index) { return runbookRow(kind, item, index); }).join('')
+        : '<p class="runbook-empty">尚未添加；可从右上角新建。</p>';
+    });
+    byId('console-preview-link').href = currentModule.id === 'null-grail' ? 'gm.html' : 'run.html?id=' + encodeURIComponent(currentModule.id);
+  }
+  function collectRunbook() {
+    var form = byId('runbook-form');
+    var result = emptyRunbook();
+    result.opening = form.elements.opening.value.trim();
+    ['scenes','npcs','clues','trackers'].forEach(function (kind) {
+      result[kind] = Array.prototype.map.call(byId('runbook-' + kind).querySelectorAll('[data-runbook-kind]'), function (row) {
+        var item = { id:row.getAttribute('data-runbook-id') || newRunbookId(kind.slice(0, 2)) };
+        Array.prototype.forEach.call(row.querySelectorAll('[data-runbook-field]'), function (field) {
+          var name = field.getAttribute('data-runbook-field');
+          item[name] = name === 'maximum' ? Math.max(1, Math.min(20, Number(field.value) || 1)) : field.value.trim();
+        });
+        return item;
+      }).filter(function (item) { return kind === 'scenes' || kind === 'clues' ? item.title : item.name; });
+    });
+    return result;
+  }
+  function addRunbookItem(kind) {
+    currentModule.runbook = collectRunbook();
+    var templates = {
+      scenes:{ id:newRunbookId('sc'), title:'', summary:'', goal:'' },
+      npcs:{ id:newRunbookId('np'), name:'', role:'', note:'' },
+      clues:{ id:newRunbookId('cl'), title:'', text:'' },
+      trackers:{ id:newRunbookId('tr'), name:'', maximum:6 }
+    };
+    if (!templates[kind]) return;
+    currentModule.runbook[kind].push(templates[kind]);
+    renderRunbookEditor();
+    var rows = byId('runbook-' + kind).querySelectorAll('[data-runbook-kind]');
+    var last = rows[rows.length - 1];
+    if (last) last.querySelector('input,textarea').focus();
+  }
+  function saveRunbook(event) {
+    event.preventDefault();
+    var button = event.currentTarget.querySelector('[type="submit"]');
+    var runbook = collectRunbook();
+    button.disabled = true;
+    setSaveState('saving', '正在保存开团控制台…');
+    message(byId('runbook-message'), '', false);
+    request('/api/creator/modules/' + encodeURIComponent(currentModule.id), { method:'PATCH', body:{ runbook:runbook } }).then(function (payload) {
+      currentModule = payload.module || payload;
+      renderModule();
+      setSaveState('', '所有更改已保存');
+      message(byId('runbook-message'), '开团控制台已保存；本作品密钥现在可打开对应主持界面。', false);
+    }).catch(function (error) {
+      setSaveState('error', '开团控制台保存失败');
+      message(byId('runbook-message'), error.message, true);
+    }).finally(function () { button.disabled = false; });
   }
 
   function resourceMarkup(resource) {
@@ -239,6 +354,7 @@
     byId('preview-link').href = 'module.html?id=' + encodeURIComponent(currentModule.id);
     byId('preview-link').hidden = currentModule.status !== 'published';
     fillForm();
+    renderRunbookEditor();
     renderOverview();
     renderResources();
     renderPublishChecks();
@@ -381,6 +497,10 @@
           if (data[name] !== undefined && form.elements[name]) form.elements[name].value = String(data[name]);
         });
         if (Array.isArray(data.tags)) form.elements.tags.value = data.tags.join(', ');
+        if (data.runbook && typeof data.runbook === 'object') {
+          currentModule.runbook = normalizedRunbook(data.runbook);
+          renderRunbookEditor();
+        }
         updateCounts();
         switchSection('information');
         showToast('信息已填入表单，请检查后保存');
@@ -434,6 +554,18 @@
     byId('create-form').addEventListener('submit', createModule);
     byId('module-form').addEventListener('submit', saveMetadata);
     byId('module-form').addEventListener('input', updateCounts);
+    byId('runbook-form').addEventListener('submit', saveRunbook);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-runbook-add]'), function (button) {
+      button.addEventListener('click', function () { addRunbookItem(button.getAttribute('data-runbook-add')); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.runbook-list'), function (list) {
+      list.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-runbook-remove]');
+        if (!button) return;
+        var row = button.closest('[data-runbook-kind]');
+        if (row) row.remove();
+      });
+    });
     byId('publish-form').addEventListener('submit', savePublish);
     byId('module-switch').addEventListener('change', function () { window.location.href = 'studio.html?id=' + encodeURIComponent(this.value); });
     byId('info-json-input').addEventListener('change', function () { if (this.files[0]) importInfo(this.files[0]); this.value = ''; });

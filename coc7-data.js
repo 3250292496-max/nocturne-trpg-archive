@@ -81,6 +81,7 @@
     { id: 'persuade', name: '说服', base: 10, era: 'all', group: 'social' },
     { id: 'pilot', name: '驾驶（专攻）', base: 1, era: 'all', specialized: true },
     { id: 'pilotAircraft', name: '驾驶（飞行器）', base: 1, era: 'all', parentId: 'pilot' },
+    { id: 'pilotBoat', name: '驾驶（船）', base: 1, era: 'all', parentId: 'pilot' },
     { id: 'psychoanalysis', name: '精神分析', base: 1, era: 'all' },
     { id: 'psychology', name: '心理学', base: 10, era: 'all' },
     { id: 'readLips', name: '读唇', base: 1, era: 'all', optional: true },
@@ -169,7 +170,7 @@
         fixedSkill('artCraftPhotography', '艺术与手艺（摄影）'),
         fixedSkill('history', '历史'),
         fixedSkill('libraryUse', '图书馆使用'),
-        fixedSkill('languageOther', '其他语言（任选）'),
+        fixedSkill('languageOwn', '母语'),
         choiceSkill('一种社交技能', 1, socialSkills),
         fixedSkill('psychology', '心理学'),
         choiceSkill('任意技能', 2)
@@ -298,6 +299,373 @@
       ],
       weapons: [],
       summary: '技术和维修能力突出，适合破解机械、电气与工程障碍。'
+    },
+    {
+      id: 'custom',
+      name: '自定义职业',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 0, max: 99 },
+      pointFormula: 'EDU×4（或由玩家与守秘人协商）',
+      characteristicPriority: [],
+      occupationalSkills: [],
+      maxOccupationalSkills: 8,
+      isCustom: true,
+      weapons: [],
+      source: { label: '自定义职业数据占位', officialCore: false },
+      summary: '职业名、信用评级、职业点公式与至多八项职业技能均由玩家和守秘人协商。'
+    },
+    {
+      id: 'dilettante',
+      name: '业余艺术爱好者',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 50, max: 99 },
+      pointFormula: 'EDU×2 + APP×2',
+      characteristicPriority: ['APP', 'EDU', 'INT'],
+      occupationalSkills: [
+        fixedSkill('artCraft', '艺术与手艺（任选）'),
+        fixedSkill('firearms', '射击（任选专攻）'),
+        fixedSkill('languageOther', '其他语言（任选）'),
+        fixedSkill('ride', '骑术'),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        choiceSkill('任意三项个人或时代技能', 3)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '依靠家产或其他收入生活，有充分时间发展社交、艺术与个人兴趣。'
+    },
+    {
+      id: 'soldier',
+      name: '士兵／海军陆战队士兵',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 9, max: 30 },
+      pointFormula: 'EDU×2 + DEX×2 或 STR×2',
+      characteristicPriority: ['STR', 'DEX', 'EDU', 'CON'],
+      occupationalSkills: [
+        choiceSkill('攀爬或游泳', 1, ['climb', 'swim']),
+        fixedSkill('dodge', '闪避'),
+        fixedSkill('fighting', '格斗（任选专攻）'),
+        fixedSkill('firearms', '射击（任选专攻）'),
+        fixedSkill('stealth', '潜行'),
+        fixedSkill('survival', '生存（任选专攻）'),
+        choiceSkill('从急救、机械维修、其他语言中任选两项', 2, ['firstAid', 'mechanicalRepair', 'languageOther'])
+      ],
+      weapons: [
+        { skillId: 'firearmsRifleShotgun', label: '步枪/霰弹枪', optional: false }
+      ],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '受过基础军事训练，擅长野外行动、隐蔽、格斗与枪械。'
+    },
+    {
+      id: 'militaryOfficer',
+      name: '军官',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 20, max: 70 },
+      pointFormula: 'EDU×2 + DEX×2 或 STR×2',
+      characteristicPriority: ['EDU', 'STR', 'DEX', 'POW'],
+      occupationalSkills: [
+        fixedSkill('accounting', '会计'),
+        fixedSkill('firearms', '射击（任选专攻）'),
+        fixedSkill('navigate', '导航'),
+        fixedSkill('firstAid', '急救'),
+        choiceSkill('两种社交技能', 2, socialSkills),
+        fixedSkill('psychology', '心理学'),
+        choiceSkill('任意一项个人或时代技能', 1)
+      ],
+      weapons: [
+        { skillId: 'firearmsHandgun', label: '手枪', optional: false }
+      ],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '兼具军事技能、指挥沟通和基础组织管理能力。'
+    },
+    {
+      id: 'policePatrol',
+      name: '巡警／警察',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 9, max: 30 },
+      pointFormula: 'EDU×2 + DEX×2 或 STR×2',
+      characteristicPriority: ['EDU', 'STR', 'DEX', 'POW'],
+      occupationalSkills: [
+        fixedSkill('fightingBrawl', '格斗（斗殴）'),
+        fixedSkill('firearms', '射击（任选专攻）'),
+        fixedSkill('firstAid', '急救'),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        fixedSkill('law', '法律'),
+        fixedSkill('psychology', '心理学'),
+        fixedSkill('spotHidden', '侦查'),
+        choiceSkill('汽车驾驶或骑术', 1, ['driveAuto', 'ride'])
+      ],
+      weapons: [
+        { skillId: 'firearmsHandgun', label: '手枪', optional: false }
+      ],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '负责日常巡逻与现场处置，熟悉法律、询问、急救和基础战斗。'
+    },
+    {
+      id: 'sheriff',
+      name: '警长／西部治安官',
+      era: ['1920s'],
+      creditRating: { min: 20, max: 50 },
+      pointFormula: 'EDU×2 + DEX×2 或 STR×2',
+      characteristicPriority: ['EDU', 'STR', 'DEX', 'POW'],
+      occupationalSkills: [
+        fixedSkill('driveAuto', '汽车驾驶'),
+        fixedSkill('firearms', '射击（任选专攻）'),
+        choiceSkill('格斗（斗殴或鞭）', 1, ['fightingBrawl', 'fightingWhip']),
+        fixedSkill('law', '法律'),
+        choiceSkill('说服或心理学', 1, ['persuade', 'psychology']),
+        fixedSkill('ride', '骑术'),
+        fixedSkill('track', '追踪'),
+        choiceSkill('任意一项相关个人或时代技能', 1)
+      ],
+      weapons: [
+        { skillId: 'firearmsHandgun', label: '手枪', optional: false }
+      ],
+      source: { label: '本地职业表扩展选录', note: '本地表名称为“西部治安官”；具体出版物来源待核实，并补充一个相关技能槽以达到八项', officialCore: false },
+      summary: '地方治安与追踪型职业；该模板来自扩展资料，使用前应征得守秘人同意。'
+    },
+    {
+      id: 'federalAgent',
+      name: '联邦探员',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 20, max: 40 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'DEX', 'INT', 'POW'],
+      occupationalSkills: [
+        fixedSkill('driveAuto', '汽车驾驶'),
+        fixedSkill('fightingBrawl', '格斗（斗殴）'),
+        fixedSkill('firearms', '射击（任选专攻）'),
+        fixedSkill('law', '法律'),
+        fixedSkill('persuade', '说服'),
+        fixedSkill('stealth', '潜行'),
+        fixedSkill('spotHidden', '侦查'),
+        choiceSkill('任意一项个人或时代技能', 1)
+      ],
+      weapons: [
+        { skillId: 'firearmsHandgun', label: '手枪', optional: false }
+      ],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '面向跨地区案件与联邦执法工作的调查、追踪和行动人员。'
+    },
+    {
+      id: 'archaeologist',
+      name: '考古学家',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 10, max: 40 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'INT', 'DEX'],
+      occupationalSkills: [
+        fixedSkill('appraise', '估价'),
+        fixedSkill('archaeology', '考古学'),
+        fixedSkill('history', '历史'),
+        fixedSkill('languageOther', '其他语言（任选）'),
+        fixedSkill('libraryUse', '图书馆使用'),
+        fixedSkill('spotHidden', '侦查'),
+        fixedSkill('mechanicalRepair', '机械维修'),
+        choiceSkill('导航或一项科学技能', 1, ['navigate', 'science'])
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '研究和发掘历史遗迹，兼顾文献、鉴定与野外工作。'
+    },
+    {
+      id: 'occultist',
+      name: '神秘学家',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 9, max: 65 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'INT', 'POW'],
+      occupationalSkills: [
+        fixedSkill('anthropology', '人类学'),
+        fixedSkill('history', '历史'),
+        fixedSkill('libraryUse', '图书馆使用'),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        fixedSkill('occult', '神秘学'),
+        fixedSkill('languageOther', '其他语言（任选）'),
+        fixedSkill('scienceAstronomy', '科学（天文学）'),
+        choiceSkill('任意一项个人或时代技能', 1)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '研究民俗、秘仪与表层神秘传统；创建时不默认包含克苏鲁神话。'
+    },
+    {
+      id: 'nurse',
+      name: '护士',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 9, max: 30 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'POW', 'INT'],
+      occupationalSkills: [
+        fixedSkill('firstAid', '急救'),
+        fixedSkill('listen', '聆听'),
+        fixedSkill('medicine', '医学'),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        fixedSkill('psychology', '心理学'),
+        choiceSkill('科学（生物学或化学）', 1, ['scienceBiology', 'scienceChemistry']),
+        fixedSkill('spotHidden', '侦查'),
+        choiceSkill('任意一项个人或时代技能', 1)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '擅长急救、医学护理、观察和安抚病患。'
+    },
+    {
+      id: 'lawyer',
+      name: '律师',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 30, max: 80 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'APP', 'INT'],
+      occupationalSkills: [
+        fixedSkill('accounting', '会计'),
+        fixedSkill('law', '法律'),
+        fixedSkill('libraryUse', '图书馆使用'),
+        choiceSkill('两种社交技能', 2, socialSkills),
+        fixedSkill('psychology', '心理学'),
+        choiceSkill('任意两项其他技能', 2)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '精通法律、查阅资料与谈判，可处理制度和社会关系类线索。'
+    },
+    {
+      id: 'clergy',
+      name: '神职人员',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 9, max: 60 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'POW', 'APP'],
+      occupationalSkills: [
+        fixedSkill('accounting', '会计'),
+        fixedSkill('history', '历史'),
+        fixedSkill('libraryUse', '图书馆使用'),
+        fixedSkill('listen', '聆听'),
+        fixedSkill('languageOther', '其他语言（任选）'),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        fixedSkill('psychology', '心理学'),
+        choiceSkill('任意一项其他技能', 1)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '熟悉宗教组织、历史与牧灵沟通，具体教派背景由玩家与守秘人确定。'
+    },
+    {
+      id: 'student',
+      name: '学生／实习生',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 5, max: 10 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'INT', 'POW'],
+      occupationalSkills: [
+        choiceSkill('母语或一种其他语言', 1, ['languageOwn', 'languageOther']),
+        fixedSkill('libraryUse', '图书馆使用'),
+        fixedSkill('listen', '聆听'),
+        choiceSkill('三项所学专业技能', 3),
+        choiceSkill('任意两项个人或时代技能', 2)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '正在学习或接受入职训练，专业技能可随学科或实习岗位定制。'
+    },
+    {
+      id: 'librarian',
+      name: '图书馆管理员',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 9, max: 35 },
+      pointFormula: 'EDU×4',
+      characteristicPriority: ['EDU', 'INT', 'POW'],
+      occupationalSkills: [
+        fixedSkill('accounting', '会计'),
+        fixedSkill('libraryUse', '图书馆使用'),
+        fixedSkill('languageOther', '其他语言（任选）'),
+        fixedSkill('languageOwn', '母语'),
+        choiceSkill('任意四项个人特长或专业主题技能', 4)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '管理目录与馆藏，擅长文献检索、语言和专业主题研究。'
+    },
+    {
+      id: 'artist',
+      name: '艺术家',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 9, max: 50 },
+      pointFormula: 'EDU×2 + DEX×2 或 POW×2',
+      characteristicPriority: ['DEX', 'POW', 'EDU', 'APP'],
+      occupationalSkills: [
+        fixedSkill('artCraft', '艺术与手艺（任选）'),
+        choiceSkill('历史或博物学', 1, ['history', 'naturalWorld']),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        fixedSkill('languageOther', '其他语言（任选）'),
+        fixedSkill('psychology', '心理学'),
+        fixedSkill('spotHidden', '侦查'),
+        choiceSkill('任意两项个人或时代技能', 2)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '以创作、审美和观察见长，可按艺术门类定制专攻。'
+    },
+    {
+      id: 'criminal',
+      name: '罪犯',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 5, max: 65 },
+      pointFormula: 'EDU×2 + DEX×2 或 APP×2',
+      characteristicPriority: ['DEX', 'APP', 'EDU', 'INT'],
+      occupationalSkills: [
+        choiceSkill('艺术与手艺（表演）或乔装', 1, ['artCraftActing', 'disguise']),
+        fixedSkill('appraise', '估价'),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        choiceSkill('格斗或射击', 1, ['fighting', 'firearms']),
+        choiceSkill('锁匠或机械维修', 1, ['locksmith', 'mechanicalRepair']),
+        fixedSkill('stealth', '潜行'),
+        fixedSkill('psychology', '心理学'),
+        fixedSkill('spotHidden', '侦查')
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '通用罪犯模板；具体犯罪类型、组织关系和专长应与守秘人协商。'
+    },
+    {
+      id: 'pilot',
+      name: '飞行员',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 20, max: 70 },
+      pointFormula: 'EDU×2 + DEX×2',
+      characteristicPriority: ['DEX', 'EDU', 'INT'],
+      occupationalSkills: [
+        fixedSkill('electricalRepair', '电气维修'),
+        fixedSkill('mechanicalRepair', '机械维修'),
+        fixedSkill('navigate', '导航'),
+        fixedSkill('operateHeavyMachinery', '操作重型机械'),
+        fixedSkill('pilotAircraft', '驾驶（飞行器）', '飞行器'),
+        fixedSkill('scienceAstronomy', '科学（天文学）'),
+        choiceSkill('任意两项个人或时代技能', 2)
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '具备飞行、导航、维修与相关技术知识。'
+    },
+    {
+      id: 'sailor',
+      name: '海员（民船）',
+      era: ['1920s', 'modern'],
+      creditRating: { min: 20, max: 40 },
+      pointFormula: 'EDU×2 + DEX×2 或 STR×2',
+      characteristicPriority: ['DEX', 'STR', 'EDU', 'CON'],
+      occupationalSkills: [
+        fixedSkill('firstAid', '急救'),
+        fixedSkill('mechanicalRepair', '机械维修'),
+        fixedSkill('naturalWorld', '博物学'),
+        fixedSkill('navigate', '导航'),
+        choiceSkill('一种社交技能', 1, socialSkills),
+        fixedSkill('pilotBoat', '驾驶（船）', '船'),
+        fixedSkill('spotHidden', '侦查'),
+        fixedSkill('swim', '游泳')
+      ],
+      weapons: [],
+      source: { label: '本地职业表扩展选录', officialCore: false },
+      summary: '民用船只上的通用海员，熟悉航海、维修、观察和水上求生。'
     }
   ];
 
@@ -551,7 +919,7 @@
 
   root.COC7_DATA = deepFreeze({
     id: 'coc7e-cn-core',
-    version: '1.0.0',
+    version: '1.1.0',
     title: '克苏鲁的呼唤 第七版',
     source: {
       title: '克苏鲁的呼唤第七版守秘人规则书 Version2002',

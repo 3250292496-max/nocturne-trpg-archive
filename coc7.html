@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="coc7.css?v=20260713a">
+  <link rel="stylesheet" href="coc7.css?v=20260713e">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -23,7 +23,7 @@
     <nav aria-label="页面导航">
       <button type="button" data-tab-target="builder">傻瓜车卡</button>
       <button type="button" data-tab-target="rules">七版规则</button>
-      <a href="gm.html?view=combat">守秘人战斗台</a>
+      <a href="combat.html">守秘人战斗台</a>
     </nav>
   </header>
 
@@ -32,7 +32,8 @@
       <div class="coc-hero-copy">
         <p>INVESTIGATOR WORKBENCH · 1920s / MODERN</p>
         <h1>克苏鲁的呼唤<br><em>第七版工具台</em></h1>
-        <p class="coc-hero-lead">选一个职业底稿，身份、属性、技能点、派生值与常用武器一次生成。已有角色可直接导入 JSON 或 COC7 Excel 卡，再提交给守秘人。</p>
+        <p class="coc-hero-lead">选择职业底稿，或在与守秘人商量后自定义职业；属性、技能点、派生值与常用武器一次生成。已有角色可直接导入 JSON 或 COC7 Excel 卡。</p>
+        <p class="tool-identity-note"><strong>这是独立规则工具，不是模组。</strong>本站只提供车卡、规则速查与战斗辅助，不创作、不托管也不冒认《克苏鲁的呼唤》规则书。</p>
         <div class="coc-hero-actions">
           <button class="primary" type="button" data-tab-target="builder">开始自动车卡</button>
           <button type="button" data-tab-target="rules">查看七版规则</button>
@@ -50,8 +51,8 @@
 
     <section class="coc-panel active" id="panel-builder" role="tabpanel" aria-labelledby="tab-builder" data-panel="builder">
       <header class="panel-heading">
-        <div><p>ONE-CLICK INVESTIGATOR</p><h2>只选职业，其余自动算</h2></div>
-        <p>生成后仍可改姓名与背景；战斗属性由卡内数据自动派生，不需要守秘人再次抄写。</p>
+        <div><p>ONE-CLICK INVESTIGATOR</p><h2>选模板，也可以自定义职业</h2></div>
+        <p>职业模板负责快速开卡；自定义职业允许玩家与守秘人商定名称、职业公式和最多八项本职技能。</p>
       </header>
 
       <div class="builder-layout">
@@ -63,20 +64,36 @@
               <label><span>玩家姓名</span><input id="coc-player-name" maxlength="80"></label>
               <label><span>年龄</span><input id="coc-age" type="number" min="15" max="89" step="1" value="28"></label>
               <label><span>时代</span><select id="coc-era"><option value="classic">经典 1920 年代</option><option value="modern">现代</option></select></label>
-              <label><span>年龄减值分配</span><select id="coc-age-strategy"><option value="balanced">三项均衡（推荐）</option><option value="str">优先扣力量</option><option value="con">优先扣体质</option><option value="dex">优先扣敏捷</option></select></label>
+              <label><span>年龄减值分配</span><select id="coc-age-strategy"><option value="balanced">三项均衡（推荐）</option><option value="str">优先扣力量</option><option value="siz">优先扣体型</option><option value="con">优先扣体质</option><option value="dex">优先扣敏捷</option></select></label>
               <label><span>职业公式可选属性</span><select id="coc-formula-strategy"><option value="highest">自动取最高（推荐）</option><option value="str">力量</option><option value="dex">敏捷</option><option value="app">外貌</option><option value="pow">意志</option></select></label>
             </div>
+            <label><span>搜索职业</span><input id="coc-occupation-search" type="search" maxlength="40" placeholder="例如：士兵、警察、医生"></label>
             <label><span>职业</span><select id="coc-occupation"></select></label>
             <div id="occupation-presets" class="occupation-presets" aria-label="职业快捷选择"></div>
+            <fieldset id="custom-occupation-panel" class="custom-occupation-panel" hidden>
+              <legend>自定义职业</legend>
+              <p class="custom-occupation-note">七版允许自拟职业。请先与守秘人确认职业概念、信用范围与技能组合；职业技能最多选择 8 项，创建时不能选择克苏鲁神话。</p>
+              <div class="form-grid two">
+                <label><span>职业名称 *</span><input id="custom-occupation-name" maxlength="80" placeholder="例如：战地摄影师"></label>
+                <label><span>职业技能点公式</span><select id="custom-occupation-formula"><option value="edu4">EDU×4</option><option value="edu2plus">EDU×2＋第二属性×2</option></select></label>
+                <label><span>信用评级下限</span><input id="custom-credit-min" type="number" min="0" max="99" step="1" value="9"></label>
+                <label><span>信用评级上限</span><input id="custom-credit-max" type="number" min="0" max="99" step="1" value="30"></label>
+                <label class="custom-second-attribute"><span>第二职业属性</span><select id="custom-second-attribute"><option value="str">力量 STR</option><option value="dex">敏捷 DEX</option><option value="app">外貌 APP</option><option value="pow">意志 POW</option><option value="con">体质 CON</option><option value="siz">体型 SIZ</option><option value="int">智力 INT</option><option value="edu">教育 EDU</option></select></label>
+              </div>
+              <label><span>本职技能（按 Ctrl / Command 可多选，最多 8 项）</span><select id="custom-occupation-skills" multiple size="10" aria-describedby="custom-skill-count"></select></label>
+              <p id="custom-skill-count" class="custom-skill-count" aria-live="polite">已选择 0 / 8 项</p>
+              <label class="custom-occupation-agreement"><input id="custom-occupation-agreed" type="checkbox"><span>我已与守秘人商量并确认这个自定义职业。</span></label>
+            </fieldset>
             <label><span>一句背景（可留空）</span><textarea id="coc-backstory" rows="3" maxlength="1000" placeholder="为何会走进这场调查？有什么绝不能失去？"></textarea></label>
             <div class="builder-buttons">
               <button class="primary" id="coc-generate" type="submit">一键生成完整角色</button>
               <button id="coc-reroll" type="button">重新随机</button>
+              <button id="coc-new-character" type="button">新建另一张卡</button>
             </div>
           </form>
           <div class="import-zone">
             <div><strong>已有角色卡？</strong><p>支持本站 JSON 与所附 COC7 `.xlsx` 角色卡。文件只在本机解析。</p></div>
-            <button id="coc-import" type="button">导入角色卡</button>
+            <div><button id="coc-import" type="button">导入角色卡</button><button id="coc-load-example" type="button">载入“雪莱”示例</button></div>
             <input id="coc-import-file" type="file" accept="application/json,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx" hidden>
           </div>
         </section>
@@ -108,7 +125,7 @@
             <div class="sheet-actions">
               <button class="primary" id="coc-submit-keeper" type="button">提交给守秘人</button>
               <button id="coc-export-json" type="button">导出 JSON</button>
-              <button id="coc-download-blank" type="button">下载空白 Excel 卡</button>
+              <button id="coc-download-blank" type="button">下载示例模板卡（含雪莱）</button>
             </div>
           </div>
         </section>
@@ -134,9 +151,10 @@
       </div>
       <section class="coc-card rulebook-card" aria-labelledby="rulebook-title">
         <header class="rulebook-toolbar">
-          <div><span>FULL RULEBOOK · PDF</span><h3 id="rulebook-title">克苏鲁的呼唤第七版守秘人规则书</h3></div>
-          <div><button id="rulebook-choose" type="button">选择本地 PDF</button><button id="rulebook-open" type="button" disabled>新窗口打开</button><a href="assets/rules/COC七版规则空白卡.xlsx">下载空白卡</a><input id="rulebook-file" type="file" accept="application/pdf,.pdf" hidden></div>
+          <div><span>FULL RULEBOOK · LOCAL PDF</span><h3 id="rulebook-title">克苏鲁的呼唤第七版官方规则书</h3></div>
+          <div><button id="rulebook-choose" type="button">选择本地 PDF</button><button id="rulebook-open" type="button" disabled>新窗口打开</button><a href="assets/rules/COC七版规则空白卡.xlsx" download="COC7-示例模板卡-含雪莱.xlsx">示例模板卡（含雪莱）</a><input id="rulebook-file" type="file" accept="application/pdf,.pdf" hidden></div>
         </header>
+        <p class="rule-credit"><strong>规则署名与权利说明：</strong>《Call of Cthulhu》由 Chaosium 出版；官方第七版署名包括 Sandy Petersen、Lynn Willis、Mike Mason 与 Paul Fricker，其中第七版修订由 Mike Mason、Paul Fricker 合作完成（<a href="https://cthulhuwiki.chaosium.com/about/credits.html" target="_blank" rel="noopener">Chaosium 官方署名页</a>）。本站不是规则书作者，只提供本地工具；中文译本或整理版的作者、译者与上传者署名请以你持有版本的版权页为准。</p>
         <div class="rulebook-empty" id="rulebook-empty"><span>PDF</span><strong>从电脑选择你拥有的规则书</strong><p>规则书只在本机浏览器中打开，不会上传或复制进公开站点。选择后可使用 PDF 查看器自身的目录、页码与搜索。</p></div>
         <iframe id="rulebook-frame" title="克苏鲁的呼唤第七版守秘人规则书 PDF" hidden></iframe>
         <noscript><p>请启用 JavaScript 后选择本地 PDF。</p></noscript>
@@ -144,13 +162,13 @@
     </section>
   </main>
 
-  <footer class="coc-footer"><span>夜航模组馆 · COC7 工具台</span><a href="module.html?id=coc7">返回作品档案</a></footer>
+  <footer class="coc-footer"><span>夜航模组馆 · COC7 独立规则工具（非模组）</span><a href="index.html">返回工具与模组首页</a></footer>
   <div class="coc-toast" id="coc-toast" role="status" aria-live="polite"></div>
 
   <script src="player-data.js?v=20260713g"></script>
-  <script src="coc7-data.js?v=20260713a"></script>
-  <script src="coc7-core.js?v=20260713a"></script>
-  <script src="coc7-xlsx.js?v=20260713a"></script>
-  <script src="coc7.js?v=20260713a"></script>
+  <script src="coc7-data.js?v=20260713e"></script>
+  <script src="coc7-core.js?v=20260713d"></script>
+  <script src="coc7-xlsx.js?v=20260713d"></script>
+  <script src="coc7.js?v=20260713h"></script>
 </body>
 </html>

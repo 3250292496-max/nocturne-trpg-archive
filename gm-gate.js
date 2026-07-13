@@ -17,7 +17,7 @@
       }
 
       var script = document.createElement('script');
-      script.src = source + '?v=20260713j';
+      script.src = source + '?v=20260713k';
       script.async = false;
       script.setAttribute('data-keeper-source', source);
       script.addEventListener('load', function () {
