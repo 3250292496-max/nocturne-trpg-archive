@@ -44,6 +44,7 @@
 
       <nav class="site-nav" id="site-nav" aria-label="主导航">
         <a href="#archive">全部模组</a>
+        <a href="#tools">规则与工具</a>
         <a href="#world">世界索引</a>
         <a href="studio.html">创作者工作台</a>
         <a href="#notes">创作手记</a>
@@ -127,21 +128,22 @@
       <div class="keeper-showcase-copy">
         <p class="eyebrow"><span></span> LIVE KEEPER CONSOLE</p>
         <h2 id="console-title">从“阅读模组”，到<br><em>直接开团。</em></h2>
-        <p>七日节点、东湖市完整地图、19 名核心人物与英灵、六项真相、23 张玩家安全手卡和战役轨道已经接入同一张主持桌面。开团时点场景、点 NPC、点线索即可继续。</p>
+        <p>先从站内已发布模组中选择作品，再进入它自己的开团控制台。《零之圣杯》保留专属作者版；其他作者可在通用工作台配置场景、人物、线索与战役轨道。</p>
         <div class="keeper-feature-list" aria-label="控制台功能">
           <span><strong>27</strong> 场景节点</span>
           <span><strong>19</strong> 人物档案</span>
           <span><strong>23</strong> PLAYER SAFE</span>
         </div>
-        <div class="hero-actions">
-          <a class="button button-primary" href="gm.html">打开完整作者版 <span>↗</span></a>
-          <a class="button button-ghost" href="player.html?mode=projection" target="_blank" rel="noreferrer">预览玩家投屏</a>
+        <div class="direct-module-launch">
+          <label for="direct-module-select">选择要开团的模组</label>
+          <select id="direct-module-select"><option value="null-grail">零之圣杯 · 专属控制台</option></select>
+          <a class="button button-primary" id="direct-module-open" href="gm.html">进入所选模组的开团控制台 <span>↗</span></a>
         </div>
-        <small>注意：完整作者版包含人物秘密、默认余波与结局结构，玩家请勿进入。</small>
+        <small>开团控制台含剧透资料，需要作品所有者账号或该模组自己的密钥；作者可在个人中心查看密钥。</small>
       </div>
     </section>
 
-    <section class="systems shell" aria-label="零之圣杯模组内快速入口">
+    <section class="systems shell" id="tools" aria-label="规则、车卡与默认工具">
       <button class="system-gate" type="button" data-open-entry="null-grail">
         <span class="gate-icon gate-rules" aria-hidden="true">册</span>
         <span><small>CORE RULEBOOK</small><strong>统一规则书</strong></span>
@@ -154,8 +156,13 @@
       </a>
       <a class="system-gate" href="coc7.html?tab=builder">
         <span class="gate-icon gate-rules" aria-hidden="true">7</span>
-        <span><small>CALL OF CTHULHU 7E</small><strong>七版车卡与规则</strong></span>
+        <span><small>RULES &amp; BUILDER · 非模组</small><strong>七版规则与车卡</strong></span>
         <i aria-hidden="true">进入 ↗</i>
+      </a>
+      <a class="system-gate" href="combat.html">
+        <span class="gate-icon gate-coc" aria-hidden="true">战</span>
+        <span><small>DEFAULT COMBAT TOOL</small><strong>COC7 自动战斗台</strong></span>
+        <i aria-hidden="true">开台 ↗</i>
       </a>
       <a class="system-gate" href="player.html">
         <span class="gate-icon gate-player" aria-hidden="true">人</span>
@@ -315,7 +322,7 @@
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17.5"></circle><path d="M24 7.5l3.8 12.7L40.5 24l-12.7 3.8L24 40.5l-3.8-12.7L7.5 24l12.7-3.8z"></path></svg></span>
         <p><strong>夜航模组馆</strong><br><span>把尚未发生的冒险，先收进一盏灯里。</span></p>
       </div>
-      <nav aria-label="页脚导航"><a href="#archive">档案</a><a href="#world">世界</a><a href="gm.html">守秘人控制台</a><a href="#notes">手记</a><a href="#about">关于</a></nav>
+      <nav aria-label="页脚导航"><a href="#archive">模组</a><a href="#tools">规则与工具</a><a href="#console">选择开团</a><a href="studio.html">创作</a><a href="#about">关于</a></nav>
       <a class="back-top" href="#top">回到顶部 ↑</a>
     </div>
     <div class="shell footer-meta"><span>© 2026 NOCTURNE ARCHIVE</span><span>BUILT FOR STORIES YET UNTOLD</span></div>

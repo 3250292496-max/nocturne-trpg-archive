@@ -310,27 +310,16 @@
   function identityType() { return fieldValue('character-existence') || 'mortal'; }
 
   function listedItems(value) {
-    return String(value || '').split(/[；;\r\n]+/).map(function (item) { return item.trim(); }).filter(Boolean);
+    return String(value || '').split(/[；;、，,\r\n]+/).map(function (item) { return item.trim(); }).filter(Boolean);
   }
 
   function missingAbilityCardSections(value) {
     var text = String(value || '');
-    var labels = ['动作','成本','检定','目标','效果','失败','持续','冷却','反制'];
-    var nextLabel = labels.join('|');
-    return labels.filter(function (label) {
-      var match = text.match(new RegExp(label + '\\s*[：:]\\s*([\\s\\S]*?)(?=(?:' + nextLabel + ')\\s*[：:]|$)'));
-      if (!match) return true;
-      return !match[1].replace(/^[\s｜|；;。、，,]+|[\s｜|；;。、，,]+$/g,'');
-    });
-  }
-
-  function hasExplicitNobleRequirement(value) {
-    var text = String(value || '');
-    var labeled = text.match(/(?:额外触发|追加触发|额外条件|追加条件|使用条件|解放条件|额外代价|追加代价)\s*[：:]\s*([^｜|；;\r\n]+)/);
-    if (labeled && labeled[1].trim()) return true;
-    var conditional = text.match(/(?:^|[｜|；;\r\n])\s*仅当\s*([^｜|；;\r\n]+)/) ||
-      text.match(/效果\s*[：:]\s*仅当\s*([^｜|；;\r\n]+)/);
-    return Boolean(conditional && conditional[1].trim());
+    return [
+      ['动作', /动作\s*[：:]/], ['成本', /成本\s*[：:]/], ['检定', /检定\s*[：:]/],
+      ['目标', /目标\s*[：:]/], ['效果', /效果\s*[：:]/], ['失败', /失败\s*[：:]/],
+      ['持续', /持续\s*[：:]/], ['冷却', /冷却\s*[：:]/], ['反制', /反制\s*[：:]/]
+    ].filter(function (section) { return !section[1].test(text); }).map(function (section) { return section[0]; });
   }
 
   function attributeStatus(value) {
@@ -436,8 +425,8 @@
       else if (distinctTextCount(contacts) !== 2) errors.push('两名联系人不能重复');
       if (!value.ordinary.safePlace) errors.push('请填写安全地点');
       var equipmentItems = listedItems(value.ordinary.equipment);
-      if (equipmentItems.length !== 2) errors.push('请用分号或换行分开填写恰好两件常用装备');
-      else if (distinctTextCount(equipmentItems) !== 2) errors.push('两件常用装备不能重复');
+      if (equipmentItems.length < 2) errors.push('请用分号或换行分开填写两件常用装备');
+      else if (distinctTextCount(equipmentItems) < 2) errors.push('两件常用装备不能重复');
       if (!value.ordinary.signatureTalent) errors.push('请填写标志才能的完整能力卡');
       else if (missingAbilityCardSections(value.ordinary.signatureTalent).length) errors.push('标志才能要写清动作、成本、检定、目标、效果、失败、持续、冷却与反制');
     }
@@ -467,7 +456,7 @@
       var noble = value.servant.noblePhantasm;
       if (!noble.name || !noble.effect || !noble.counter) errors.push('宝具必须填写名称、触发／效果与可执行反制');
       else if (missingAbilityCardSections('成本：' + noble.cost + '｜' + noble.effect + '｜反制：' + noble.counter).length) errors.push('宝具能力卡要写清动作、成本、检定、目标、效果、失败、持续、冷却与反制');
-      if (noble.rank === 'A' && !hasExplicitNobleRequirement(noble.effect)) errors.push('A 阶宝具必须在效果栏明确写“额外触发／额外代价／仅当……”');
+      if (noble.rank === 'A' && !/(代价|触发|需要|每场|仅当)/.test(noble.effect + noble.counter)) errors.push('A 阶宝具必须增加一个额外触发或代价');
     }
     errors = errors.concat(masterStatus(value).errors);
     return { errors:errors, warnings:warnings, valid:errors.length === 0 };
@@ -523,7 +512,7 @@
     document.getElementById('character-supply-level').innerHTML = supplies.map(function (item) { return '<option value="' + escapeHtml(item.id || item.value) + '">' + escapeHtml(item.label || item.name) + '</option>'; }).join('');
     var retainedRanks = config.retainedSkillRanks || [{ id:'E',label:'E／0点' },{ id:'D',label:'D／1点' },{ id:'C',label:'C／2点' },{ id:'B',label:'B／3点' },{ id:'A',label:'A／4点' }];
     document.getElementById('retained-skill-list').innerHTML = [0,1,2].map(function (index) {
-      return '<article class="retained-skill-row"><label><span>保有技能 ' + (index + 1) + ' · 名称</span><input id="retained-name-' + index + '" maxlength="120"></label><label><span>阶位</span><select id="retained-rank-' + index + '">' + retainedRanks.filter(function (item) { return (item.id || item.rank || item.value) !== 'EX'; }).map(function (item) { var rank = item.id || item.rank || item.value; return '<option value="' + escapeHtml(rank) + '">' + escapeHtml(item.label || rank) + '</option>'; }).join('') + '</select></label><label><span>完整能力卡</span><textarea id="retained-effect-' + index + '" rows="4" maxlength="1200" placeholder="动作／成本／检定／目标／成功／失败／持续／反制"></textarea></label></article>';
+      return '<article class="retained-skill-row"><label><span>保有技能 ' + (index + 1) + ' · 名称</span><input id="retained-name-' + index + '" maxlength="120"></label><label><span>阶位</span><select id="retained-rank-' + index + '">' + retainedRanks.map(function (item) { var rank = item.id || item.rank || item.value; return '<option value="' + escapeHtml(rank) + '">' + escapeHtml(item.label || rank) + '</option>'; }).join('') + '</select></label><label><span>完整能力卡</span><textarea id="retained-effect-' + index + '" rows="4" maxlength="1200" placeholder="动作／成本／检定／目标／成功／失败／持续／反制"></textarea></label></article>';
     }).join('');
     var nobleRanks = config.noblePhantasmRanks || [{ id:'E',label:'E' },{ id:'D',label:'D' },{ id:'C',label:'C（默认）' },{ id:'B',label:'B' },{ id:'A',label:'A' }];
     document.getElementById('character-noble-rank').innerHTML = nobleRanks.filter(function (item) { return ['E','D','C','B','A'].indexOf(item.id || item.rank) !== -1; }).map(function (item) { var rank = item.id || item.rank; return '<option value="' + escapeHtml(rank) + '">' + escapeHtml(item.label || rank) + '</option>'; }).join('');

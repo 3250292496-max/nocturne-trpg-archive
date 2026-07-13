@@ -45,26 +45,6 @@
     }
   ];
 
-  entries.push({
-    id: 'coc7', number: '002', title: '克苏鲁的呼唤 第七版', english: 'CALL OF CTHULHU 7E',
-    systems: ['coc7'], systemLabel: 'Call of Cthulhu · 第七版 · 百分骰',
-    type: 'toolkit', typeLabel: '规则与车卡工具箱', tone: 'green', accent: '#7db79b', icon: 'rules',
-    status: '本站工具', updated: '2026.07.13', author: { name:'夜航模组馆馆主', label:'站长 · 已认证作者' },
-    summary: '从一键调查员车卡，到守秘人自动伤害、重伤、理智与回合结算。',
-    description: 'COC7 职业底稿自动车卡、Excel / JSON 角色导入、可搜索规则速查与守秘人自动战斗台。完整规则书由用户从本机选择后查看，不会上传或公开再分发。',
-    players: '2–6 人', duration: '短团至长篇', era: '1920s / 现代', difficulty: '零门槛',
-    tags: ['COC7','自动车卡','自动战斗','规则速查'],
-    warning: '恐怖、精神创伤、角色死亡与永久疯狂。请在开团前确认安全工具和内容边界。',
-    forWho: '适合希望减少抄数值、把桌面时间留给调查与扮演的 COC7 团队。',
-    highlights: ['职业底稿一键车卡','Excel / JSON 角色导入','HP 与重伤自动结算','本地 PDF 规则查看'],
-    spoiler: '',
-    resources: [
-      { name:'COC7 傻瓜自动车卡', meta:'WEB · PLAYER SAFE · 一键生成与导入', format:'WEB', href:'coc7.html?tab=builder' },
-      { name:'COC7 七版规则速查', meta:'WEB · 可搜索 · 本地 PDF 查看器', format:'WEB', href:'coc7.html?tab=rules' },
-      { name:'COC 七版规则空白卡', meta:'XLSX · 角色卡导入参考模板', format:'XLSX', href:'assets/rules/COC七版规则空白卡.xlsx' }
-    ]
-  });
-
   var state = {
     system: 'all',
     type: 'all',
@@ -82,6 +62,8 @@
   var toast = document.getElementById('toast');
   var access = window.NG_ACCESS;
   var accessDialog = document.getElementById('access-dialog');
+  var directModuleSelect = document.getElementById('direct-module-select');
+  var directModuleOpen = document.getElementById('direct-module-open');
   var pendingEntryId = null;
   var toastTimer;
 
@@ -291,9 +273,9 @@
     var primaryAction = primaryResource
       ? '<a class="button button-primary" href="' + encodeURI(primaryResource.href).replace(/'/g, '%27') + '" download>获取玩家安全资料 <span>↓</span></a>'
       : '';
-    var consoleAction = keeperMode && entry.id === 'null-grail'
-      ? '<a class="button button-console" href="gm.html">进入创作者 / 守秘人面板 <span>↗</span></a>'
-      : '';
+    var consoleAction = entry.id === 'null-grail'
+      ? (keeperMode ? '<a class="button button-console" href="gm.html">进入创作者 / 守秘人面板 <span>↗</span></a>' : '')
+      : '<a class="button button-console" href="run.html?id=' + encodeURIComponent(entry.id) + '">进入本模组开团台 <span>↗</span></a>';
     var playerAction = entry.id === 'null-grail'
       ? '<a class="button button-ghost" href="player.html">进入玩家面板 <span>↗</span></a>'
       : '';
@@ -452,6 +434,21 @@
     setSystemFilter('all', false);
   }
 
+  function consoleHref(id) {
+    return id === 'null-grail' ? 'gm.html' : 'run.html?id=' + encodeURIComponent(id);
+  }
+
+  function renderDirectModuleOptions() {
+    if (!directModuleSelect || !directModuleOpen) return;
+    var previous = directModuleSelect.value || 'null-grail';
+    directModuleSelect.innerHTML = entries.map(function (entry) {
+      return '<option value="' + escapeHtml(entry.id) + '">' + escapeHtml(entry.title) +
+        (entry.id === 'null-grail' ? ' · 专属控制台' : ' · 通用控制台') + '</option>';
+    }).join('');
+    directModuleSelect.value = entries.some(function (entry) { return entry.id === previous; }) ? previous : entries[0].id;
+    directModuleOpen.href = consoleHref(directModuleSelect.value);
+  }
+
   Array.prototype.forEach.call(document.querySelectorAll('[data-filter]'), function (button) {
     button.addEventListener('click', function () { setSystemFilter(button.getAttribute('data-filter'), false); });
   });
@@ -509,10 +506,9 @@
   });
   accessDialog.addEventListener('click', function (event) { if (event.target === accessDialog) { pendingEntryId = null; accessDialog.close(); } });
 
-  document.getElementById('random-entry').addEventListener('click', function () {
-    var pool = getFilteredEntries();
-    if (!pool.length) pool = entries;
-    openEntry(pool[Math.floor(Math.random() * pool.length)].id);
+  document.getElementById('random-entry').addEventListener('click', function () { openEntry('null-grail'); });
+  if (directModuleSelect) directModuleSelect.addEventListener('change', function () {
+    directModuleOpen.href = consoleHref(directModuleSelect.value);
   });
 
   function setView(view) {
@@ -597,6 +593,7 @@
   }, { passive: true });
 
   updateAudienceUi();
+  renderDirectModuleOptions();
   document.getElementById('published-count').textContent = String(entries.length).padStart(2, '0');
   setView(state.view === 'list' ? 'list' : 'grid');
 
@@ -652,6 +649,7 @@
     state.system = 'all';
     document.getElementById('published-count').textContent = String(entries.length).padStart(2, '0');
     document.getElementById('all-module-count').textContent = String(entries.length).padStart(2, '0');
+    renderDirectModuleOptions();
     renderEntries();
   }
 

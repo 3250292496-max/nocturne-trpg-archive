@@ -179,14 +179,20 @@
 
   function workMarkup(work, index) {
     var staticMode = isStaticMode();
-    var value = staticMode ? '' : work.accessKey || '';
-    var hint = work.accessKeyConfigured ? '该密钥也用于进入《零之圣杯》守秘人控制台。' : '尚未配置 NG_ACCESS_KEY 或 .keeper-key。';
-    var showKey = !staticMode && work.id === 'null-grail' && (work.accessKeyConfigured || value);
+    var value = work.accessKey || '';
+    var hint = work.accessKeyConfigured
+      ? '只用于进入这份作品的开团控制台；不要公开发给玩家。'
+      : (work.id === 'null-grail' ? '尚未配置 NG_ACCESS_KEY 或 .keeper-key。' : '尚未生成作品密钥。');
+    var showKey = Boolean(work.accessKeyConfigured || value);
+    var consoleHref = work.id === 'null-grail' ? 'gm.html' : 'run.html?id=' + encodeURIComponent(work.id);
+    var publicHref = work.status === 'published'
+      ? '<a href="module.html?id=' + encodeURIComponent(work.id) + '">查看模组</a>'
+      : '';
     return '<article class="work-card">' +
       '<div><p class="profile-eyebrow">WORK · ' + String(index + 1).padStart(2, '0') + '</p>' +
       '<h3>' + escapeHtml(work.title) + ' <small>' + escapeHtml(work.edition || '') + '</small></h3>' +
       '<p>' + escapeHtml(work.relationship || '作品所有者') + ' · ' + escapeHtml(work.status === 'published' ? '已发布' : '草稿') + '</p>' +
-      '<div class="work-actions"><a href="module.html?id=' + encodeURIComponent(work.id) + '">查看模组</a><a class="manage" href="studio.html?id=' + encodeURIComponent(work.id) + '">进入创作者工作台 →</a></div></div>' +
+      '<div class="work-actions">' + publicHref + '<a href="' + consoleHref + '">开团控制台</a><a class="manage" href="studio.html?id=' + encodeURIComponent(work.id) + '">编辑作品 →</a></div></div>' +
       (showKey ? '<div class="work-key"><label for="work-key-' + index + '">作品密钥</label>' +
       '<div class="key-control"><input id="work-key-' + index + '" type="password" readonly value="' + escapeAttribute(value) + '" placeholder="尚未配置">' +
       '<button type="button" data-key-toggle="work-key-' + index + '">显示</button>' +

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="gm.css?v=20260713j">
+  <link rel="stylesheet" href="gm.css?v=20260713k">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -274,7 +274,7 @@
             <div><span>LIVE COMBAT</span><h2 id="combat-active-title">尚未建立战斗</h2></div>
             <div class="combat-round-actions"><strong id="combat-round">第 0 轮</strong><button id="combat-next-turn" type="button">下一位</button><button id="combat-end-scene" type="button">结束本场</button></div>
           </header>
-          <div id="combat-empty" class="combat-empty"><span>⚔</span><strong>导入卡 → 勾选参战者 → 建立场景</strong><p>无需抄写属性。COC7 调查员按 DEX 自动排先攻；零之圣杯角色按体魄排序并保留当前 HP、MP 与状态。</p></div>
+          <div id="combat-empty" class="combat-empty"><span>⚔</span><strong>导入卡 → 勾选参战者 → 建立场景</strong><p>无需抄写属性。COC7 调查员按 DEX 排先攻；零之圣杯自动掷 1D20＋灵巧／感知较高者，并保留 HP、MP、护甲与状态。</p></div>
           <div id="combat-active" hidden>
             <div id="combat-participants" class="combat-participants"></div>
 
@@ -297,7 +297,7 @@
                 <header><span>QUICK ADJUSTMENT</span><h3>环境伤害、治疗与资源</h3></header>
                 <div class="form-grid two-columns">
                   <label><span>目标</span><select id="combat-adjust-target"></select></label>
-                  <label><span>操作</span><select id="combat-adjust-kind"><option value="damage">受到伤害</option><option value="heal">恢复 HP</option><option value="sanity">理智检定与损失</option><option value="mp-spend">消耗 MP</option><option value="mp-restore">恢复 MP</option><option value="luck-spend">消耗幸运</option><option value="first-aid">急救稳定</option><option value="medicine">医学治疗</option><option value="dying-check">濒死 CON 检定</option><option value="stress">零之圣杯：压力变化</option><option value="injury">零之圣杯：伤势升级</option></select></label>
+                  <label><span>操作</span><select id="combat-adjust-kind"><option value="damage">受到伤害</option><option value="heal">恢复 HP</option><option value="sanity">理智检定与损失</option><option value="mp-spend">消耗 MP</option><option value="mp-restore">恢复 MP</option><option value="luck-spend">消耗幸运</option><option value="first-aid">急救稳定</option><option value="medicine">医学治疗</option><option value="dying-check">濒死 CON 检定</option><option value="stress">零之圣杯：决意变化</option><option value="injury">零之圣杯：添加“受伤”</option></select></label>
                   <label class="combat-value-field"><span>数值／骰式</span><input id="combat-adjust-value" value="1" maxlength="40" placeholder="例：6、1D6、0/1D6"></label>
                   <label class="combat-checkbox"><input id="combat-ignore-armor" type="checkbox"><span>伤害忽略护甲</span></label>
                 </div>
@@ -416,10 +416,10 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="player-data.js?v=20260713h"></script>
-  <script src="coc7-data.js?v=20260713a"></script>
-  <script src="coc7-core.js?v=20260713a"></script>
-  <script src="coc7-xlsx.js?v=20260713a"></script>
+  <script src="coc7-data.js?v=20260713d"></script>
+  <script src="coc7-core.js?v=20260713d"></script>
+  <script src="coc7-xlsx.js?v=20260713d"></script>
   <script src="access.js?v=20260713e"></script>
-  <script src="gm-gate.js?v=20260713j"></script>
+  <script src="gm-gate.js?v=20260713k"></script>
 </body>
 </html>

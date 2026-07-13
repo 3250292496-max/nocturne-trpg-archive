@@ -202,7 +202,7 @@ html[data-theme="dawn"] .feature-dossier { background: linear-gradient(145deg, #
 .line { position: absolute; height: 1px; transform-origin: left; background: linear-gradient(90deg, rgba(160,190,190,.35), transparent); }
 .line-1 { top: 13%; left: 17%; width: 46%; transform: rotate(15deg); }.line-2 { bottom: 20%; left: 4%; width: 53%; transform: rotate(-12deg); }.line-3 { top: 48%; left: 8%; width: 44%; transform: rotate(51deg); }
 
-.systems { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-block: 1px solid var(--line); }
+.systems { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-block: 1px solid var(--line); }
 .system-gate { width: 100%; min-height: 105px; display: grid; grid-template-columns: auto 1fr auto; gap: 15px; align-items: center; padding: 20px 22px; border: 0; border-right: 1px solid var(--line); background: transparent; color: inherit; text-align: left; cursor: pointer; transition: background-color .25s, transform .25s; }
 .system-gate:last-child { border-right: 0; }
 .system-gate:hover, .system-gate.active { background: var(--surface-soft); }
@@ -650,6 +650,10 @@ html[data-theme="dawn"] .feature-dossier { background: linear-gradient(145deg, #
 .keeper-feature-list strong { display: block; margin-bottom: 6px; color: var(--gold); font: 600 22px/1 var(--serif); }
 .keeper-showcase-copy .hero-actions { margin-top: 24px; }
 .keeper-showcase-copy > small { display: block; margin-top: 17px; color: var(--muted); font-size: 8px; line-height: 1.7; }
+.direct-module-launch { display: grid; gap: 10px; margin-top: 26px; }
+.direct-module-launch label { color: var(--muted); font-size: 8px; letter-spacing: .15em; text-transform: uppercase; }
+.direct-module-launch select { width: 100%; min-height: 46px; padding: 0 42px 0 14px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--bg-deep); color: var(--paper-strong); font: 500 11px/1.4 var(--serif); }
+.direct-module-launch .button { width: 100%; justify-content: center; }
 
 .world-map-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(.72) brightness(.68); }
 .world-map > svg { position: relative; z-index: 1; mix-blend-mode: screen; opacity: .22; }

@@ -43,6 +43,7 @@
       if (!message || typeof message !== 'object') return;
       if (message.protocol && message.protocol !== MESSAGE_PROTOCOL) return;
       if (message.type === 'ready') {
+        sendPlayerMessage({ type:'keeper-ready', mode:message.mode || '' });
         sendPlayerMessage(lastPlayerPayload
           ? { type:'show', handout:lastPlayerPayload }
           : { type:'curtain' });
@@ -377,6 +378,13 @@
       var id = normalizeId(value, 'pc', false);
       if (participantIds.indexOf(id) !== -1 && readyFirearmIds.indexOf(id) === -1) readyFirearmIds.push(id);
     });
+    var suppliedInitiative = raw.initiativeScores && typeof raw.initiativeScores === 'object' ? raw.initiativeScores : {};
+    var initiativeScores = {};
+    participantIds.forEach(function (id) {
+      var character = (Array.isArray(roster) ? roster : []).find(function (item) { return item.id === id; });
+      var fallback = isCoc7Character(character) ? Number(character.characteristics.dex) || 0 : Math.max(Number(character && character.attributes && character.attributes.agility) || 0, Number(character && character.attributes && character.attributes.perception) || 0);
+      initiativeScores[id] = clampInteger(suppliedInitiative[id], 0, 999, fallback);
+    });
     return {
       id:normalizeId(raw.id, 'combat', true),
       name:safeText(raw.name, 100) || '未命名战斗',
@@ -385,6 +393,7 @@
       turnIndex:participantIds.length ? clampInteger(raw.turnIndex, 0, participantIds.length - 1, 0) : 0,
       participantIds:participantIds,
       readyFirearmIds:readyFirearmIds,
+      initiativeScores:initiativeScores,
       events:events,
       createdAt:safeText(raw.createdAt, 40) || new Date().toISOString(),
       updatedAt:safeText(raw.updatedAt, 40) || new Date().toISOString()
@@ -655,6 +664,7 @@
         if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
       }
     });
+    if (view === 'combat') renderCombat();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1174,16 +1184,606 @@
         var desired = clampInteger(control.value, 0, key === 'hp' ? character.maxHp : key === 'mp' ? character.maxMp : key === 'san' ? character.maxSan : 99, character[key]);
         state.roster[index] = coc7.adjustResource(character, key, desired - character[key]).character;
       }
-      state.roster[index].updatedAt = new Date().toISOString(); addLog('更新 COC7 资源：' + character.name + ' · ' + key); saveState(); renderAll();
+      state.roster[index].updatedAt = new Date().toISOString(); addLog('更新 COC7 资源：' + character.name + ' · ' + key); saveState(); syncCombatCharacter(state.roster[index]); renderAll();
     }); }); });
     document.querySelectorAll('[data-roster-combat]').forEach(function (button) { button.addEventListener('click', function () { addCharacterToActiveCombat(button.getAttribute('data-roster-combat')); }); });
     document.querySelectorAll('[data-roster-export]').forEach(function (button) { button.addEventListener('click', function () { var item = state.roster.find(function (character) { return character.id === button.getAttribute('data-roster-export'); }); if (item) exportCharacter(item); }); });
-    document.querySelectorAll('[data-roster-remove]').forEach(function (button) { button.addEventListener('click', function () { var id = button.getAttribute('data-roster-remove'); var item = state.roster.find(function (character) { return character.id === id; }); if (!item || !window.confirm('从本次战役移除 ' + item.name + '？玩家本机角色卡不会被删除。')) return; state.roster = state.roster.filter(function (character) { return character.id !== id; }); state.combatScenes.forEach(function (scene) { scene.participantIds = scene.participantIds.filter(function (participantId) { return participantId !== id; }); if (scene.turnIndex >= scene.participantIds.length) scene.turnIndex = 0; }); addLog('移除角色：' + item.name); saveState(); renderAll(); }); });
+    document.querySelectorAll('[data-roster-remove]').forEach(function (button) { button.addEventListener('click', function () { var id = button.getAttribute('data-roster-remove'); var item = state.roster.find(function (character) { return character.id === id; }); if (!item || !window.confirm('从本次战役移除 ' + item.name + '？玩家本机角色卡不会被删除。')) return; state.roster = state.roster.filter(function (character) { return character.id !== id; }); state.combatScenes.forEach(function (scene) { scene.participantIds = scene.participantIds.filter(function (participantId) { return participantId !== id; }); scene.readyFirearmIds = scene.readyFirearmIds.filter(function (participantId) { return participantId !== id; }); if (scene.initiativeScores) delete scene.initiativeScores[id]; if (scene.turnIndex >= scene.participantIds.length) scene.turnIndex = 0; }); addLog('移除角色：' + item.name); saveState(); renderAll(); }); });
     document.querySelectorAll('[data-submission-accept]').forEach(function (button) { button.addEventListener('click', function () { acceptCharacterSubmission(button.getAttribute('data-submission-accept')); }); });
     document.querySelectorAll('[data-submission-reject]').forEach(function (button) { button.addEventListener('click', function () { rejectCharacterSubmission(button.getAttribute('data-submission-reject')); }); });
     document.querySelectorAll('[data-request-load]').forEach(function (button) { button.addEventListener('click', function () { loadCheckRequest(button.getAttribute('data-request-load')); }); });
     document.querySelectorAll('[data-request-dismiss]').forEach(function (button) { button.addEventListener('click', function () { var id = button.getAttribute('data-request-dismiss'); state.checkRequests = state.checkRequests.filter(function (request) { return request.id !== id; }); if (activeCheckRequestId === id) clearCheckForm(); saveState(); renderTabletop(); showToast('判定申请已移除'); }); });
     document.querySelectorAll('[data-result-resend]').forEach(function (button) { button.addEventListener('click', function () { var result = state.checkHistory.find(function (item) { return item.id === button.getAttribute('data-result-resend'); }); if (result) { sendPlayerMessage({ type:'check-result', result:result }); showToast('判定结果已再次发送'); } }); });
+  }
+
+  function activeCombatScene(source) {
+    var campaign = source || state;
+    return campaign.combatScenes.find(function (scene) { return scene.id === campaign.activeCombatId; }) || null;
+  }
+
+  function combatCharacter(id, roster) {
+    return (roster || state.roster).find(function (character) { return character.id === id; }) || null;
+  }
+
+  function combatInitiative(character, scene) {
+    if (!character) return -1;
+    var stored = scene && scene.initiativeScores && Number(scene.initiativeScores[character.id]);
+    if (isCoc7Character(character)) {
+      var dexterity = Number.isFinite(stored) ? stored : Number(character.characteristics && character.characteristics.dex) || 0;
+      return dexterity + (scene && Array.isArray(scene.readyFirearmIds) && scene.readyFirearmIds.indexOf(character.id) !== -1 ? 50 : 0);
+    }
+    return Number.isFinite(stored) ? stored : Math.max(Number(character.attributes && character.attributes.agility) || 0, Number(character.attributes && character.attributes.perception) || 0);
+  }
+
+  function rollSceneInitiative(character) {
+    if (isCoc7Character(character)) return Number(character.characteristics.dex) || 0;
+    var ability = Math.max(Number(character.attributes && character.attributes.agility) || 0, Number(character.attributes && character.attributes.perception) || 0);
+    return Math.floor(Math.random() * 20) + 1 + ability;
+  }
+
+  function sortCombatInitiative(scene, roster, preserveCharacterId) {
+    var participants = scene.participantIds.slice();
+    participants.sort(function (leftId, rightId) {
+      var left = combatCharacter(leftId, roster);
+      var right = combatCharacter(rightId, roster);
+      var difference = combatInitiative(right, scene) - combatInitiative(left, scene);
+      if (difference) return difference;
+      return String(left && left.name || '').localeCompare(String(right && right.name || ''), 'zh-CN');
+    });
+    scene.participantIds = participants;
+    scene.turnIndex = preserveCharacterId && participants.indexOf(preserveCharacterId) !== -1 ? participants.indexOf(preserveCharacterId) : 0;
+  }
+
+  function recordCombatEvent(scene, type, label, detail) {
+    scene.events.unshift({
+      id:createId('combat-event'), at:new Date().toISOString(),
+      type:type || 'system', label:safeText(label, 180), detail:safeText(detail, 1200)
+    });
+    scene.events = scene.events.slice(0, 160);
+    scene.updatedAt = new Date().toISOString();
+  }
+
+  function replaceRosterCharacter(campaign, character) {
+    var index = campaign.roster.findIndex(function (item) { return item.id === character.id; });
+    if (index !== -1) {
+      character.updatedAt = new Date().toISOString();
+      campaign.roster[index] = character;
+    }
+  }
+
+  function syncCombatCharacter(character) {
+    if (isCoc7Character(character)) sendPlayerMessage({ type:'character-sync', character:character });
+  }
+
+  function normalizedSkillName(value) {
+    return String(value == null ? '' : value).normalize('NFKC').toLowerCase().replace(/[\s_()（）:：\-\/]+/g, '');
+  }
+
+  function coc7SkillValue(character, names, fallback) {
+    var skills = character && character.skills && typeof character.skills === 'object' ? character.skills : {};
+    var wanted = names.map(normalizedSkillName);
+    var keys = Object.keys(skills);
+    for (var index = 0; index < keys.length; index += 1) {
+      var normalized = normalizedSkillName(keys[index]);
+      if (wanted.indexOf(normalized) !== -1) return clampInteger(skills[keys[index]], 0, 999, fallback || 0);
+    }
+    return clampInteger(fallback, 0, 999, 0);
+  }
+
+  function defaultBrawlWeapon(character) {
+    return {
+      id:'builtin-brawl', name:'徒手格斗', skill:'斗殴',
+      skillValue:coc7SkillValue(character, ['斗殴','Fighting (Brawl)','Fighting','Brawl'], 25),
+      damage:'1D3+DB', impale:false, type:'melee'
+    };
+  }
+
+  function combatWeapons(character) {
+    if (!character) return [];
+    if (!isCoc7Character(character)) {
+      var options = [
+        { id:'ng-unarmed', name:'徒手／临时武器', system:'null-grail', attributeId:'physique', skillId:'melee', damage:1, modifier:0, mystic:false },
+        { id:'ng-light-melee', name:'刀具／轻型近战', system:'null-grail', attributeId:'physique', skillId:'melee', damage:2, modifier:0, mystic:false },
+        { id:'ng-ranged', name:'步枪／霰弹枪／专业武器', system:'null-grail', attributeId:'agility', skillId:'ranged', damage:3, modifier:0, mystic:false }
+      ];
+      if (character.identityType === 'magus') options.push({ id:'ng-spell-2', name:'二阶攻击术式（2 MP）', system:'null-grail', attributeId:'mana', skillId:'magecraft', damage:4, modifier:0, mpCost:2, mystic:true });
+      if (character.identityType === 'servant') {
+        options.push({ id:'ng-servant-normal', name:'从者普通攻击', system:'null-grail', attributeId:'physique', skillId:'melee', damage:5, modifier:0, mystic:true });
+        options.push({ id:'ng-servant-heavy', name:'从者重型攻击（命中 -4）', system:'null-grail', attributeId:'physique', skillId:'melee', damage:7, modifier:-4, mystic:true });
+      }
+      return options;
+    }
+    var weapons = Array.isArray(character.weapons) ? character.weapons.filter(function (weapon) { return weapon && weapon.name; }).map(function (weapon) { return clone(weapon); }) : [];
+    if (!weapons.some(function (weapon) { return /(徒手|拳|brawl|unarmed)/i.test((weapon.name || '') + ' ' + (weapon.skill || '')); })) weapons.unshift(defaultBrawlWeapon(character));
+    return weapons;
+  }
+
+  function weaponSkillValue(character, weapon) {
+    if (weapon && weapon.system === 'null-grail') return (Number(character.attributes && character.attributes[weapon.attributeId]) || 0) + skillBonus(character.skills && character.skills[weapon.skillId]) + (Number(weapon.modifier) || 0);
+    var explicit = Number(weapon && weapon.skillValue);
+    if (Number.isFinite(explicit) && explicit > 0) return clampInteger(explicit, 0, 999, 0);
+    var skill = safeText(weapon && weapon.skill, 100);
+    return coc7SkillValue(character, skill ? [skill] : ['斗殴','Fighting (Brawl)','Brawl'], weapon && weapon.id === 'builtin-brawl' ? 25 : 0);
+  }
+
+  function chooseDamageExpression(expression) {
+    var source = safeText(expression, 100).normalize('NFKC');
+    if (!source) return { expression:'0', note:'' };
+    if (source.indexOf('/') !== -1) {
+      var branches = source.split('/').map(function (branch) { return branch.trim(); }).filter(Boolean);
+      source = branches[0] || '0';
+      return { expression:source, note:'原骰式含射程分支，自动采用第一段；请按实际射程复核。' };
+    }
+    var note = '';
+    if (/(燃烧|眩晕|毒|窒息|震慑|burn|stun)/i.test(source)) {
+      note = '附加的燃烧／眩晕等效果需守秘人手动处理。';
+      source = source.replace(/[+＋]?(燃烧|眩晕|毒|窒息|震慑|burn(?:ing)?|stun(?:ning)?)/ig, '');
+    }
+    return { expression:source || '0', note:note };
+  }
+
+  function expressionWithoutDamageBonus(expression) {
+    var source = String(expression || '0').normalize('NFKC').toUpperCase().replace(/\s+/g, '');
+    source = source.replace(/[+＋]?(?:0\.5|1\/2|½)?\*?DB/g, '').replace(/-(?:0\.5|1\/2|½)?\*?DB/g, '');
+    source = source.replace(/[+\-]$/, '');
+    return source || '0';
+  }
+
+  function hitDamage(character, weapon, level) {
+    var selected = chooseDamageExpression(weapon && weapon.damage || '1D3+DB');
+    var extreme = level === 'extreme' || level === 'critical';
+    if (!extreme) {
+      var normal = coc7.rollDamageExpression(selected.expression, character.damageBonus || '0');
+      return { total:normal.total, label:'普通伤害 ' + normal.total, note:selected.note };
+    }
+    var maximum = coc7.maximumDamageExpression(selected.expression, character.damageBonus || '0');
+    if (weapon && weapon.impale) {
+      var extraExpression = expressionWithoutDamageBonus(selected.expression);
+      var extra = coc7.rollDamageExpression(extraExpression, 0);
+      return { total:maximum + extra.total, label:'贯穿极难伤害 ' + maximum + '＋' + extra.total + '＝' + (maximum + extra.total), note:selected.note };
+    }
+    return { total:maximum, label:'极难最大伤害 ' + maximum, note:selected.note };
+  }
+
+  function rollLevelLabel(level) {
+    return { critical:'大成功', extreme:'极难成功', hard:'困难成功', regular:'成功', failure:'失败', fumble:'大失败' }[level] || level;
+  }
+
+  function combatBar(label, value, maximum, color) {
+    var max = Math.max(1, Number(maximum) || 1);
+    var percent = Math.max(0, Math.min(100, Math.round((Number(value) || 0) / max * 100)));
+    return '<div class="combatant-bar"><span>' + label + '</span><i style="--bar:' + percent + '%;--bar-color:' + color + '"></i><strong>' + value + '/' + maximum + '</strong></div>';
+  }
+
+  function renderCombatant(character, scene, index) {
+    var current = index === scene.turnIndex;
+    if (isCoc7Character(character)) {
+      var status = character.status || {};
+      var conditions = coc7StatusLabels(character).map(function (label) { return '<span' + (label === '重伤' ? ' class="major"' : '') + '>' + label + '</span>'; }).join('');
+      var dead = status.dead ? ' dead' : '';
+      var stats = [
+        ['DEX', character.characteristics.dex], ['闪避', character.derived.dodge], ['护甲', character.armor], ['幸运', character.luck]
+      ].map(function (entry) { return '<div class="combatant-stat"><span>' + entry[0] + '</span><strong>' + escapeHtml(entry[1]) + '</strong><small></small></div>'; }).join('');
+      return '<article class="combatant-card' + (current ? ' current' : '') + dead + '"><header><div><span>COC7 · 先攻 ' + combatInitiative(character, scene) + '</span><h3>' + escapeHtml(character.name) + '</h3></div><i>' + (current ? '当前行动' : '等待') + '</i></header><div class="combatant-stats">' + stats + '</div><div class="combatant-bars">' + combatBar('HP', character.hp, character.maxHp, '#b35d61') + combatBar('SAN', character.san, character.maxSan, '#5f9b80') + combatBar('MP', character.mp, character.maxMp, '#6d86b2') + '</div><div class="combatant-conditions">' + (conditions || '<span class="major">状态正常</span>') + '</div></article>';
+    }
+    var derived = derivedCharacterValues(character);
+    var currentValues = character.current || {};
+    var stats = [
+      ['灵巧', character.attributes.agility], ['回避', 10 + character.attributes.agility], ['护甲', currentValues.armor], ['决意', currentValues.resolve]
+    ].map(function (entry) { return '<div class="combatant-stat"><span>' + entry[0] + '</span><strong>' + escapeHtml(entry[1]) + '</strong><small></small></div>'; }).join('');
+    var conditions = Array.isArray(currentValues.conditions) && currentValues.conditions.length ? currentValues.conditions.map(function (condition) { return '<span class="major">' + escapeHtml(condition) + '</span>'; }).join('') : '<span class="major">状态正常</span>';
+    return '<article class="combatant-card' + (current ? ' current' : '') + (currentValues.hp <= 0 ? ' dead' : '') + '"><header><div><span>零之圣杯 · 先攻 ' + combatInitiative(character, scene) + '</span><h3>' + escapeHtml(character.name) + '</h3></div><i>' + (current ? '当前行动' : '等待') + '</i></header><div class="combatant-stats">' + stats + '</div><div class="combatant-bars">' + combatBar('HP', currentValues.hp, derived.maxHp, '#b35d61') + combatBar('MP', currentValues.mp, derived.maxMp, '#6d86b2') + '</div><div class="combatant-conditions">' + conditions + '</div></article>';
+  }
+
+  function selectOptions(select, entries, previous, emptyLabel) {
+    select.innerHTML = entries.length ? entries.map(function (entry) { return '<option value="' + escapeHtml(entry.value) + '">' + escapeHtml(entry.label) + '</option>'; }).join('') : '<option value="">' + escapeHtml(emptyLabel || '暂无可选项') + '</option>';
+    if (entries.some(function (entry) { return entry.value === previous; })) select.value = previous;
+    select.disabled = !entries.length;
+  }
+
+  function refreshCombatAttackOptions() {
+    var scene = activeCombatScene();
+    var attackerSelect = document.getElementById('combat-attacker');
+    var weaponSelect = document.getElementById('combat-weapon');
+    var targetSelect = document.getElementById('combat-target');
+    if (!scene || !attackerSelect || !weaponSelect || !targetSelect) return;
+    var attacker = combatCharacter(attackerSelect.value);
+    var previousWeapon = weaponSelect.value;
+    var weapons = combatWeapons(attacker);
+    selectOptions(weaponSelect, weapons.map(function (weapon) {
+      return { value:weapon.id, label:weapon.name + ' · ' + (isCoc7Character(attacker) ? weaponSkillValue(attacker, weapon) + '% · ' + (weapon.damage || '0') : '检定 +' + weaponSkillValue(attacker, weapon) + ' · 伤害 ' + weapon.damage) };
+    }), previousWeapon, '该角色没有可用武器');
+    var previousTarget = targetSelect.value;
+    var targets = scene.participantIds.map(function (id) { return combatCharacter(id); }).filter(function (character) {
+      if (!character || character.id === attackerSelect.value || isCoc7Character(character) !== isCoc7Character(attacker)) return false;
+      return isCoc7Character(character) ? !(character.status && character.status.dead) : Number(character.current && character.current.hp) > 0;
+    });
+    selectOptions(targetSelect, targets.map(function (character) {
+      var derived = isCoc7Character(character) ? null : derivedCharacterValues(character);
+      return { value:character.id, label:character.name + ' · HP ' + (isCoc7Character(character) ? character.hp + '/' + character.maxHp : character.current.hp + '/' + derived.maxHp) };
+    }), previousTarget, '没有同规则的其他目标');
+    document.getElementById('combat-ready-firearm').disabled = !isCoc7Character(attacker);
+    document.getElementById('combat-attack-hint').textContent = isCoc7Character(attacker) ? 'COC7：成功率、伤害骰、贯穿、闪避、重伤、濒死与护甲自动结算。' : '零之圣杯：1D20＋属性＋技能对回避；大成功 +2 伤害，并自动处理护甲、生命归零与从者尺度。';
+  }
+
+  function renderCombat() {
+    var picker = document.getElementById('combat-roster-picker');
+    if (!picker) return;
+    picker.innerHTML = state.roster.length ? state.roster.map(function (character) {
+      var derived = isCoc7Character(character) ? null : derivedCharacterValues(character);
+      return '<label class="combat-roster-choice"><input type="checkbox" value="' + character.id + '" data-combat-roster-choice><span><strong>' + escapeHtml(character.name) + '</strong><small>' + (isCoc7Character(character) ? 'COC7 · DEX ' + character.characteristics.dex : '零之圣杯 · 灵巧 ' + character.attributes.agility) + '</small></span><i>' + (isCoc7Character(character) ? 'HP ' + character.hp + '/' + character.maxHp : 'HP ' + character.current.hp + '/' + derived.maxHp) + '</i></label>';
+    }).join('') : '<p class="tabletop-empty">先到“战团”导入角色卡。</p>';
+
+    document.getElementById('combat-scene-list').innerHTML = state.combatScenes.length ? state.combatScenes.map(function (scene) {
+      return '<button type="button" class="combat-scene-button' + (scene.id === state.activeCombatId ? ' active' : '') + '" data-combat-scene="' + scene.id + '"><span><strong>' + escapeHtml(scene.name) + '</strong><span>第 ' + scene.round + ' 轮 · ' + scene.participantIds.length + ' 人</span></span><i>' + (scene.status === 'ended' ? '已结束' : '进行中') + '</i></button>';
+    }).join('') : '<p class="tabletop-empty">尚无战斗场景。</p>';
+    document.querySelectorAll('[data-combat-scene]').forEach(function (button) { button.addEventListener('click', function () { state.activeCombatId = button.getAttribute('data-combat-scene'); saveState(); renderCombat(); }); });
+
+    var scene = activeCombatScene();
+    var empty = document.getElementById('combat-empty');
+    var active = document.getElementById('combat-active');
+    if (!scene) {
+      empty.hidden = false; active.hidden = true;
+      document.getElementById('combat-active-title').textContent = '尚未建立战斗';
+      document.getElementById('combat-round').textContent = '第 0 轮';
+      document.getElementById('combat-next-turn').disabled = true;
+      document.getElementById('combat-end-scene').disabled = true;
+      return;
+    }
+    empty.hidden = true; active.hidden = false;
+    document.getElementById('combat-active-title').textContent = scene.name + (scene.status === 'ended' ? ' · 已结束' : '');
+    document.getElementById('combat-round').textContent = '第 ' + scene.round + ' 轮';
+    var participants = scene.participantIds.map(function (id) { return combatCharacter(id); }).filter(Boolean);
+    document.getElementById('combat-participants').innerHTML = participants.length ? participants.map(function (character) {
+      return renderCombatant(character, scene, scene.participantIds.indexOf(character.id));
+    }).join('') : '<p class="tabletop-empty">本场暂无参战者。</p>';
+
+    var attackerSelect = document.getElementById('combat-attacker');
+    var previousAttacker = attackerSelect.value;
+    var combatReadyParticipants = participants.filter(function (character) { return isCoc7Character(character) ? !(character.status && character.status.dead) : Number(character.current && character.current.hp) > 0; });
+    selectOptions(attackerSelect, combatReadyParticipants.map(function (character) { return { value:character.id, label:character.name + ' · ' + (isCoc7Character(character) ? 'COC7 · DEX ' + character.characteristics.dex : '零之圣杯 · 回避 ' + (10 + character.attributes.agility)) }; }), previousAttacker, '没有可攻击的角色');
+    refreshCombatAttackOptions();
+    var adjustSelect = document.getElementById('combat-adjust-target');
+    selectOptions(adjustSelect, participants.map(function (character) { return { value:character.id, label:character.name + ' · ' + (isCoc7Character(character) ? 'COC7' : '零之圣杯') }; }), adjustSelect.value, '没有参战者');
+
+    document.getElementById('combat-event-list').innerHTML = scene.events.length ? scene.events.map(function (event) {
+      return '<li class="combat-event"><time>' + escapeHtml(new Date(event.at).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'})) + '</time><div><strong>' + escapeHtml(event.label) + '</strong>' + (event.detail ? '<p>' + escapeHtml(event.detail) + '</p>' : '') + '</div></li>';
+    }).join('') : '<li class="tabletop-empty">本场尚无结算记录。</li>';
+    var ended = scene.status === 'ended';
+    document.getElementById('combat-next-turn').disabled = ended || !participants.length;
+    document.getElementById('combat-end-scene').disabled = ended;
+    document.querySelectorAll('#combat-attack-form input, #combat-attack-form select, #combat-attack-form button, #combat-adjust-form input, #combat-adjust-form select, #combat-adjust-form button').forEach(function (control) { control.disabled = ended || !participants.length; });
+    if (!ended && participants.length) refreshCombatAttackOptions();
+  }
+
+  function createCombatScene(event) {
+    event.preventDefault();
+    var selected = Array.from(document.querySelectorAll('[data-combat-roster-choice]:checked')).map(function (input) { return input.value; });
+    if (!selected.length) { showToast('请至少勾选一名参战者'); return; }
+    var name = safeText(document.getElementById('combat-scene-name').value, 100) || '战斗 ' + new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+    var sceneId = createId('combat');
+    commit('建立战斗场景：' + name, function (draft) {
+      var scene = normalizeCombatScene({ id:sceneId, name:name, participantIds:selected, round:1, turnIndex:0, status:'active', events:[], readyFirearmIds:[] }, draft.roster);
+      scene.participantIds.forEach(function (id) { scene.initiativeScores[id] = rollSceneInitiative(combatCharacter(id, draft.roster)); });
+      sortCombatInitiative(scene, draft.roster);
+      recordCombatEvent(scene, 'system', '战斗开始', 'COC7 按 DEX；零之圣杯已掷 1D20＋灵巧／感知较高者，并自动排列先攻。');
+      draft.combatScenes.unshift(scene);
+      draft.combatScenes = draft.combatScenes.slice(0, 12);
+      draft.activeCombatId = scene.id;
+    });
+    document.getElementById('combat-create-form').reset();
+    openView('combat');
+  }
+
+  function addCharacterToActiveCombat(characterId) {
+    var character = combatCharacter(characterId);
+    if (!character) return;
+    var scene = activeCombatScene();
+    if (scene && scene.status === 'active') {
+      if (scene.participantIds.indexOf(characterId) !== -1) { openView('combat'); showToast(character.name + ' 已在当前战斗中'); return; }
+      commit('加入战斗：' + character.name, function (draft) {
+        var targetScene = activeCombatScene(draft);
+        targetScene.participantIds.push(characterId);
+        targetScene.initiativeScores[characterId] = rollSceneInitiative(combatCharacter(characterId, draft.roster));
+        sortCombatInitiative(targetScene, draft.roster, targetScene.participantIds[targetScene.turnIndex]);
+        recordCombatEvent(targetScene, 'system', character.name + ' 加入战斗', '先攻值 ' + combatInitiative(combatCharacter(characterId, draft.roster), targetScene));
+      });
+      openView('combat');
+      return;
+    }
+    openView('combat');
+    renderCombat();
+    var checkbox = document.querySelector('[data-combat-roster-choice][value="' + CSS.escape(characterId) + '"]');
+    if (checkbox) { checkbox.checked = true; document.getElementById('combat-scene-name').focus(); }
+    showToast('已勾选 ' + character.name + '，填写场景名即可建立战斗');
+  }
+
+  function automaticDyingChecks(campaign, scene) {
+    scene.participantIds.forEach(function (id) {
+      var character = combatCharacter(id, campaign.roster);
+      if (!isCoc7Character(character) || !character.status.dying || character.status.dead) return;
+      var check = coc7.rollPercentile(character.characteristics.con, 0);
+      if (!check.success) {
+        var dead = clone(character); dead.status.dead = true; dead.status.dying = false; dead.status.unconscious = true;
+        replaceRosterCharacter(campaign, coc7.normalizeCharacter(dead));
+      }
+      recordCombatEvent(scene, 'status', character.name + ' 的濒死 CON 检定：' + rollLevelLabel(check.level), check.roll + ' / ' + check.skill + (check.success ? '，继续濒死。' : '，检定失败，角色死亡。'));
+    });
+  }
+
+  function advanceCombatTurn() {
+    var scene = activeCombatScene();
+    if (!scene || scene.status !== 'active' || !scene.participantIds.length) return;
+    commit('推进战斗行动位', function (draft) {
+      var targetScene = activeCombatScene(draft);
+      var previous = targetScene.participantIds[targetScene.turnIndex];
+      targetScene.turnIndex += 1;
+      if (targetScene.turnIndex >= targetScene.participantIds.length) {
+        targetScene.round += 1;
+        targetScene.readyFirearmIds = [];
+        sortCombatInitiative(targetScene, draft.roster);
+        automaticDyingChecks(draft, targetScene);
+        recordCombatEvent(targetScene, 'turn', '进入第 ' + targetScene.round + ' 轮', '火器准备加值已重置，并执行所有濒死 CON 检定。');
+      } else {
+        var next = combatCharacter(targetScene.participantIds[targetScene.turnIndex], draft.roster);
+        recordCombatEvent(targetScene, 'turn', '行动位推进', (combatCharacter(previous, draft.roster) || {name:'上一位'}).name + ' → ' + (next ? next.name : '下一位'));
+      }
+    });
+    var updatedScene = activeCombatScene();
+    if (updatedScene) updatedScene.participantIds.forEach(function (id) { syncCombatCharacter(combatCharacter(id)); });
+  }
+
+  function endCombatScene() {
+    var scene = activeCombatScene();
+    if (!scene || scene.status !== 'active') return;
+    if (!window.confirm('结束“' + scene.name + '”？角色当前 HP、SAN、MP 与状态会保留。')) return;
+    commit('结束战斗：' + scene.name, function (draft) {
+      var targetScene = activeCombatScene(draft);
+      targetScene.status = 'ended';
+      recordCombatEvent(targetScene, 'system', '战斗结束', '所有角色资源与状态已写回战团。');
+    });
+  }
+
+  function rollD20WithMode(mode) {
+    var modifier = clampInteger(mode, -2, 2, 0);
+    var dice = [Math.floor(Math.random() * 20) + 1];
+    if (modifier !== 0) dice.push(Math.floor(Math.random() * 20) + 1);
+    return { dice:dice, kept:modifier > 0 ? Math.max.apply(Math, dice) : modifier < 0 ? Math.min.apply(Math, dice) : dice[0] };
+  }
+
+  function applyNullGrailDamage(target, rawDamage, attacker, weapon, ignoreArmor) {
+    var next = clone(target);
+    var previous = Number(next.current.hp) || 0;
+    var scaleBlocked = Boolean(attacker && next.identityType === 'servant' && attacker.identityType !== 'servant' && !(weapon && weapon.mystic));
+    var armor = ignoreArmor || scaleBlocked ? 0 : Math.max(0, Number(next.current.armor) || 0);
+    var damage = scaleBlocked ? 0 : Math.max(0, Math.floor(Number(rawDamage) || 0) - armor);
+    next.current.hp = Math.max(0, previous - damage);
+    if (next.current.hp === 0) {
+      var condition = next.identityType === 'servant' ? '灵基消散' : '倒地';
+      if (next.current.conditions.indexOf(condition) === -1) next.current.conditions.push(condition);
+    }
+    return { character:next, previousHp:previous, hp:next.current.hp, armor:armor, damage:damage, scaleBlocked:scaleBlocked };
+  }
+
+  function nullGrailAttackResult(attacker, target, weapon, defense, mode) {
+    var attackDie = rollD20WithMode(mode);
+    var attackBonus = weaponSkillValue(attacker, weapon);
+    var targetDefense = defense === 'none' ? 10 : 10 + (Number(target.attributes.agility) || 0);
+    var attackTotal = attackDie.kept + attackBonus;
+    var attackSuccess = attackDie.kept !== 1 && attackTotal >= targetDefense;
+    var counterDie = null;
+    var counterTotal = 0;
+    var counterSuccess = false;
+    if (defense === 'fightBack') {
+      counterDie = rollD20WithMode(0);
+      counterTotal = counterDie.kept + (Number(target.attributes.physique) || 0) + skillBonus(target.skills && target.skills.melee);
+      counterSuccess = counterDie.kept !== 1 && counterTotal >= 10 + (Number(attacker.attributes.agility) || 0);
+    }
+    var attackerHits = attackSuccess;
+    var defenderHits = false;
+    if (defense === 'fightBack' && counterSuccess) {
+      if (!attackSuccess || counterTotal >= attackTotal) { attackerHits = false; defenderHits = true; }
+    }
+    var critical = attackerHits && (attackDie.kept === 20 || attackTotal >= targetDefense + 10);
+    var counterCritical = defenderHits && (counterDie.kept === 20 || counterTotal >= 20 + (Number(attacker.attributes.agility) || 0));
+    return {
+      attackDie:attackDie, attackBonus:attackBonus, attackTotal:attackTotal, targetDefense:targetDefense,
+      attackerHits:attackerHits, defenderHits:defenderHits, critical:critical,
+      counterDie:counterDie, counterTotal:counterTotal, counterCritical:counterCritical
+    };
+  }
+
+  function resolveNullGrailAttack(scene, attacker, target, weapon, defense, bonus) {
+    if (Number(weapon.mpCost) > Number(attacker.current.mp)) { showToast('MP 不足，无法使用该术式'); return; }
+    var result = nullGrailAttackResult(attacker, target, weapon, defense, bonus);
+    var nextAttacker = clone(attacker);
+    var nextTarget = clone(target);
+    if (weapon.mpCost) nextAttacker.current.mp = Math.max(0, nextAttacker.current.mp - weapon.mpCost);
+    var detail = attacker.name + '：' + result.attackDie.dice.join('/') + ' 取 ' + result.attackDie.kept + '＋' + result.attackBonus + '＝' + result.attackTotal + '，目标防御 ' + result.targetDefense + '。';
+    if (result.counterDie) detail += ' ' + target.name + ' 反击：' + result.counterDie.kept + '，总值 ' + result.counterTotal + '。';
+    if (result.attackerHits) {
+      var rawDamage = Number(weapon.damage) + (result.critical ? 2 : 0);
+      var applied = applyNullGrailDamage(target, rawDamage, attacker, weapon, false);
+      nextTarget = applied.character;
+      detail += ' ' + (result.critical ? '战斗大成功；' : '') + '基础伤害 ' + rawDamage + '，护甲 ' + applied.armor + '，实扣 ' + applied.damage + ' HP（' + applied.previousHp + '→' + applied.hp + '）。';
+      if (applied.scaleBlocked) detail += ' 普通人武器不具神秘尺度，未能削减从者生命。';
+    } else if (result.defenderHits) {
+      var counterWeapon = target.identityType === 'servant'
+        ? { mystic:true, damage:5, name:'从者普通反击' }
+        : { mystic:false, damage:1, name:'徒手反击' };
+      var counterDamage = Number(counterWeapon.damage) + (result.counterCritical ? 2 : 0);
+      var counterApplied = applyNullGrailDamage(attacker, counterDamage, target, counterWeapon, false);
+      nextAttacker = counterApplied.character;
+      detail += ' 反击命中，基础伤害 ' + counterDamage + '，护甲 ' + counterApplied.armor + '，实扣 ' + counterApplied.damage + ' HP（' + counterApplied.previousHp + '→' + counterApplied.hp + '）。';
+      if (counterApplied.scaleBlocked) detail += ' 攻击缺少神秘尺度，未能削减从者生命。';
+    } else detail += ' 攻击未命中。';
+    var label = attacker.name + ' 使用 ' + weapon.name + ' → ' + target.name + '：' + (result.attackerHits ? '命中' : result.defenderHits ? '遭反击' : '未命中');
+    var sceneId = scene.id;
+    commit(label, function (draft) {
+      replaceRosterCharacter(draft, nextAttacker);
+      replaceRosterCharacter(draft, nextTarget);
+      recordCombatEvent(draft.combatScenes.find(function (item) { return item.id === sceneId; }), 'attack', label, detail);
+    });
+  }
+
+  function resolveCombatAttack(event) {
+    event.preventDefault();
+    var scene = activeCombatScene();
+    if (!scene || scene.status !== 'active') return;
+    var attacker = combatCharacter(document.getElementById('combat-attacker').value);
+    var target = combatCharacter(document.getElementById('combat-target').value);
+    var weapon = combatWeapons(attacker).find(function (item) { return item.id === document.getElementById('combat-weapon').value; });
+    if (!weapon) { showToast('请选择有效武器'); return; }
+    var defense = document.getElementById('combat-defense').value;
+    var bonus = clampInteger(document.getElementById('combat-bonus').value, -2, 2, 0);
+    if (attacker && target && !isCoc7Character(attacker) && !isCoc7Character(target)) {
+      resolveNullGrailAttack(scene, attacker, target, weapon, defense, bonus);
+      return;
+    }
+    if (!isCoc7Character(attacker) || !isCoc7Character(target)) { showToast('攻击者与目标必须使用同一套规则'); return; }
+    var attackerSkill = weaponSkillValue(attacker, weapon);
+    var prepared = document.getElementById('combat-ready-firearm').value === 'true';
+    var attackRoll;
+    var defenseRoll = null;
+    var attackerHits = false;
+    var defenderHits = false;
+    var resolution;
+    if (defense === 'none') {
+      attackRoll = coc7.rollPercentile(attackerSkill, bonus);
+      attackerHits = attackRoll.success;
+    } else {
+      var defenderWeapon = defaultBrawlWeapon(target);
+      resolution = coc7.opposedCombat(attacker, target, {
+        attackerSkill:attackerSkill, attackerBonusPenalty:bonus,
+        defenderAction:defense, defenderSkill:defense === 'dodge' ? (target.derived && target.derived.dodge) : weaponSkillValue(target, defenderWeapon)
+      });
+      attackRoll = resolution.attacker;
+      defenseRoll = resolution.defender;
+      attackerHits = resolution.attackerHits;
+      defenderHits = resolution.defenderHits;
+    }
+    var nextAttacker = attacker;
+    var nextTarget = target;
+    var detailParts = [attacker.name + '：' + attackRoll.roll + '/' + attackRoll.skill + '（' + rollLevelLabel(attackRoll.level) + '）'];
+    if (defenseRoll) detailParts.push(target.name + '：' + defenseRoll.roll + '/' + defenseRoll.skill + '（' + rollLevelLabel(defenseRoll.level) + '）');
+    try {
+      if (attackerHits) {
+        var damage = hitDamage(attacker, weapon, attackRoll.level);
+        var applied = coc7.applyDamage(target, damage.total, target.armor);
+        nextTarget = applied.character;
+        detailParts.push(damage.label + '，护甲 ' + applied.armor + '，实扣 ' + applied.damage + ' HP（' + applied.previousHp + '→' + applied.hp + '）');
+        if (damage.note) detailParts.push(damage.note);
+        if (applied.majorWound) detailParts.push('触发重伤' + (applied.conCheck ? '，CON ' + applied.conCheck.roll + '/' + applied.conCheck.skill : '') + '。');
+        if (applied.dying) detailParts.push('目标进入濒死。');
+        if (applied.dead) detailParts.push('单次伤害大于最大 HP，目标立即死亡。');
+      } else if (defenderHits) {
+        var counterWeapon = defaultBrawlWeapon(target);
+        var counterDamage = hitDamage(target, counterWeapon, defenseRoll.level);
+        var counterApplied = coc7.applyDamage(attacker, counterDamage.total, attacker.armor);
+        nextAttacker = counterApplied.character;
+        detailParts.push('反击命中：' + counterDamage.label + '，护甲 ' + counterApplied.armor + '，实扣 ' + counterApplied.damage + ' HP（' + counterApplied.previousHp + '→' + counterApplied.hp + '）');
+      } else detailParts.push(defense === 'dodge' && defenseRoll && defenseRoll.success ? '攻击被闪避。' : '攻击未命中。');
+    } catch (error) {
+      showToast('无法解析该武器伤害骰：' + safeText(weapon.damage, 40));
+      return;
+    }
+    var label = attacker.name + ' 使用 ' + weapon.name + ' → ' + target.name + '：' + (attackerHits ? '命中' : defenderHits ? '遭反击' : '未命中');
+    var sceneId = scene.id;
+    commit(label, function (draft) {
+      var targetScene = draft.combatScenes.find(function (item) { return item.id === sceneId; });
+      if (prepared && targetScene.readyFirearmIds.indexOf(attacker.id) === -1) targetScene.readyFirearmIds.push(attacker.id);
+      if (!prepared) targetScene.readyFirearmIds = targetScene.readyFirearmIds.filter(function (id) { return id !== attacker.id; });
+      sortCombatInitiative(targetScene, draft.roster, attacker.id);
+      replaceRosterCharacter(draft, nextAttacker);
+      replaceRosterCharacter(draft, nextTarget);
+      recordCombatEvent(targetScene, 'attack', label, detailParts.join(' '));
+    });
+    syncCombatCharacter(nextAttacker);
+    syncCombatCharacter(nextTarget);
+  }
+
+  function rolledAmount(value) {
+    var source = safeText(value, 40) || '0';
+    var rolled = coc7.rollDamageExpression(source, 0);
+    return { value:rolled.total, label:source + '＝' + rolled.total };
+  }
+
+  function applyCombatAdjustment(event) {
+    event.preventDefault();
+    var scene = activeCombatScene();
+    if (!scene || scene.status !== 'active') return;
+    var character = combatCharacter(document.getElementById('combat-adjust-target').value);
+    if (!character) { showToast('请选择调整目标'); return; }
+    var kind = document.getElementById('combat-adjust-kind').value;
+    var value = safeText(document.getElementById('combat-adjust-value').value, 40) || '0';
+    var next = character;
+    var label = '';
+    var detail = '';
+    try {
+      if (kind === 'stress') {
+        if (isCoc7Character(character)) throw new Error('零之圣杯角色才能调整压力');
+        var stressDelta = clampInteger(value, -3, 3, 0);
+        next = clone(character); next.current.resolve = clampInteger(next.current.resolve + stressDelta, 0, 3, next.current.resolve);
+        label = character.name + ' 决意 ' + (stressDelta >= 0 ? '＋' : '') + stressDelta; detail = '当前决意 ' + next.current.resolve + '/3。';
+      } else if (kind === 'injury') {
+        if (isCoc7Character(character)) throw new Error('零之圣杯角色才能升级伤势');
+        next = clone(character); if (next.current.conditions.indexOf('受伤') === -1) next.current.conditions.push('受伤');
+        label = character.name + ' 获得“受伤”'; detail = '状态已写回角色卡。';
+      } else {
+        if (!isCoc7Character(character) && kind === 'damage') {
+          var nullDamage = rolledAmount(value); var nullApplied = applyNullGrailDamage(character, nullDamage.value, null, null, document.getElementById('combat-ignore-armor').checked);
+          next = nullApplied.character; label = character.name + ' 受到 ' + nullApplied.damage + ' 点伤害'; detail = nullDamage.label + '，护甲 ' + nullApplied.armor + '，HP ' + nullApplied.previousHp + '→' + nullApplied.hp + '。';
+        } else if (!isCoc7Character(character) && kind === 'heal') {
+          var nullHealing = rolledAmount(value); next = clone(character); var nullDerived = derivedCharacterValues(character); var previousHp = next.current.hp;
+          next.current.hp = Math.min(nullDerived.maxHp, next.current.hp + nullHealing.value); if (next.current.hp > 0) next.current.conditions = next.current.conditions.filter(function (condition) { return condition !== '倒地'; });
+          label = character.name + ' 恢复 ' + (next.current.hp - previousHp) + ' HP'; detail = nullHealing.label + '，HP ' + previousHp + '→' + next.current.hp + '。';
+        } else if (!isCoc7Character(character) && (kind === 'mp-spend' || kind === 'mp-restore')) {
+          var nullMp = rolledAmount(value); next = clone(character); var maxMp = derivedCharacterValues(character).maxMp; var oldMp = next.current.mp;
+          next.current.mp = Math.max(0, Math.min(maxMp, oldMp + (kind === 'mp-restore' ? nullMp.value : -nullMp.value)));
+          label = character.name + (kind === 'mp-restore' ? ' 恢复 ' : ' 消耗 ') + Math.abs(next.current.mp - oldMp) + ' MP'; detail = nullMp.label + '，MP ' + oldMp + '→' + next.current.mp + '。';
+        } else {
+        if (!isCoc7Character(character)) throw new Error('该操作仅适用于 COC7 调查员');
+        if (kind === 'damage') {
+          var damageSource = chooseDamageExpression(value);
+          var damageResult = coc7.applyDamage(character, damageSource.expression, document.getElementById('combat-ignore-armor').checked ? 0 : character.armor);
+          next = damageResult.character; label = character.name + ' 受到 ' + damageResult.damage + ' 点伤害';
+          detail = damageSource.expression + ' 掷出 ' + damageResult.rolledDamage + '，护甲 ' + damageResult.armor + '，HP ' + damageResult.previousHp + '→' + damageResult.hp + '。' + (damageSource.note || '');
+        } else if (kind === 'heal') {
+          var healing = rolledAmount(value); var healResult = coc7.heal(character, healing.value, { preserveMajorWound:true });
+          next = healResult.character; label = character.name + ' 恢复 ' + healResult.healed + ' HP'; detail = healing.label + '，HP ' + healResult.previousHp + '→' + healResult.hp + '。';
+        } else if (kind === 'sanity') {
+          var sanity = coc7.applySanityLoss(character, value); next = sanity.character;
+          label = character.name + ' 失去 ' + sanity.loss + ' SAN'; detail = (sanity.sanCheck ? 'SAN 检定 ' + sanity.sanCheck.roll + '/' + sanity.sanCheck.skill + '（' + rollLevelLabel(sanity.sanCheck.level) + '），' : '') + 'SAN ' + sanity.previousSan + '→' + sanity.san + '。' + (sanity.temporaryInsanity ? '触发临时疯狂 ' + sanity.temporaryInsanityHours + ' 小时。' : '') + (sanity.indefiniteInsanity ? '已达不定期疯狂阈值。' : '');
+        } else if (kind === 'first-aid') {
+          var aid = coc7.heal(character, 1, { stabilize:true, preserveMajorWound:true }); next = aid.character;
+          label = '对 ' + character.name + ' 实施急救'; detail = (aid.stabilized ? '已稳定濒死状态；' : '') + '临时恢复 ' + aid.healed + ' HP（' + aid.previousHp + '→' + aid.hp + '）。';
+        } else if (kind === 'medicine') {
+          var medicine = coc7.rollDamageExpression('1D3', 0); var treated = coc7.heal(character, medicine.total, { preserveMajorWound:true }); next = treated.character;
+          label = '对 ' + character.name + ' 实施医学治疗'; detail = '1D3＝' + medicine.total + '，恢复 ' + treated.healed + ' HP（' + treated.previousHp + '→' + treated.hp + '）。';
+        } else if (kind === 'dying-check') {
+          var conCheck = coc7.rollPercentile(character.characteristics.con, 0); next = clone(character);
+          if (!conCheck.success) { next.status.dead = true; next.status.dying = false; next.status.unconscious = true; }
+          next = coc7.normalizeCharacter(next); label = character.name + ' 濒死 CON 检定：' + rollLevelLabel(conCheck.level); detail = conCheck.roll + '/' + conCheck.skill + (conCheck.success ? '，维持濒死。' : '，失败并死亡。');
+        } else {
+          var amount = rolledAmount(value);
+          var resource = kind.indexOf('mp-') === 0 ? 'mp' : 'luck';
+          var delta = (kind === 'mp-restore' ? 1 : -1) * amount.value;
+          var adjusted = coc7.adjustResource(character, resource, delta); next = adjusted.character;
+          label = character.name + (delta >= 0 ? ' 恢复 ' : ' 消耗 ') + Math.abs(adjusted.appliedDelta) + ' ' + resource.toUpperCase(); detail = amount.label + '，当前 ' + adjusted.value + '/' + adjusted.maximum + '。';
+        }
+        }
+      }
+    } catch (error) {
+      showToast(safeText(error && error.message, 100) || '无法应用该操作');
+      return;
+    }
+    var sceneId = scene.id;
+    commit(label, function (draft) {
+      replaceRosterCharacter(draft, next);
+      var targetScene = draft.combatScenes.find(function (item) { return item.id === sceneId; });
+      recordCombatEvent(targetScene, kind === 'damage' ? 'damage' : kind === 'heal' || kind === 'first-aid' || kind === 'medicine' ? 'heal' : 'resource', label, detail);
+    });
+    syncCombatCharacter(next);
   }
 
   function clearCheckForm() {
@@ -1396,6 +1996,7 @@
     renderHandouts();
     renderTrackers();
     renderTabletop();
+    renderCombat();
     renderLog();
   }
 
@@ -1723,6 +2324,18 @@
     document.getElementById('gm-check-form').addEventListener('submit', publishCheckResult);
     document.getElementById('gm-clear-check').addEventListener('click', clearCheckForm);
 
+    document.getElementById('combat-create-form').addEventListener('submit', createCombatScene);
+    document.getElementById('combat-attacker').addEventListener('change', refreshCombatAttackOptions);
+    document.getElementById('combat-attack-form').addEventListener('submit', resolveCombatAttack);
+    document.getElementById('combat-adjust-form').addEventListener('submit', applyCombatAdjustment);
+    document.getElementById('combat-next-turn').addEventListener('click', advanceCombatTurn);
+    document.getElementById('combat-end-scene').addEventListener('click', endCombatScene);
+    document.getElementById('combat-clear-events').addEventListener('click', function () {
+      var scene = activeCombatScene();
+      if (!scene || !scene.events.length) { showToast('本场没有可清除的结算记录'); return; }
+      commit('清空战斗台显示记录：' + scene.name, function (draft) { activeCombatScene(draft).events = []; });
+    });
+
     document.getElementById('undo-button').addEventListener('click', function () {
       if (!undoStack.length) { showToast('没有可以撤销的操作'); return; }
       state = undoStack.pop(); addLog('撤销上一步'); saveState(); renderAll(); showToast('已撤销上一步');
@@ -1794,6 +2407,7 @@
 
   if (window.matchMedia('(max-width: 1040px)').matches) document.querySelector('.tracker-rail').classList.add('collapsed');
   bindStaticEvents();
+  sendPlayerMessage({ type:'keeper-ready' });
   renderAll();
-  openView('current');
+  openView(currentView);
 }());

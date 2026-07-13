@@ -329,6 +329,22 @@
         secretUnavailableOnStatic: true
       });
     }
+    try {
+      var localModules = JSON.parse(window.localStorage.getItem('nocturne-studio:modules:v1') || '[]');
+      if (Array.isArray(localModules)) localModules.forEach(function (module) {
+        if (!module || !module.id || module.id === 'null-grail' || module.ownerId !== user.id) return;
+        works.push({
+          id: module.id,
+          title: module.title || '未命名模组',
+          edition: module.edition || '',
+          relationship: '作品所有者 · 本机草稿',
+          status: module.status === 'published' ? 'published' : 'draft',
+          updatedAt: module.updatedAt || module.createdAt || new Date().toISOString(),
+          accessKey: module.accessKey || null,
+          accessKeyConfigured: Boolean(module.accessKey)
+        });
+      });
+    } catch (error) {}
     return { ok: true, user: publicStaticUser(user), works: works, persistent: true, deviceLocal: true };
   }
 

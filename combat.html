@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="combat">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a1313">
+  <meta name="description" content="独立的克苏鲁的呼唤第七版守秘人自动战斗台：角色导入、先攻、回合、攻击、伤害、理智与资源结算。">
+  <title>COC7 · 守秘人自动战斗台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="combat.css?v=20260713a">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#combat-main">跳到战斗台内容</a>
+
+  <header class="desk-topbar">
+    <a class="desk-brand" href="index.html" aria-label="返回夜航模组馆">
+      <span aria-hidden="true">⚔</span>
+      <span><strong>守秘人自动战斗台</strong><small>CALL OF CTHULHU · 7E</small></span>
+    </a>
+    <nav aria-label="工具导航">
+      <a href="coc7.html?tab=builder">调查员车卡</a>
+      <a href="coc7.html?tab=rules">七版规则</a>
+      <a href="index.html#tools">工具首页</a>
+    </nav>
+    <div class="desk-actions">
+      <button id="import-character" type="button">导入 JSON / XLSX</button>
+      <button id="undo-action" type="button" disabled>撤销</button>
+      <input id="character-file" type="file" accept="application/json,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx" hidden>
+    </div>
+  </header>
+
+  <main id="combat-main" class="combat-main">
+    <section class="combat-hero" aria-labelledby="combat-title">
+      <div>
+        <p>AUTOMATED KEEPER DESK · LOCAL FIRST</p>
+        <h1 id="combat-title">七版战斗，<em>独立结算。</em></h1>
+        <p>导入调查员或在车卡页直接提交，按 DEX 自动排列先攻。攻击、闪避、反击、护甲、重伤、濒死、理智与资源变化都会写入本场日志，并只保存在当前浏览器。</p>
+      </div>
+      <aside class="live-link" aria-live="polite">
+        <span id="channel-indicator" aria-hidden="true"></span>
+        <div><strong id="channel-status">正在连接车卡页…</strong><small>无需《零之圣杯》密钥，也不会载入任何模组剧透。</small></div>
+      </aside>
+    </section>
+
+    <section class="combat-workspace">
+      <aside class="workspace-sidebar">
+        <section class="desk-card roster-card" aria-labelledby="roster-title">
+          <header class="card-heading">
+            <div><span>CHARACTER ROSTER</span><h2 id="roster-title">角色库</h2></div>
+            <button id="open-quick-add" type="button">快速添加对手</button>
+          </header>
+          <p class="card-note">支持本站 COC7 JSON、角色合集与 `.xlsx` 角色卡；同源车卡页提交后会实时加入。</p>
+          <div id="roster-list" class="roster-list"></div>
+        </section>
+
+        <section class="desk-card scene-setup-card" aria-labelledby="scene-setup-title">
+          <header class="card-heading"><div><span>SCENE SETUP</span><h2 id="scene-setup-title">建立战斗</h2></div><small>保留最近 12 场</small></header>
+          <form id="scene-create-form" class="scene-create-form">
+            <label><span>场景名称</span><input id="scene-name" maxlength="100" placeholder="例：旧宅地下室遭遇"></label>
+            <fieldset><legend>勾选参战者</legend><div id="scene-roster-picker" class="scene-roster-picker"></div></fieldset>
+            <button class="primary-action" type="submit">建立并排列先攻 <span>↗</span></button>
+          </form>
+          <div id="scene-list" class="scene-list"></div>
+        </section>
+      </aside>
+
+      <section class="desk-card live-combat-card" aria-labelledby="active-scene-title">
+        <header class="card-heading live-heading">
+          <div><span>LIVE COMBAT</span><h2 id="active-scene-title">尚未建立战斗</h2></div>
+          <div class="round-actions">
+            <strong id="round-label">第 0 轮</strong>
+            <button id="next-turn" type="button" disabled>下一位</button>
+            <button id="end-scene" type="button" disabled>结束本场</button>
+          </div>
+        </header>
+
+        <div id="combat-empty" class="combat-empty">
+          <span aria-hidden="true">⚔</span>
+          <strong>导入角色 → 勾选参战者 → 建立场景</strong>
+          <p>这里是独立 COC7 工具，不会进入任何模组控制台。角色按 DEX 排序；点击角色卡上的“备好枪械”可按 DEX +50 重新排列。</p>
+        </div>
+
+        <div id="combat-active" hidden>
+          <div id="participant-list" class="participant-list"></div>
+
+          <div class="action-grid">
+            <form id="attack-form" class="action-form">
+              <header><span>AUTO ATTACK</span><h3>攻击、闪避与反击</h3></header>
+              <div class="form-grid">
+                <label><span>攻击者</span><select id="attack-attacker"></select></label>
+                <label><span>武器</span><select id="attack-weapon"></select></label>
+                <label><span>目标</span><select id="attack-target"></select></label>
+                <label><span>目标反应</span><select id="attack-defense"><option value="dodge">闪避</option><option value="fightBack">反击</option><option value="none">不反应</option></select></label>
+                <label><span>奖励／惩罚骰</span><select id="attack-bonus"><option value="0">正常</option><option value="1">1 个奖励骰</option><option value="2">2 个奖励骰</option><option value="-1">1 个惩罚骰</option><option value="-2">2 个惩罚骰</option></select></label>
+              </div>
+              <button class="primary-action" type="submit">自动掷骰、判定并扣血</button>
+              <p id="attack-hint">近战可选择闪避或反击；射击不是对抗检定，系统会自动关闭目标反应。</p>
+            </form>
+
+            <form id="adjust-form" class="action-form">
+              <header><span>QUICK ADJUSTMENT</span><h3>伤害、理智与资源</h3></header>
+              <div class="form-grid">
+                <label><span>目标</span><select id="adjust-target"></select></label>
+                <label><span>操作</span><select id="adjust-kind">
+                  <option value="damage">受到伤害</option>
+                  <option value="heal">恢复 HP</option>
+                  <option value="sanity">理智检定与损失</option>
+                  <option value="san-restore">恢复 SAN</option>
+                  <option value="mp-spend">消耗 MP</option>
+                  <option value="mp-restore">恢复 MP</option>
+                  <option value="luck-spend">消耗幸运</option>
+                  <option value="luck-restore">恢复幸运</option>
+                  <option value="first-aid">急救稳定</option>
+                  <option value="medicine">医学治疗</option>
+                  <option value="dying-check">濒死 CON 检定</option>
+                </select></label>
+                <label><span>数值／骰式</span><input id="adjust-value" value="1" maxlength="40" placeholder="例：6、1D6、0/1D6"></label>
+                <label class="checkbox-field"><input id="ignore-armor" type="checkbox"><span>伤害忽略护甲</span></label>
+              </div>
+              <button class="primary-action" type="submit">应用并记录</button>
+              <p>伤害默认先扣护甲；理智可填 `0/1D6`；急救、医学与濒死检定会按七版状态处理。</p>
+            </form>
+          </div>
+
+          <section class="event-section" aria-labelledby="event-title">
+            <header><div><span>EVENT LEDGER</span><h3 id="event-title">本场结算记录</h3></div><button id="clear-events" type="button">清空显示</button></header>
+            <ol id="event-list" class="event-list"></ol>
+          </section>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="quick-add-dialog" class="quick-add-dialog">
+    <form id="quick-add-form" method="dialog">
+      <header><div><span>QUICK OPPONENT</span><h2>快速添加临时对手</h2></div><button class="dialog-close" type="button" aria-label="关闭">×</button></header>
+      <p>填写战斗所需的最少数据；其余属性采用中间值，可随时导入正式角色卡覆盖。</p>
+      <div class="dialog-grid">
+        <label><span>名称</span><input id="quick-name" maxlength="80" placeholder="例：深潜者" required></label>
+        <label><span>DEX</span><input id="quick-dex" type="number" min="0" max="999" value="50"></label>
+        <label><span>CON</span><input id="quick-con" type="number" min="0" max="999" value="50"></label>
+        <label><span>SIZ</span><input id="quick-siz" type="number" min="0" max="999" value="50"></label>
+        <label><span>闪避</span><input id="quick-dodge" type="number" min="0" max="999" value="25"></label>
+        <label><span>攻击技能</span><input id="quick-brawl" type="number" min="0" max="999" value="40"></label>
+        <label><span>护甲</span><input id="quick-armor" type="number" min="0" max="999" value="0"></label>
+        <label><span>武器名称</span><input id="quick-weapon-name" maxlength="80" value="爪击"></label>
+        <label><span>武器类型</span><select id="quick-weapon-type"><option value="melee">近战</option><option value="firearm">射击</option></select></label>
+        <label><span>武器伤害</span><input id="quick-weapon-damage" maxlength="40" value="1D6+DB"></label>
+        <label class="checkbox-field"><input id="quick-impale" type="checkbox"><span>可贯穿</span></label>
+      </div>
+      <button class="primary-action" type="submit">添加到角色库</button>
+    </form>
+  </dialog>
+
+  <footer class="combat-footer"><span>夜航模组馆 · COC7 独立工具</span><a href="coc7.html?tab=rules">规则有争议时查看原书 ↗</a></footer>
+  <div id="combat-toast" class="combat-toast" role="status" aria-live="polite"></div>
+
+  <script src="player-data.js?v=20260713g"></script>
+  <script src="coc7-core.js?v=20260713d"></script>
+  <script src="coc7-xlsx.js?v=20260713d"></script>
+  <script src="combat.js?v=20260713a"></script>
+</body>
+</html>

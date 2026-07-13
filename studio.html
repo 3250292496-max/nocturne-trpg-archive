@@ -64,6 +64,7 @@
         <nav aria-label="工作台功能">
           <button class="active" type="button" data-section="overview"><span>◈</span><b>总览</b><small id="nav-progress">0%</small></button>
           <button type="button" data-section="information"><span>文</span><b>基本信息</b><small id="nav-info">待完善</small></button>
+          <button type="button" data-section="runbook"><span>团</span><b>开团控制台</b><small id="nav-runbook">未配置</small></button>
           <button type="button" data-section="imports"><span>⇧</span><b>内容导入</b><small id="nav-imports">0 / 4</small></button>
           <button type="button" data-section="resources"><span>库</span><b>资源库</b><small id="nav-resources">0</small></button>
           <button type="button" data-section="publish"><span>✦</span><b>版本与发布</b><small id="nav-status">草稿</small></button>
@@ -83,6 +84,7 @@
             <article><span class="overview-icon">图</span><div><strong>地图与场景</strong><p>地图原图、场景图与玩家版本</p></div><b id="check-map">未导入</b><button type="button" data-go-section="imports">导入 →</button></article>
             <article><span class="overview-icon">则</span><div><strong>规则资料</strong><p>PDF、DOCX、Markdown 或结构化 JSON</p></div><b id="check-rules">未导入</b><button type="button" data-go-section="imports">导入 →</button></article>
             <article><span class="overview-icon">卡</span><div><strong>自动车卡器</strong><p>XLSX 附件或受限 Builder JSON</p></div><b id="check-builder">未导入</b><button type="button" data-go-section="imports">导入 →</button></article>
+            <article><span class="overview-icon">团</span><div><strong>通用开团控制台</strong><p>场景、人物、线索与可推进轨道</p></div><b id="check-runbook">未配置</b><button type="button" data-go-section="runbook">配置 →</button></article>
           </div>
           <section class="next-steps"><p class="studio-eyebrow">NEXT STEPS</p><h2>建议接下来</h2><ol id="next-steps-list"></ol></section>
         </section>
@@ -112,6 +114,32 @@
               </div>
             </div>
             <div class="form-actions"><p class="form-message" id="module-form-message" role="status" hidden></p><button class="studio-primary" type="submit">保存基本信息</button></div>
+          </form>
+        </section>
+
+        <section class="studio-section" data-section-panel="runbook" aria-labelledby="runbook-title">
+          <header class="workspace-heading"><div><p class="studio-eyebrow">SESSION CONSOLE BUILDER</p><h1 id="runbook-title">开团控制台</h1><p>这里的结构化内容会生成这份模组自己的守秘人桌面；只有作品所有者或持本作品密钥的人能读取。</p></div><a class="text-button" id="console-preview-link" href="run.html" target="_blank" rel="noreferrer">预览开团台 ↗</a></header>
+          <form id="runbook-form" class="runbook-form">
+            <section class="runbook-opening">
+              <label><span>开团总览 / 主持提示</span><textarea name="opening" rows="7" maxlength="4000" placeholder="写下开场、核心冲突、主持原则和本团最重要的安全边界。"></textarea></label>
+            </section>
+            <section class="runbook-block">
+              <header><div><p class="studio-eyebrow">SCENES</p><h2>场景节点</h2></div><button type="button" data-runbook-add="scenes">＋ 添加场景</button></header>
+              <div class="runbook-list" id="runbook-scenes"></div>
+            </section>
+            <section class="runbook-block">
+              <header><div><p class="studio-eyebrow">CAST</p><h2>人物与 NPC</h2></div><button type="button" data-runbook-add="npcs">＋ 添加人物</button></header>
+              <div class="runbook-list" id="runbook-npcs"></div>
+            </section>
+            <section class="runbook-block">
+              <header><div><p class="studio-eyebrow">CLUES</p><h2>线索与手卡文字</h2></div><button type="button" data-runbook-add="clues">＋ 添加线索</button></header>
+              <div class="runbook-list" id="runbook-clues"></div>
+            </section>
+            <section class="runbook-block">
+              <header><div><p class="studio-eyebrow">TRACKERS</p><h2>战役轨道</h2></div><button type="button" data-runbook-add="trackers">＋ 添加轨道</button></header>
+              <div class="runbook-list" id="runbook-trackers"></div>
+            </section>
+            <div class="form-actions"><p class="form-message" id="runbook-message" role="status" hidden></p><button class="studio-primary" type="submit">保存开团控制台</button></div>
           </form>
         </section>
 

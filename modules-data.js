@@ -77,46 +77,15 @@
         mime: 'image/webp', size: 435302, href: 'assets/art/eastlake-map.webp'
       }
     ]
-  }, {
+  }];
+
+  window.NG_SITE_TOOLS = [{
     id: 'coc7',
-    number: '002',
-    title: '克苏鲁的呼唤 第七版',
-    english: 'CALL OF CTHULHU 7E',
-    summary: '从一键调查员车卡，到守秘人自动伤害、重伤、理智与回合结算。',
-    description: '面向克苏鲁的呼唤第七版的本地工具箱：职业底稿自动生成调查员，支持本站 JSON 与 COC7 Excel 角色卡导入，并把 HP、SAN、MP、幸运、护甲、闪避、武器与派生值直接交给守秘人战斗台。规则区提供可搜索的桌边速查；完整规则书由用户从本机选择后查看，不会上传。',
-    systemLabel: 'Call of Cthulhu · 第七版 · 百分骰',
-    type: 'toolkit',
-    typeLabel: '规则与车卡工具箱',
-    players: '1 名守秘人 + 2–6 名调查员',
-    duration: '短团至长篇',
-    era: '1920s / 现代',
-    difficulty: '零门槛',
-    tone: 'green',
-    accent: '#7db79b',
-    icon: 'rules',
-    tags: ['COC7', '自动车卡', '自动战斗', '规则速查'],
-    highlights: ['职业底稿一键车卡', 'Excel / JSON 角色导入', 'HP 与重伤自动结算', '本地 PDF 规则查看'],
-    warning: '恐怖、精神创伤、角色死亡与永久疯狂。请在开团前确认安全工具和内容边界。',
-    forWho: '适合希望减少抄数值、把桌面时间留给调查与扮演的 COC7 团队。',
-    status: 'published',
-    ownerId: 'site-owner-3250292496',
-    edition: '7E toolkit v1.0',
-    author: { displayName: '夜航模组馆馆主', name: '夜航模组馆馆主', label: '站长 · 已认证作者', avatar: '' },
-    updatedAt: '2026-07-13T00:00:00.000Z',
-    resources: [
-      {
-        id: 'coc7-web-builder', title: 'COC7 · 傻瓜自动车卡', category: 'builder', audience: 'player',
-        fileName: 'coc7.html', mime: 'text/html', size: 0, href: 'coc7.html?tab=builder'
-      },
-      {
-        id: 'coc7-rule-viewer', title: 'COC7 · 七版规则速查与本地查看器', category: 'rules', audience: 'player',
-        fileName: 'coc7.html', mime: 'text/html', size: 0, href: 'coc7.html?tab=rules'
-      },
-      {
-        id: 'coc7-blank-sheet', title: 'COC 七版规则空白卡', category: 'builder', audience: 'player',
-        fileName: 'COC七版规则空白卡.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', size: 838805,
-        href: 'assets/rules/COC七版规则空白卡.xlsx'
-      }
-    ]
+    title: '克苏鲁的呼唤 第七版 · 站内工具',
+    kind: 'rules-toolkit',
+    ruleCredits: '原作：Sandy Petersen；后续修订：Lynn Willis；第七版合作设计：Paul Fricker、Mike Mason；出版：Chaosium。本站不是规则书或模组作者。',
+    sheetCredits: '随附角色卡元数据：丛雨；最后修订：梦语FFF；原卡署名：秋叶EXODUS。',
+    href: 'coc7.html?tab=builder',
+    combatHref: 'combat.html'
   }];
 }());
