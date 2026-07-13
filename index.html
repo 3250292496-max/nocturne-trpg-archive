@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="夜航模组馆——收藏原创 CoC、Fate/FGO、D&D 与泛用跑团模组的私人档案馆。">
+  <meta name="description" content="夜航模组馆——《零之圣杯》规则书、自动车卡器、玩家资料与创作者工具的一体化模组入口。">
   <meta name="theme-color" content="#0b1019">
   <meta property="og:title" content="夜航模组馆 · Nocturne Archive">
   <meta property="og:description" content="把尚未发生的冒险，先收进一盏灯里。">
@@ -13,6 +13,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20260713b">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">跳到主要内容</a>
@@ -41,7 +43,7 @@
       </button>
 
       <nav class="site-nav" id="site-nav" aria-label="主导航">
-        <a href="#archive">模组档案</a>
+        <a href="#archive">门面模组</a>
         <a href="#world">世界索引</a>
         <a href="#console">守秘人控制台</a>
         <a href="#notes">创作手记</a>
@@ -49,9 +51,17 @@
       </nav>
 
       <div class="header-tools">
+        <button class="account-button" id="account-button" type="button" aria-haspopup="dialog" aria-controls="auth-dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 20c.7-4 2.9-6 6.5-6s5.8 2 6.5 6"></path></svg>
+          <span id="account-button-label">登录 / 注册</span>
+        </button>
+        <a class="profile-link" id="profile-link" href="profile.html" hidden aria-label="进入个人中心">
+          <span class="profile-avatar" id="profile-avatar" aria-hidden="true">航</span>
+          <span class="profile-copy"><strong id="profile-name">夜航者</strong><small>个人中心</small></span>
+        </a>
         <button class="audience-button" id="audience-button" type="button" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 20c.7-4 2.9-6 6.5-6s5.8 2 6.5 6"></path></svg>
-          <span id="audience-label">选择访问身份</span>
+          <span id="audience-label">选择阅读模式</span>
         </button>
         <button class="theme-toggle icon-button" id="theme-toggle" type="button" aria-label="切换明暗主题" title="切换明暗主题">
           <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.5 8.5 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
@@ -66,14 +76,14 @@
       <div class="hero-copy reveal">
         <p class="eyebrow"><span></span> PRIVATE TRPG COLLECTION · 001</p>
         <h1 id="hero-title">把尚未发生的冒险，<br><em>先收进一盏灯里。</em></h1>
-        <p class="hero-lead">这里收藏关于轮回、抉择与未知的原创跑团模组。愿每一位夜航者，都能在故事落幕前找到自己的航标。</p>
+        <p class="hero-lead">这里完整收纳《零之圣杯》：一部关于轮回、抉择与未知的原创跑团模组。愿每一位夜航者，都能在故事落幕前找到自己的航标。</p>
         <div class="hero-actions">
           <button class="button button-primary" id="player-entry-button" type="button">玩家安全入口 <span aria-hidden="true">↗</span></button>
           <a class="button button-keeper" href="gm.html"><span aria-hidden="true">◇</span> 守秘人控制台 · 需密钥</a>
-          <button class="button button-ghost" id="random-entry" type="button"><span class="spark" aria-hidden="true">✦</span> 随机点亮一份模组</button>
+          <button class="button button-ghost" id="random-entry" type="button"><span class="spark" aria-hidden="true">✦</span> 进入《零之圣杯》</button>
         </div>
         <dl class="hero-stats" aria-label="档案馆概览">
-          <div><dt id="published-count">08</dt><dd>份公开档案</dd></div>
+          <div><dt id="published-count">01</dt><dd>个完整模组</dd></div>
           <div><dt>01</dt><dd>个持续世界</dd></div>
           <div><dt>v3.2</dt><dd>最近修订</dd></div>
         </dl>
@@ -131,27 +141,27 @@
       </div>
     </section>
 
-    <section class="systems shell" aria-label="按规则浏览">
-      <button class="system-gate active" type="button" data-system-jump="all">
-        <span class="gate-icon gate-all" aria-hidden="true">✦</span>
-        <span><small>ALL ARCHIVES</small><strong>全部档案</strong></span>
-        <i aria-hidden="true">08</i>
+    <section class="systems shell" aria-label="零之圣杯模组内快速入口">
+      <button class="system-gate" type="button" data-open-entry="null-grail">
+        <span class="gate-icon gate-rules" aria-hidden="true">册</span>
+        <span><small>CORE RULEBOOK</small><strong>统一规则书</strong></span>
+        <i aria-hidden="true">查看 ↗</i>
       </button>
-      <button class="system-gate" type="button" data-system-jump="fate">
-        <span class="gate-icon gate-fate" aria-hidden="true">◉</span>
-        <span><small>HOLY GRAIL</small><strong>圣杯战争</strong></span>
-        <i aria-hidden="true">08</i>
-      </button>
-      <button class="system-gate" type="button" data-system-jump="coc">
-        <span class="gate-icon gate-coc" aria-hidden="true">⌁</span>
-        <span><small>CALL OF CTHULHU</small><strong>CoC 调查</strong></span>
-        <i aria-hidden="true">00</i>
-      </button>
-      <button class="system-gate" type="button" data-system-jump="dnd">
-        <span class="gate-icon gate-dnd" aria-hidden="true">◇</span>
-        <span><small>FANTASY JOURNEY</small><strong>D&amp;D 冒险</strong></span>
-        <i aria-hidden="true">00</i>
-      </button>
+      <a class="system-gate" href="player.html?mode=builder">
+        <span class="gate-icon gate-builder" aria-hidden="true">卡</span>
+        <span><small>CHARACTER BUILDER</small><strong>自动车卡器</strong></span>
+        <i aria-hidden="true">开始 ↗</i>
+      </a>
+      <a class="system-gate" href="player.html">
+        <span class="gate-icon gate-player" aria-hidden="true">人</span>
+        <span><small>PLAYER DESK</small><strong>玩家面板</strong></span>
+        <i aria-hidden="true">进入 ↗</i>
+      </a>
+      <a class="system-gate" href="gm.html">
+        <span class="gate-icon gate-author" aria-hidden="true">作</span>
+        <span><small>CREATOR DESK</small><strong>创作者面板</strong></span>
+        <i aria-hidden="true">进入 ↗</i>
+      </a>
     </section>
 
     <section class="archive-section" id="archive" aria-labelledby="archive-title">
@@ -159,18 +169,18 @@
         <header class="section-heading reveal">
           <div>
             <p class="eyebrow"><span></span> OPEN SHELVES</p>
-            <h2 id="archive-title">模组档案</h2>
+            <h2 id="archive-title">门面模组</h2>
           </div>
-          <p>从无剧透简介开始，选择适合今晚的故事。守秘资料与玩家资料均有明确标识。</p>
+          <p>馆内目前只展示一部完整模组：《零之圣杯》。规则书、车卡器、玩家资料与创作者工具都收纳在同一个入口中。</p>
         </header>
 
-        <div class="archive-toolbar reveal">
+        <div class="archive-toolbar single-module-toolbar reveal">
           <label class="search-box" for="archive-search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
-            <input id="archive-search" type="search" aria-label="搜索模组档案" placeholder="搜索标题、规则、舞台或标签…" autocomplete="off">
+            <input id="archive-search" type="search" aria-label="搜索零之圣杯模组内容" placeholder="搜索《零之圣杯》的规则、舞台或标签…" autocomplete="off">
             <kbd>/</kbd>
           </label>
-          <label class="select-box">
+          <label class="select-box" hidden>
             <span class="sr-only">按资料类型筛选</span>
             <select id="type-filter">
               <option value="all">全部类型</option>
@@ -181,29 +191,26 @@
             </select>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
           </label>
-          <div class="view-switch" role="group" aria-label="切换档案视图">
+          <div class="view-switch" role="group" aria-label="切换档案视图" hidden>
             <button class="active" id="grid-view" type="button" aria-label="网格视图" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6"></rect><rect x="14" y="4" width="6" height="6"></rect><rect x="4" y="14" width="6" height="6"></rect><rect x="14" y="14" width="6" height="6"></rect></svg></button>
             <button id="list-view" type="button" aria-label="列表视图" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
           </div>
         </div>
 
-        <div class="filter-row reveal" aria-label="规则筛选">
+        <div class="filter-row reveal" aria-label="模组筛选">
           <div class="filter-chips" id="system-filters">
-            <button class="active" type="button" data-filter="all" aria-pressed="true">全部 <span>08</span></button>
-            <button type="button" data-filter="fate" aria-pressed="false">圣杯战争 <span>08</span></button>
-            <button type="button" data-filter="coc" aria-pressed="false">CoC <span>00</span></button>
-            <button type="button" data-filter="dnd" aria-pressed="false">D&amp;D <span>00</span></button>
-            <button type="button" data-filter="agnostic" aria-pressed="false">系统无关 <span>05</span></button>
+            <button class="active" type="button" data-filter="all" aria-pressed="true">完整模组 <span>01</span></button>
+            <button type="button" data-filter="fate" aria-pressed="false">圣杯战争 <span>01</span></button>
           </div>
-          <p class="result-count" aria-live="polite">显示 <strong id="result-count">8</strong> 份档案</p>
+          <p class="result-count" aria-live="polite">当前收录 <strong id="result-count">1</strong> 个完整模组</p>
         </div>
 
-        <div class="archive-grid" id="archive-grid" aria-live="polite"></div>
+        <div class="archive-grid single-module-grid" id="archive-grid" aria-live="polite"></div>
 
         <div class="empty-state" id="empty-state" hidden>
           <div class="empty-sigil" aria-hidden="true">✦</div>
           <h3>这一段航线尚未点亮</h3>
-          <p>目前没有符合条件的档案。CoC 与 D&amp;D 书架已经预留，下一份作品可以直接加入。</p>
+          <p>当前搜索没有命中《零之圣杯》的公开内容，可以清除筛选后重新查看完整模组。</p>
           <button class="button button-ghost" id="clear-filters" type="button">清除筛选</button>
         </div>
       </div>
@@ -263,17 +270,17 @@
           <article>
             <time datetime="2026-07-13">2026.07.13</time>
             <div><span>版本记录</span><h3>《零之圣杯》v3.2：让失败打开新的路径</h3><p>统一规则口径，补齐玩家安全边界与跨册索引。</p></div>
-            <button type="button" data-open-entry="rules-index" aria-label="查看版本记录">↗</button>
+            <button type="button" data-open-entry="null-grail" aria-label="在零之圣杯模组中查看版本记录">↗</button>
           </article>
           <article>
             <time datetime="2026-07-12">2026.07.12</time>
             <div><span>设计原则</span><h3>交涉检定不能替他人同意</h3><p>把人物的决定权写进机制，而不只是写进台词。</p></div>
-            <button type="button" data-open-entry="player-guide" aria-label="查看设计原则">↗</button>
+            <button type="button" data-open-entry="null-grail" aria-label="在零之圣杯模组中查看设计原则">↗</button>
           </article>
           <article>
             <time datetime="2026-07-11">2026.07.11</time>
             <div><span>主持工具</span><h3>把七日战役压缩进桌边控制台</h3><p>用事件卡、人物卡与发放索引减少临场翻找。</p></div>
-            <button type="button" data-open-entry="gm-toolkit" aria-label="查看主持工具">↗</button>
+            <button type="button" data-open-entry="null-grail" aria-label="在零之圣杯模组中查看主持工具">↗</button>
           </article>
         </div>
       </div>
@@ -284,11 +291,18 @@
         <div class="about-mark" aria-hidden="true"><span>守灯人</span><strong>NOCTURNE<br>KEEPER</strong></div>
         <div class="about-copy">
           <p class="eyebrow"><span></span> ABOUT THE ARCHIVIST</p>
+          <div class="identity-badges" aria-label="站长与作者认证">
+            <span class="identity-badge owner-badge" title="站长身份由系统锁定，不可转让"><i aria-hidden="true">◆</i> 网站站长 · 已锁定</span>
+            <span class="identity-badge author-badge"><i aria-hidden="true">✓</i> 《零之圣杯》已认证作者</span>
+          </div>
           <h2 id="about-title">故事是共同做出的选择。</h2>
-          <p>这里是一座私人创作档案馆，保存原创或同人跑团模组、玩家资料与主持工具。馆主偏爱都市异闻、角色抉择、轮回结构，以及不会被一次失败锁死的故事。</p>
+          <blockquote class="founder-statement">
+            <p>我想先让自己的创作、备团与开团变得更轻松，也愿意把这份便利分享给每一位来到这里的人。希望这里不只是一座保存作品的档案馆，也能成为大家共同使用、一起完善，让每一次相聚与冒险都更从容的创作空间。</p>
+            <footer><strong>本站创办者</strong><span>《零之圣杯》规则手册作者</span></footer>
+          </blockquote>
           <p class="about-note">本站所涉规则及相关作品版权归原权利方所有；同人内容仅作非商业交流与展示。转载或开团使用前，请保留作者署名与版本信息。</p>
         </div>
-        <a class="button button-primary" href="#archive">从第一份档案开始 <span>↗</span></a>
+        <a class="button button-primary" href="#archive">进入《零之圣杯》 <span>↗</span></a>
       </div>
     </section>
   </main>
@@ -320,7 +334,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
       </button>
       <p class="eyebrow"><span></span> INFORMATION BOUNDARY</p>
-      <h2 id="access-title">你将以什么身份阅读？</h2>
+      <h2 id="access-title">选择阅读模式</h2>
       <p class="access-intro">玩家入口只提供无剧透简介与 PLAYER SAFE 文件。守秘人入口包含完整流程、人物秘密与结局，需要访问密钥。</p>
       <div class="role-grid" id="role-grid">
         <button class="role-card player-role" id="choose-player" type="button">
@@ -342,8 +356,43 @@
     </div>
   </dialog>
 
+  <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
+    <div class="auth-shell">
+      <button class="dialog-close icon-button" id="auth-close" type="button" aria-label="关闭账号窗口">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+      </button>
+      <p class="eyebrow"><span></span> MEMBER ACCOUNT</p>
+      <h2 id="auth-title">欢迎来到夜航模组馆</h2>
+      <p class="auth-intro">登录后可以进入个人中心、管理角色卡与查看自己的作品权限。阅读模式与账号权限彼此独立。</p>
+
+      <div class="auth-tabs" role="tablist" aria-label="登录或注册">
+        <button class="active" id="auth-tab-login" type="button" role="tab" aria-selected="true" aria-controls="login-form" data-auth-tab="login">账号登录</button>
+        <button id="auth-tab-register" type="button" role="tab" aria-selected="false" aria-controls="register-form" data-auth-tab="register">注册账号</button>
+      </div>
+
+      <form class="auth-form" id="login-form" data-auth-panel="login">
+        <label for="login-account"><span>账号</span><input id="login-account" name="account" type="text" inputmode="numeric" autocomplete="username" placeholder="请输入账号" required></label>
+        <label for="login-password"><span>密码</span><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" required></label>
+        <button class="button button-primary" type="submit">登录并进入个人中心 <span aria-hidden="true">↗</span></button>
+        <p class="auth-error" id="login-error" role="alert" hidden></p>
+      </form>
+
+      <form class="auth-form" id="register-form" data-auth-panel="register" hidden>
+        <label for="register-account"><span>账号</span><input id="register-account" name="account" type="text" inputmode="numeric" autocomplete="username" placeholder="设置用于登录的账号" required></label>
+        <label for="register-name"><span>显示名称</span><input id="register-name" name="displayName" type="text" autocomplete="nickname" maxlength="24" placeholder="大家将如何称呼你" required></label>
+        <label for="register-password"><span>密码</span><input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="至少 8 位字符" required></label>
+        <label for="register-password-confirm"><span>确认密码</span><input id="register-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="再次输入密码" required></label>
+        <button class="button button-primary" type="submit">创建夜航账号 <span aria-hidden="true">↗</span></button>
+        <p class="auth-error" id="register-error" role="alert" hidden></p>
+      </form>
+
+      <p class="auth-footnote">新账号默认为普通成员。作者认证与作品权限需在个人中心申请；网站站长身份由系统锁定，无法通过注册获得。</p>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="access.js?v=20260713d"></script>
+  <script src="site-auth.js?v=20260713a"></script>
   <script src="app.js?v=20260713d"></script>
 </body>
 </html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="night">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="夜航模组馆个人中心：管理账号资料、作者认证与作品权限。">
+  <meta name="theme-color" content="#0b1019">
+  <title>个人中心 · 夜航模组馆</title>
+  <link rel="stylesheet" href="styles.css?v=20260713b">
+  <link rel="stylesheet" href="profile.css?v=20260713a">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
+</head>
+<body class="profile-page">
+  <a class="skip-link" href="#profile-main">跳到主要内容</a>
+  <div class="profile-ambient profile-ambient-a" aria-hidden="true"></div>
+  <div class="profile-ambient profile-ambient-b" aria-hidden="true"></div>
+
+  <header class="profile-header">
+    <a class="profile-brand" href="index.html">
+      <span aria-hidden="true">✦</span>
+      <span><strong>夜航模组馆</strong><small>NOCTURNE ARCHIVE</small></span>
+    </a>
+    <nav aria-label="个人中心导航">
+      <a href="index.html">返回门面模组</a>
+      <a href="gm.html">创作者面板</a>
+      <button id="logout-button" type="button" hidden>退出登录</button>
+    </nav>
+  </header>
+
+  <main id="profile-main" class="profile-main">
+    <section class="profile-loading" id="profile-loading" aria-live="polite">
+      <span class="loading-orbit" aria-hidden="true"></span>
+      <p>正在确认你的夜航身份…</p>
+    </section>
+
+    <section class="signed-out-card" id="signed-out-card" hidden aria-labelledby="signed-out-title">
+      <p class="profile-eyebrow">MEMBER SIGN IN</p>
+      <h1 id="signed-out-title">登录后继续航行</h1>
+      <p>你的个人资料、作者认证进度和作品权限都保存在本地站点账号中。</p>
+      <form id="profile-login-form" class="compact-form">
+        <label><span>账号</span><input name="account" type="text" autocomplete="username" required></label>
+        <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="profile-primary" type="submit">登录个人中心</button>
+        <p class="form-message error" id="profile-login-error" role="alert" hidden></p>
+      </form>
+      <a class="profile-text-link" href="index.html">还没有账号？返回首页注册 →</a>
+    </section>
+
+    <div id="profile-content" hidden>
+      <section class="identity-hero" aria-labelledby="identity-name">
+        <div class="identity-avatar" id="identity-avatar" aria-hidden="true">航</div>
+        <div class="identity-copy">
+          <p class="profile-eyebrow">MEMBER DOSSIER</p>
+          <h1 id="identity-name">夜航者</h1>
+          <p id="identity-account">账号 —</p>
+          <div class="identity-badges">
+            <span id="role-badge">普通成员</span>
+            <span id="author-badge">尚未认证作者</span>
+            <span class="locked-badge" id="locked-badge" hidden>站长身份已锁定</span>
+          </div>
+        </div>
+        <div class="identity-stat">
+          <span>加入档案馆</span>
+          <strong id="joined-date">—</strong>
+        </div>
+      </section>
+
+      <div class="profile-grid">
+        <section class="profile-panel" aria-labelledby="details-title">
+          <header>
+            <div><p class="profile-eyebrow">PROFILE</p><h2 id="details-title">个人资料</h2></div>
+            <span>你可以随时更新</span>
+          </header>
+          <form id="profile-form" class="profile-form">
+            <label><span>显示名称</span><input id="display-name-input" name="displayName" type="text" maxlength="40" required></label>
+            <label><span>个人介绍</span><textarea id="bio-input" name="bio" maxlength="500" rows="6" placeholder="写下你的创作方向、喜欢的规则或正在准备的故事。"></textarea><small><b id="bio-count">0</b> / 500</small></label>
+            <button class="profile-primary" type="submit">保存个人资料</button>
+            <p class="form-message" id="profile-message" role="status" hidden></p>
+          </form>
+        </section>
+
+        <section class="profile-panel author-panel" aria-labelledby="author-title">
+          <header>
+            <div><p class="profile-eyebrow">AUTHOR VERIFICATION</p><h2 id="author-title">作者认证</h2></div>
+            <span id="author-status-label">未申请</span>
+          </header>
+          <div id="author-verified" class="status-card verified" hidden>
+            <strong>✦ 已通过作者认证</strong>
+            <p>你的作者身份已经确认，可以使用创作者入口与已授权的作品资料。</p>
+          </div>
+          <div id="author-pending" class="status-card pending" hidden>
+            <strong>◷ 申请正在审核</strong>
+            <p>站长会根据你提交的作品介绍进行确认。审核完成后，此处会自动更新。</p>
+            <blockquote id="pending-statement"></blockquote>
+          </div>
+          <form id="author-form" class="profile-form">
+            <p>介绍一份你的原创或同人作品，或说明接下来准备创作的内容。提交后状态会进入“待审核”。</p>
+            <label><span>作品与创作计划</span><textarea name="statement" minlength="10" maxlength="800" rows="7" required placeholder="例如：作品名称、使用规则、目前进度，以及你希望如何与大家分享。"></textarea></label>
+            <button class="profile-primary" type="submit">提交作者认证</button>
+            <p class="form-message" id="author-message" role="status" hidden></p>
+          </form>
+        </section>
+      </div>
+
+      <section class="profile-panel works-panel" id="works-panel" aria-labelledby="works-title" hidden>
+        <header>
+          <div><p class="profile-eyebrow">MY WORKS</p><h2 id="works-title">我的作品与密钥</h2></div>
+          <span>仅作品所有者本人可见</span>
+        </header>
+        <div id="works-list" class="works-list"></div>
+      </section>
+
+      <section class="profile-panel applications-panel" id="applications-panel" aria-labelledby="applications-title" hidden>
+        <header>
+          <div><p class="profile-eyebrow">OWNER REVIEW</p><h2 id="applications-title">作者认证审核</h2></div>
+          <span id="applications-count">0 份申请</span>
+        </header>
+        <div id="applications-list" class="applications-list"></div>
+      </section>
+    </div>
+  </main>
+
+  <div class="profile-toast" id="profile-toast" role="status" aria-live="polite"></div>
+  <script src="site-auth.js?v=20260713a"></script>
+  <script src="profile.js?v=20260713a"></script>
+</body>
+</html>

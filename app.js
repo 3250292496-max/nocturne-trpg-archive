@@ -1,239 +1,45 @@
 (function () {
   'use strict';
 
+  // One work, one archive entry. Rulebooks, tools and handouts are parts of the
+  // same module rather than separate works.
   var entries = [
     {
       id: 'null-grail',
       number: '001',
       title: '零之圣杯',
       english: 'NULL GRAIL',
-      systems: ['fate'],
-      systemLabel: 'Fate/FGO 同人 · 轻量 d20',
+      systems: ['fate', 'agnostic'],
+      systemLabel: 'Fate/FGO 同人 · 通用圣杯战争规则 · 轻量 d20',
       type: 'campaign',
-      typeLabel: '长篇战役模组',
+      typeLabel: '完整长篇战役模组',
       tone: 'gold',
       accent: '#d1ad6c',
       icon: 'grail',
-      status: '已归档',
+      status: '本站作者作品',
       updated: '2026.07.13',
+      author: { name: '3250292496', label: '站长 · 已认证作者' },
       summary: '七日轮回的圣杯战争里，你们是系统无法命名的空白变量。',
-      description: '东湖市跨年夜，天空像玻璃一样裂开。圣杯试图为每个人分配御主、从者、祭品或观测者的身份，却无法容纳一群保留轮回记忆的来客。你们能锚定改变，却不能命令任何人爱、原谅或牺牲。',
+      description: '东湖市跨年夜，天空像玻璃一样裂开。圣杯试图为每个人分配御主、从者、祭品或观测者的身份，却无法容纳一群保留轮回记忆的来客。规则书、自动车卡器、主模组、人物手册、玩家资料和主持工具共同组成这一份完整作品。',
       players: '3–6 人',
       duration: '6–10 次团',
       era: '架空现代',
       difficulty: '进阶',
-      tags: ['轮回', '都市异闻', '角色抉择', '群像'],
+      tags: ['轮回', '都市异闻', '角色抉择', '完整工具链'],
       warning: '人体实验、未成年人受害、家庭控制、创伤反应、精神操纵、血腥暴力、自毁倾向与身份剥夺。请在开团前确认安全工具与内容边界。',
-      forWho: '适合喜欢人物关系、开放式调查、道德抉择与循环结构的团队。无需了解 Fate 系列，也能从“故障圣杯”切入。',
-      highlights: ['完整七日节点与两次重置上限', '失败会改变代价与信息，不会封死核心路线', '角色同意与决定权会实际影响终局', '包含长短团结构、循环变异与结局组合裁定'],
-      spoiler: '完整世界真相、终局条件与坏结局只在通过密钥验证后的守秘人控制台中提供。',
+      forWho: '适合喜欢人物关系、开放式调查、道德抉择与循环结构的团队。无需了解 Fate 系列；玩家可以从规则书和自动车卡器开始，主持人可直接进入作者控制台开团。',
+      highlights: ['规则书与自动车卡器已并入同一作品入口', '完整七日节点、人物、线索、手卡与主持控制台', '玩家角色卡可导入、导出并提交给主持人', '判定请求由主持人裁定，结果会回传到玩家面板'],
+      spoiler: '完整世界真相、人物秘密、终局条件与坏结局只在通过作品密钥验证后的创作者控制台中提供。',
       resources: [
-        { name: '第一册 · 主模组 v3.2', meta: 'DOCX · 守秘人专用 · 完整战役', format: 'DOCX', secureId: 'main-module', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第一册·主模组（v3.2）.docx', secret: true },
-        { name: '玩家公开资料包 v3.2', meta: 'DOCX · PLAYER SAFE · 可直接发放', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' },
-        { name: '玩家手卡打印包 v3.2', meta: 'DOCX · 守秘人按进度发放 · 含后期线索', format: 'DOCX', secureId: 'player-handouts', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家手卡打印包（v3.2）.docx', secret: true }
-      ]
-    },
-    {
-      id: 'rules-index',
-      number: '002',
-      title: '统一规则与跨册索引',
-      english: 'CORE RULES & INDEX',
-      systems: ['fate', 'agnostic'],
-      systemLabel: '系统无关 · 轻量 d20',
-      type: 'guide',
-      typeLabel: '核心规则手册',
-      tone: 'cyan',
-      accent: '#79b9bd',
-      icon: 'rules',
-      status: '已归档',
-      updated: '2026.07.13',
-      summary: '四册共同遵循的唯一规则口径，也是整套作品的导航星图。',
-      description: '集中说明六步行动流程、d20 结果档位、决意与压力、伤势、冲突钟、空白令印、回流、锚定与完整重置，并用任务型索引明确四册的职责边界。',
-      players: '全团共用',
-      duration: '随查随用',
-      era: '规则资料',
-      difficulty: '入门',
-      tags: ['轻量 d20', '速查', '索引', '可转换'],
-      warning: '规则文本无核心剧情剧透，但守秘人与玩家仍应按信息边界选择阅读范围。',
-      forWho: '适合第一次接触本作的主持人与玩家，也可作为将节点转换到其他规则系统时的统一参照。',
-      highlights: ['六步行动流程', '四档 d20 结果表', '压力、创伤与伤势闭环', '完整重置与混合身份模式'],
-      spoiler: '本册主要是规则与索引，不包含需要额外解封的世界真相。',
-      resources: [
-        { name: 'v3.2 统一规则与跨册索引', meta: 'DOCX · 当前唯一规则口径', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》统一规则与跨册索引（v3.2）.docx' }
-      ]
-    },
-    {
-      id: 'npc-guide',
-      number: '003',
-      title: 'NPC 与英灵手册',
-      english: 'CHARACTERS & SERVANTS',
-      systems: ['fate'],
-      systemLabel: 'Fate/FGO 同人',
-      type: 'guide',
-      typeLabel: '人物设定集',
-      tone: 'red',
-      accent: '#b75c54',
-      icon: 'characters',
-      status: '已归档',
-      updated: '2026.07.13',
-      summary: '人物不是线索容器；每一次选择，都必须先问谁有权替谁决定。',
-      description: '完整收录人物史、关系弧、英灵权限、主动行动与轮回变化。主持人可以快速确认人物知道什么、下一步做什么，以及选择会留下怎样的可见余波。',
-      players: '主持人',
-      duration: '备团资料',
-      era: '完全剧透',
-      difficulty: '进阶',
-      tags: ['NPC', '英灵', '关系弧', '导演法'],
-      warning: '整册为守秘人资料，涉及实验体虐待、家庭暴力、人格控制、死亡与自我毁灭。只有明确标记 PLAYER SAFE 的区块可向玩家发放。',
-      forWho: '适合需要运行复杂群像、追踪人物信息权限与循环变化的主持人。',
-      highlights: ['人物动机与主动行动', '关系阶段与可见余波', '英灵最小机械卡', 'PLAYER SAFE 公开块'],
-      spoiler: '本册含人物隐瞒、终局与坏结局。高关系不产生控制权，创伤不免除责任，英灵也拥有独立意志。',
-      resources: [
-        { name: '第二册 · NPC 与英灵手册 v3.2', meta: 'DOCX · 守秘人专用 · 完全剧透', format: 'DOCX', secureId: 'npc-guide', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx', secret: true }
-      ]
-    },
-    {
-      id: 'player-guide',
-      number: '004',
-      title: '玩家手册',
-      english: 'PLAYER HANDBOOK',
-      systems: ['fate', 'agnostic'],
-      systemLabel: 'PLAYER SAFE · 轻量 d20',
-      type: 'guide',
-      typeLabel: '玩家规则手册',
-      tone: 'purple',
-      accent: '#a08abc',
-      icon: 'player',
-      status: '已归档',
-      updated: '2026.07.13',
-      summary: '你们不是被选中的英雄，而是一个错误系统无法命名的人。',
-      description: '面向第一次接触 TRPG、本作或 Fate 系列的玩家，包含无剧透导读、角色创建、轻量规则、混合身份模式、打印清单与分阶段发放边界。',
-      players: '所有玩家',
-      duration: '开团前阅读',
-      era: '无剧透',
-      difficulty: '入门',
-      tags: ['玩家规则', '角色创建', '安全工具', '无剧透'],
-      warning: '人物资料必须按“开团即可见 / 遇见后发放”标识使用，第一次完整重置后的内容不要提前阅读。',
-      forWho: '适合所有准备进入东湖市的玩家；不需要从头背到尾，可按阅读路径选取章节。',
-      highlights: ['四类玩家阅读路径', '从零创建 NULL 角色', '团队约定与安全边界', '空白令印与循环记录'],
-      spoiler: '玩家手册本身遵循无剧透原则。被封缄的只是分阶段阅读提醒，没有额外世界真相。',
-      resources: [
-        { name: '第三册 · 玩家手册 v3.2', meta: 'DOCX · 玩家规则与角色创建', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx' },
-        { name: '玩家公开资料包 v3.2', meta: 'DOCX · 开团前可直接交付', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' }
-      ]
-    },
-    {
-      id: 'gm-toolkit',
-      number: '005',
-      title: '主持人工具书',
-      english: 'KEEPER CONSOLE',
-      systems: ['fate', 'agnostic'],
-      systemLabel: '主持工具 · 系统无关',
-      type: 'toolkit',
-      typeLabel: '桌边工具书',
-      tone: 'gold',
-      accent: '#d1ad6c',
-      icon: 'keeper',
-      status: '已归档',
-      updated: '2026.07.13',
-      summary: '把完整战役压缩成桌边可以立刻取用的控制台、卡片与索引。',
-      description: '将规则、节点、人物深度与玩家记录压缩成每日控制台、地图、流程、事件卡、人物卡与手卡。支持拆分打印、黑白输出与混合身份模式。',
-      players: '主持人',
-      duration: '桌边随查',
-      era: '完全剧透',
-      difficulty: '适中',
-      tags: ['控制台', '事件卡', '打印', '备团'],
-      warning: '守秘人专用且完全剧透。带守秘提示的预览页不可直接交给玩家。',
-      forWho: '适合希望减少临场翻书、按天拆分备团材料的主持人。',
-      highlights: ['七张每日控制台', '事件卡与人物卡', '地图和终局权限网络', '2 联 / 4 联裁切页'],
-      spoiler: '终局材料、权限网络、当日事件与人物卡均会暴露核心真相；建议按实际进度单独装袋。',
-      resources: [
-        { name: '第四册 · 主持人工具书 v3.2', meta: 'DOCX · 守秘人专用 · 可拆分打印', format: 'DOCX', secureId: 'keeper-toolkit', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第四册·主持人工具书（v3.2）.docx', secret: true }
-      ]
-    },
-    {
-      id: 'public-pack',
-      number: '006',
-      title: '玩家公开资料包',
-      english: 'PLAYER SAFE PACK',
-      systems: ['fate', 'agnostic'],
-      systemLabel: 'PLAYER SAFE · 系统无关',
-      type: 'handout',
-      typeLabel: '开团资料包',
-      tone: 'cyan',
-      accent: '#79b9bd',
-      icon: 'safe-pack',
-      status: '已归档',
-      updated: '2026.07.13',
-      summary: '无剧透规则、建卡、城市概览与玩家表单，一份文件完成开团准备。',
-      description: '不解释圣杯故障真相，不公开 NPC 隐藏动机或结局条件。包含安全约定、六步行动流程、轻量 d20、决意与压力、角色创建、东湖市概览和玩家表单。',
-      players: '所有玩家',
-      duration: '开团前 20 分钟',
-      era: '无剧透',
-      difficulty: '入门',
-      tags: ['PLAYER SAFE', '建卡', '安全约定', '城市概览'],
-      warning: '包含人体实验、未成年人受害、人格控制等主题的内容预警，但不包含剧情真相。',
-      forWho: '这是最适合直接分享给新玩家的单一入口。',
-      highlights: ['无剧透承诺', '开团前安全约定', '六步行动流程', '完整玩家表单'],
-      spoiler: '此资料包刻意不包含守秘信息，可以放心交给玩家。',
-      resources: [
-        { name: '玩家公开资料包 v3.2', meta: 'DOCX · PLAYER SAFE · 推荐首先下载', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' }
-      ]
-    },
-    {
-      id: 'player-cards',
-      number: '007',
-      title: '玩家手卡打印包',
-      english: 'PRINTABLE HANDOUTS',
-      systems: ['fate', 'agnostic'],
-      systemLabel: 'PLAYER SAFE · 可打印',
-      type: 'handout',
-      typeLabel: '场景手卡',
-      tone: 'red',
-      accent: '#b75c54',
-      icon: 'handouts',
-      status: '已归档',
-      updated: '2026.07.13',
-      summary: '二十张可裁切的 PLAYER 面手卡，让线索真正落到玩家手中。',
-      description: '收录东湖市游客折页、NULL 空白地图、跨年公告、新闻剪报、日记摘录等二十张玩家手卡，采用二联排版，可按剧情发放时机领取。',
-      players: '全团共用',
-      duration: '按场景发放',
-      era: '分阶段可见',
-      difficulty: '入门',
-      tags: ['手卡', '线索', '打印', 'PLAYER 面'],
-      warning: '虽然全部是 PLAYER 面，仍应按照主持人工具书中的发放时机逐张交付，避免提前暴露调查顺序。',
-      forWho: '适合线下桌面团，也可导出单页后在网团中逐张发送。',
-      highlights: ['20 张玩家手卡', '二联裁切排版', '独立 PLAYER 面', '含地图、公告与剪报'],
-      spoiler: '手卡没有守秘提示，但提前查看整包仍可能削弱探索体验。',
-      resources: [
-        { name: '玩家手卡打印包 v3.2', meta: 'DOCX · 守秘人按进度发放 · 含后期线索', format: 'DOCX', secureId: 'player-handouts', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家手卡打印包（v3.2）.docx', secret: true }
-      ]
-    },
-    {
-      id: 'staged-clues',
-      number: '008',
-      title: '分阶段线索发放包',
-      english: 'STAGED CLUE PACK',
-      systems: ['fate'],
-      systemLabel: '守秘工具 · 分阶段发放',
-      type: 'toolkit',
-      typeLabel: '线索控制包',
-      tone: 'purple',
-      accent: '#a08abc',
-      icon: 'clues',
-      status: '已归档',
-      updated: '2026.07.13',
-      summary: '用编号、条件与独立玩家卡精确控制每一条线索何时抵达。',
-      description: '包含守秘人发放索引与独立 PLAYER SAFE 线索卡。主持人只需核对触发条件，裁下对应单卡发放，不必向玩家补充卡片之外的解释。',
-      players: '主持人',
-      duration: '按进度发放',
-      era: '部分剧透',
-      difficulty: '适中',
-      tags: ['线索卡', '发放索引', '打印', '信息边界'],
-      warning: '索引页不可交给玩家；只发放对应编号的 PLAYER SAFE 卡片。',
-      forWho: '适合希望严格维护信息边界、避免一次失败永久丢失核心线索的主持人。',
-      highlights: ['守秘人发放条件索引', '独立 PLAYER SAFE 单卡', '规则记录与提前解释提醒', '附空白线索卡模板'],
-      spoiler: '整包会列出线索触发条件与编号关系。请勿让玩家浏览索引页。',
-      resources: [
+        { name: '通用圣杯战争规则书 v2.0', meta: 'DOCX · PLAYER SAFE · 规则、车卡与资源库增订版', format: 'DOCX', href: '《零之圣杯》通用圣杯战争规则书_v2.0_车卡与资源库增订版.docx' },
+        { name: '完整自动车卡器 v1.1', meta: 'XLSX · PLAYER SAFE · 建议使用此最新版', format: 'XLSX', href: '圣杯/零之圣杯_完整套件/自动车卡/《零之圣杯》完整自动车卡表_v1.1.xlsx' },
+        { name: '第三册 · 玩家手册 v3.2', meta: 'DOCX · PLAYER SAFE · 无剧透导读与角色创建', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx' },
+        { name: '玩家公开资料包 v3.2', meta: 'DOCX · PLAYER SAFE · 可直接发给全团', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' },
+        { name: '统一规则与跨册索引 v3.2', meta: 'DOCX · PLAYER SAFE · 四册导航', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》统一规则与跨册索引（v3.2）.docx' },
+        { name: '第一册 · 主模组 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 完整战役', format: 'DOCX', secureId: 'main-module', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第一册·主模组（v3.2）.docx', secret: true },
+        { name: '第二册 · NPC 与英灵手册 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 完全剧透', format: 'DOCX', secureId: 'npc-guide', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx', secret: true },
+        { name: '第四册 · 主持人工具书 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 桌边工具', format: 'DOCX', secureId: 'keeper-toolkit', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第四册·主持人工具书（v3.2）.docx', secret: true },
+        { name: '玩家手卡打印包 v3.2', meta: 'DOCX · 守秘人按进度发放', format: 'DOCX', secureId: 'player-handouts', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家手卡打印包（v3.2）.docx', secret: true },
         { name: '分阶段线索发放包 v3.2', meta: 'DOCX · 守秘索引 + PLAYER SAFE 单卡', format: 'DOCX', secureId: 'staged-clues', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》分阶段线索发放包（v3.2）.docx', secret: true }
       ]
     }
@@ -268,7 +74,7 @@
     var label = document.getElementById('audience-label');
     button.classList.toggle('player', role === 'player');
     button.classList.toggle('keeper', role === 'keeper' && isKeeper());
-    label.textContent = role === 'player' ? '玩家安全模式' : role === 'keeper' && isKeeper() ? '守秘人完整模式' : '选择访问身份';
+    label.textContent = role === 'player' ? '玩家安全模式' : role === 'keeper' && isKeeper() ? '守秘人完整模式' : '选择阅读模式';
   }
 
   function showAccessDialog(entryId) {
@@ -372,11 +178,12 @@
           '<div class="cover-orbit" aria-hidden="true"></div>',
           '<div class="cover-icon" aria-hidden="true">', archiveIconTemplate(entry.icon), '</div>',
           '<span class="card-number">ARCHIVE · ', escapeHtml(entry.number), '</span>',
-          '<span class="card-stamp">', escapeHtml(entry.status), '</span>',
+          '<span class="card-stamp verified-stamp">✓ ', escapeHtml(entry.status), '</span>',
         '</div>',
         '<div class="card-body">',
           '<p class="card-type">', escapeHtml(entry.english), ' · ', escapeHtml(entry.typeLabel), '</p>',
           '<h3>', escapeHtml(entry.title), '</h3>',
+          '<p class="card-author">◇ ', escapeHtml(entry.author.label), ' · ', escapeHtml(entry.author.name), '</p>',
           '<p class="card-summary">', escapeHtml(entry.summary), '</p>',
           '<div class="card-meta">', meta, '</div>',
           '<div class="card-bottom"><div class="card-tags">', tags, '</div><button class="card-open" type="button" tabindex="-1">查看档案 <span>↗</span></button></div>',
@@ -391,7 +198,8 @@
       var audienceMatch = isKeeper() || entry.resources.some(function (resource) { return !resource.secret; });
       var systemMatch = state.system === 'all' || entry.systems.indexOf(state.system) !== -1;
       var typeMatch = state.type === 'all' || entry.type === state.type;
-      var searchable = [entry.title, entry.english, entry.systemLabel, entry.typeLabel, entry.summary, entry.description, entry.era].concat(entry.tags).join(' ').toLocaleLowerCase('zh-CN');
+      var resourceText = entry.resources.map(function (resource) { return resource.name + ' ' + resource.meta; });
+      var searchable = [entry.title, entry.english, entry.systemLabel, entry.typeLabel, entry.summary, entry.description, entry.era, entry.author.name, entry.author.label].concat(entry.tags, resourceText).join(' ').toLocaleLowerCase('zh-CN');
       return audienceMatch && systemMatch && typeMatch && (!query || searchable.indexOf(query) !== -1);
     });
   }
@@ -464,7 +272,10 @@
       ? '<a class="button button-primary" href="' + encodeURI(primaryResource.href).replace(/'/g, '%27') + '" download>获取玩家安全资料 <span>↓</span></a>'
       : '';
     var consoleAction = keeperMode && entry.id === 'null-grail'
-      ? '<a class="button button-console" href="gm.html">进入守秘人控制台 <span>↗</span></a>'
+      ? '<a class="button button-console" href="gm.html">进入创作者 / 守秘人面板 <span>↗</span></a>'
+      : '';
+    var playerAction = entry.id === 'null-grail'
+      ? '<a class="button button-ghost" href="player.html">进入玩家面板 <span>↗</span></a>'
       : '';
     var boundaryNote = keeperMode
       ? '<div class="audience-boundary" style="border-left-color:var(--red)"><strong>守秘人完整模式</strong><br>访问密钥已验证；下方会显示守秘人附件与封缄摘要。</div>'
@@ -488,6 +299,7 @@
           '<div class="dialog-heading">',
             '<p class="eyebrow"><span></span>ARCHIVE · ', escapeHtml(entry.number), ' · ', escapeHtml(entry.english), '</p>',
             '<h2 id="dialog-title">', escapeHtml(entry.title), '</h2>',
+            '<div class="entry-creator"><span>✓ 已认证</span><strong>', escapeHtml(entry.author.label), '</strong><small>@', escapeHtml(entry.author.name), '</small></div>',
             '<p>', escapeHtml(entry.summary), '</p>',
           '</div>',
           '<div class="dialog-emblem" aria-hidden="true">', archiveIconTemplate(entry.icon), '</div>',
@@ -510,6 +322,7 @@
           '</div>',
           '<div class="dialog-actions">',
             consoleAction,
+            playerAction,
             primaryAction,
             '<button class="button button-ghost" id="copy-entry-link" type="button">复制分享链接 <span>↗</span></button>',
             '<button class="button button-ghost" id="favorite-entry" type="button">', isFavorite(entry.id) ? '已点亮 ★' : '收藏航标 ☆', '</button>',
@@ -768,6 +581,23 @@
   updateAudienceUi();
   document.getElementById('published-count').textContent = String(entries.length).padStart(2, '0');
   setView(state.view === 'list' ? 'list' : 'grid');
+
+  // Resume an authenticated owner/author session without asking for the work
+  // key a second time. The server remains the authority for this decision.
+  if (access && access.checkServerSession) {
+    access.checkServerSession().then(function (authorized) {
+      if (!authorized) return;
+      updateAudienceUi();
+      renderEntries();
+    });
+  }
+  window.addEventListener('ng-auth-change', function () {
+    if (!access || !access.checkServerSession) return;
+    access.checkServerSession().then(function () {
+      updateAudienceUi();
+      renderEntries();
+    });
+  });
 
   var entryParam = new URL(window.location.href).searchParams.get('entry');
   if (entryParam) window.setTimeout(function () { openEntry(entryParam, false); }, 120);
