@@ -211,6 +211,7 @@
   function escapeAttribute(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
 
   function renderWorks(works, user) {
+    works = (works || []).filter(function (work) { return work && work.id !== 'coc7' && work.id !== 'coc7-7e'; });
     var panel = byId('works-panel');
     var list = byId('works-list');
     var canCreate = user && (user.authorStatus === 'verified' || user.role === 'owner');

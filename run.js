@@ -3,6 +3,14 @@
 
   var params = new URL(window.location.href).searchParams;
   var moduleId = String(params.get('id') || '').trim().toLowerCase();
+  if (!moduleId) {
+    window.location.replace('index.html#console');
+    return;
+  }
+  if (moduleId === 'coc7' || moduleId === 'coc7-7e') {
+    window.location.replace('coc7.html?tab=rules');
+    return;
+  }
   var localModuleKey = 'nocturne-studio:modules:v1';
   var sessionPrefix = 'nocturne-run:';
   var currentModule = null;
@@ -62,13 +70,15 @@
   function staticModules() {
     var merged = {};
     (window.NG_STATIC_MODULES || []).forEach(function (module) {
-      if (module && module.id) merged[module.id] = clone(module);
+      if (module && module.id && module.id !== 'coc7' && module.id !== 'coc7-7e') merged[module.id] = clone(module);
     });
     try {
       var local = JSON.parse(window.localStorage.getItem(localModuleKey) || '[]');
-      if (Array.isArray(local)) local.forEach(function (module) {
-        if (module && module.id) merged[module.id] = module;
-      });
+      if (Array.isArray(local)) {
+        var cleaned = local.filter(function (module) { return module && module.id !== 'coc7' && module.id !== 'coc7-7e'; });
+        if (cleaned.length !== local.length) window.localStorage.setItem(localModuleKey, JSON.stringify(cleaned));
+        cleaned.forEach(function (module) { if (module.id) merged[module.id] = module; });
+      }
     } catch (error) {}
     return Object.keys(merged).map(function (id) { return merged[id]; });
   }
@@ -248,10 +258,10 @@
     staticMode = true;
     availableModules = staticModules();
     if (!moduleId) {
-      var first = availableModules.find(function (module) { return module.id !== 'null-grail' && module.status === 'published'; });
-      if (!first) return fatal('目前没有可直接开团的通用模组。请先从首页选择，或由作者在创作者面板发布作品。');
-      moduleId = first.id;
+      window.location.replace('index.html#console');
+      return;
     }
+    if (moduleId === 'coc7' || moduleId === 'coc7-7e') { window.location.replace('coc7.html?tab=rules'); return; }
     if (moduleId === 'null-grail') { window.location.replace('gm.html'); return; }
     currentModule = availableModules.find(function (module) { return module.id === moduleId; }) || null;
     if (!currentModule) return fatal('找不到这份浏览器本地模组；它可能只保存在作者的另一台设备上。');
@@ -260,10 +270,10 @@
   function bootServer(payload) {
     availableModules = payload.modules || [];
     if (!moduleId) {
-      var first = availableModules.find(function (module) { return module.id !== 'null-grail'; });
-      if (!first) return fatal('目前没有已发布的通用模组。你仍可从首页进入《零之圣杯》的专属控制台。');
-      moduleId = first.id;
+      window.location.replace('index.html#console');
+      return;
     }
+    if (moduleId === 'coc7' || moduleId === 'coc7-7e') { window.location.replace('coc7.html?tab=rules'); return; }
     if (moduleId === 'null-grail') { window.location.replace('gm.html'); return; }
     currentModule = availableModules.find(function (module) { return module.id === moduleId; }) || { id:moduleId, title:'这份模组' };
     api('/api/modules/' + encodeURIComponent(moduleId) + '/access').then(function (status) {

@@ -332,7 +332,7 @@
     try {
       var localModules = JSON.parse(window.localStorage.getItem('nocturne-studio:modules:v1') || '[]');
       if (Array.isArray(localModules)) localModules.forEach(function (module) {
-        if (!module || !module.id || module.id === 'null-grail' || module.ownerId !== user.id) return;
+        if (!module || !module.id || module.id === 'null-grail' || module.id === 'coc7' || module.id === 'coc7-7e' || module.ownerId !== user.id) return;
         works.push({
           id: module.id,
           title: module.title || '未命名模组',

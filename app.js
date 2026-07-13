@@ -10,7 +10,8 @@
       title: '零之圣杯',
       english: 'NULL GRAIL',
       systems: ['fate', 'agnostic'],
-      systemLabel: 'Fate/FGO 同人 · 通用圣杯战争规则 · 轻量 d20',
+      rulesetId: 'null-grail-core-d20-v2.0',
+      systemLabel: '《零之圣杯》通用圣杯战争规则 v2.0 · 轻量 d20',
       type: 'campaign',
       typeLabel: '完整长篇战役模组',
       tone: 'gold',
@@ -21,9 +22,9 @@
       author: { name: '夜航模组馆馆主', label: '站长 · 已认证作者' },
       summary: '七日轮回的圣杯战争里，你们是系统无法命名的空白变量。',
       description: '东湖市跨年夜，天空像玻璃一样裂开。圣杯试图为每个人分配御主、从者、祭品或观测者的身份，却无法容纳一群保留轮回记忆的来客。规则书、自动车卡器、主模组、人物手册、玩家资料和主持工具共同组成这一份完整作品。',
-      players: '3–6 人',
-      duration: '6–10 次团',
-      era: '架空现代',
+      players: '3–5 人（4 人最佳）',
+      duration: '标准 8 次 × 3–4 小时',
+      era: '2018 年末 · 架空现代东湖市',
       difficulty: '进阶',
       tags: ['轮回', '都市异闻', '角色抉择', '完整工具链'],
       warning: '人体实验、未成年人受害、家庭控制、创伤反应、精神操纵、血腥暴力、自毁倾向与身份剥夺。请在开团前确认安全工具与内容边界。',
@@ -35,7 +36,7 @@
         { name: '完整自动车卡器 v1.1', meta: 'XLSX · PLAYER SAFE · 建议使用此最新版', format: 'XLSX', href: '圣杯/零之圣杯_完整套件/自动车卡/《零之圣杯》完整自动车卡表_v1.1.xlsx' },
         { name: '第三册 · 玩家手册 v3.2', meta: 'DOCX · PLAYER SAFE · 无剧透导读与角色创建', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx' },
         { name: '玩家公开资料包 v3.2', meta: 'DOCX · PLAYER SAFE · 可直接发给全团', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' },
-        { name: '统一规则与跨册索引 v3.2', meta: 'DOCX · PLAYER SAFE · 四册导航', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》统一规则与跨册索引（v3.2）.docx' },
+        { name: '四册统一编排与跨册索引 v3.2', meta: 'DOCX · PLAYER SAFE · 战役导航（非规则版本）', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》统一规则与跨册索引（v3.2）.docx' },
         { name: '第一册 · 主模组 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 完整战役', format: 'DOCX', secureId: 'main-module', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第一册·主模组（v3.2）.docx', secret: true },
         { name: '第二册 · NPC 与英灵手册 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 完全剧透', format: 'DOCX', secureId: 'npc-guide', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx', secret: true },
         { name: '第四册 · 主持人工具书 v3.2', meta: 'DOCX · 创作者 / 守秘人专用 · 桌边工具', format: 'DOCX', secureId: 'keeper-toolkit', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第四册·主持人工具书（v3.2）.docx', secret: true },
@@ -335,6 +336,10 @@
   }
 
   function openEntry(id, updateUrl) {
+    if (id === 'coc7' || id === 'coc7-7e') {
+      window.location.href = 'coc7.html?tab=rules';
+      return;
+    }
     var entry = entries.find(function (item) { return item.id === id; });
     if (!entry) return;
     window.location.href = 'module.html?id=' + encodeURIComponent(entry.id);
@@ -435,6 +440,7 @@
   }
 
   function consoleHref(id) {
+    if (id === 'coc7' || id === 'coc7-7e') return 'coc7.html?tab=rules';
     return id === 'null-grail' ? 'gm.html' : 'run.html?id=' + encodeURIComponent(id);
   }
 
@@ -605,6 +611,7 @@
       title: module.title || '未命名模组',
       english: module.english || 'COMMUNITY MODULE',
       systems: Array.isArray(module.systems) && module.systems.length ? module.systems : ['community'],
+      rulesetId: module.rulesetId || '',
       systemLabel: module.systemLabel || '规则系统待补充',
       type: module.type || 'campaign',
       typeLabel: module.typeLabel || '完整战役模组',
@@ -635,10 +642,16 @@
 
   function staticPublishedModules() {
     var merged = {};
-    (window.NG_STATIC_MODULES || []).forEach(function (module) { if (module && module.id) merged[module.id] = module; });
+    (window.NG_STATIC_MODULES || []).forEach(function (module) {
+      if (module && module.id && module.id !== 'coc7' && module.id !== 'coc7-7e') merged[module.id] = module;
+    });
     try {
       var local = JSON.parse(window.localStorage.getItem('nocturne-studio:modules:v1') || '[]');
-      if (Array.isArray(local)) local.forEach(function (module) { if (module && module.id) merged[module.id] = module; });
+      if (Array.isArray(local)) {
+        var cleaned = local.filter(function (module) { return module && module.id !== 'coc7' && module.id !== 'coc7-7e'; });
+        if (cleaned.length !== local.length) window.localStorage.setItem('nocturne-studio:modules:v1', JSON.stringify(cleaned));
+        cleaned.forEach(function (module) { if (module.id) merged[module.id] = module; });
+      }
     } catch (error) {}
     return Object.keys(merged).map(function (id) { return merged[id]; }).filter(function (module) { return module.status === 'published'; });
   }

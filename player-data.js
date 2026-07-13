@@ -287,6 +287,30 @@
     }
   };
 
+  // H01《东湖市游客折页》中的公开地点。这里只包含城市导览信息；
+  // 场景、线索与其余剧情地点仍由守秘人逐步投送。
+  var playerSafeMap = {
+    version: 1,
+    title: '东湖市公共导览图',
+    image: 'assets/art/eastlake-map.webp',
+    visible: true,
+    activeLocationId: 'CM',
+    updatedAt: '',
+    locations: [
+      { id:'CM', name:'中央商业街口', shortName:'街口', icon:'crossroad', x:43, y:43, pinX:-24, pinY:2, summary:'东湖市中央商圈的主要换乘街口，餐饮、购物与跨年活动集中在周边。', tags:['商业街','公交换乘','跨年人流'], routeNote:'南北主路、旧城支路与河桥在此交汇；23:00 后广场方向可能封路。', current:false, visited:false, scenes:[] },
+      { id:'SC', name:'东湖学园', shortName:'学园', icon:'school', x:17, y:20, summary:'位于北部区域的学校，夜间校门关闭，公共道路可通往商业街。', tags:['学校','北部区域','夜间管制'], routeNote:'正门通向商业街；夜间进入校内区域需要正当许可。', current:false, visited:false, scenes:[] },
+      { id:'CH', name:'圣安东尼教堂', shortName:'教堂', icon:'church', x:74, y:56, summary:'河东旧城区的石砌教堂，白天开放礼拜并可供游客临时避雨。', tags:['旧城区','公共建筑','河东岸'], routeNote:'西门靠近河桥，南侧小路可绕开商业街跨年人流。', current:false, visited:false, scenes:[] },
+      { id:'SR', name:'山间旧神社', shortName:'神社', icon:'shrine', x:12, y:76, summary:'旧城区西南山林里的旧神社，参道湿滑且没有夜间照明。', tags:['山林','旧建筑','步行抵达'], routeNote:'只有石阶参道和一条维护便道；车辆需停在山脚。', current:false, visited:false, scenes:[] },
+      { id:'RN', name:'旧城区拉面馆', shortName:'拉面', icon:'food', x:31, y:79, summary:'跨年夜仍会营业的普通小店，是旧城区常用的餐饮与会合地点。', tags:['餐饮','旧城区','深夜营业'], routeNote:'临近维修街与山脚公交站，后门通往狭窄生活巷。', current:false, visited:false, scenes:[] },
+      { id:'RP', name:'合川电器维修店', shortName:'维修店', icon:'repair', x:37, y:78, summary:'旧城区的电器维修铺，门口张贴着停电、检修与抢修通知。', tags:['维修','公共通知','旧城区'], routeNote:'与拉面馆相隔一个街口；店后仓门连接旧城配电巷。', current:false, visited:false, scenes:[] },
+      { id:'OL', name:'旧图书馆遗址', shortName:'旧馆', icon:'library', x:38, y:31, summary:'北部旧馆保留拱窗、中庭和封闭阅览楼，外围步道仍对公众开放。', tags:['遗址','公共档案','北部区域'], routeNote:'南门连商业街，北侧小径通往学园；雨后中庭地面易积水。', current:false, visited:false, scenes:[] },
+      { id:'KM', name:'河东旧洋宅', shortName:'洋宅', icon:'mansion', x:72, y:20, summary:'河东岸围墙后的旧式私人住宅，主门、花园与临河侧门彼此分隔。', tags:['私人住宅','河东岸','围墙'], routeNote:'主门通向北桥；未经邀请不应进入私人区域。', current:false, visited:false, scenes:[] },
+      { id:'PL', name:'中央跨年广场', shortName:'广场', icon:'plaza', x:45, y:42, pinX:10, pinY:-24, summary:'庆典中心、舞台与服务站集中于此，跨年夜将实施分区人流管制。', tags:['庆典','服务站','人流管制'], routeNote:'舞台东侧设服务站；部分主路会在 23:00 后转为单向疏散。', current:false, visited:false, scenes:[] },
+      { id:'SW', name:'东湖南区污水处理厂', shortName:'处理厂', icon:'water', x:82, y:84, summary:'城市南缘的公共设施，夜间仅保留值守与检修照明。', tags:['公共设施','低洼地','工业南区'], routeNote:'只有北侧车道和沿河检修路；暴雨时低处通道可能积水。', current:false, visited:false, scenes:[] },
+      { id:'RM', name:'铁路事故纪念碑', shortName:'纪念碑', icon:'memorial', x:62, y:72, summary:'旧墓园外的铁路事故纪念碑，常有人留下鲜花与维修徽章。', tags:['纪念地点','旧铁路','安静区域'], routeNote:'西侧步道连旧钟塔方向，东侧道路通工业区；大型车辆不能进入墓园。', current:false, visited:false, scenes:[] }
+    ]
+  };
+
   window.NG_PLAYER_DATA = deepFreeze({
     protocol: 'null-grail-player-v4',
     characterProtocol: 'null-grail-character-v3',
@@ -297,6 +321,7 @@
     rulesVersion: 'v2.0 · 车卡与资源库增订版',
     rulesDate: '2026-07-13',
     channelName: 'null-grail-player',
+    publicMap: playerSafeMap,
     attributes: attributes,
     skills: skills,
     skillRanks: [
