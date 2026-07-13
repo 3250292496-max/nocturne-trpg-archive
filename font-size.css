@@ -1,58 +1,103 @@
 :root {
-  --reading-scale: 1;
+  --reading-scale: 1.15;
 }
 
-html[data-reading-size="large"] {
-  --reading-scale: 1.12;
-}
-
-/* Keep the carefully composed typography intact while enlarging the whole
-   interface. Unlike browser-only zoom, this preference follows every page. */
+/* The script writes an explicit zoom value to guarantee immediate repaint.
+   This declaration is the no-JS / early-render fallback. */
 @supports (zoom: 1) {
   body {
     zoom: var(--reading-scale);
   }
 }
 
-.reading-size-toggle {
-  position: fixed;
-  z-index: 10000;
-  right: 18px;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  min-width: 92px;
-  min-height: 40px;
-  padding: 0 13px;
-  border: 1px solid rgba(209, 173, 108, .48);
+body .reading-size-toggle {
+  appearance: none;
+  display: inline-grid;
+  width: 40px;
+  min-width: 40px;
+  height: 36px;
+  min-height: 36px;
+  flex: 0 0 40px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(209, 173, 108, .5);
   border-radius: 999px;
   color: #f0d59f;
-  background: rgba(10, 16, 25, .94);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, .34);
-  font: 600 12px/1 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .05em;
+  background: rgba(10, 16, 25, .88);
+  box-shadow: none;
+  font: 700 12px/1 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
   cursor: pointer;
-  backdrop-filter: blur(14px);
+  opacity: .86;
+  transition: border-color .18s ease, background-color .18s ease, color .18s ease, opacity .18s ease, transform .18s ease;
+  backdrop-filter: blur(12px);
 }
 
-.reading-size-toggle:hover {
+body .reading-size-toggle:hover {
   border-color: #d1ad6c;
-  background: rgba(27, 37, 51, .97);
+  background: rgba(27, 37, 51, .98);
+  color: #fff1cc;
+  opacity: 1;
 }
 
-.reading-size-toggle:focus-visible {
+body .reading-size-toggle:focus-visible {
   outline: 2px solid #d1ad6c;
   outline-offset: 3px;
+  opacity: 1;
+}
+
+body .reading-size-toggle[aria-pressed="true"] {
+  background: rgba(209, 173, 108, .14);
+}
+
+body .reading-size-toggle.reading-size-toggle--inline {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  align-self: center;
+  margin-inline-start: 4px;
+}
+
+/* Pages without a stable header mount receive a narrow edge tab. It occupies
+   40 x 36 px instead of the former 92 px floating pill and stays away from
+   mobile bottom navigation and toast/action areas. */
+body .reading-size-toggle.reading-size-toggle--floating {
+  position: fixed;
+  z-index: 10000;
+  top: max(92px, calc(50vh - 18px));
+  right: -7px;
+  border-radius: 999px 0 0 999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .28);
+  opacity: .58;
+}
+
+body .reading-size-toggle.reading-size-toggle--floating:hover,
+body .reading-size-toggle.reading-size-toggle--floating:focus-visible {
+  right: 0;
+  opacity: 1;
+  transform: none;
 }
 
 @media (max-width: 760px) {
-  .reading-size-toggle {
-    right: 12px;
-    bottom: 80px;
-    min-width: 84px;
-    min-height: 38px;
+  body .reading-size-toggle {
+    width: 36px;
+    min-width: 36px;
+    height: 34px;
+    min-height: 34px;
+    flex-basis: 36px;
+    font-size: 11px;
+  }
+
+  body .reading-size-toggle.reading-size-toggle--inline {
+    margin-inline-start: 0;
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  body .reading-size-toggle { transition: none; }
+}
+
 @media print {
-  body { zoom: 1; }
+  body { zoom: 1 !important; }
   .reading-size-toggle { display: none !important; }
 }
