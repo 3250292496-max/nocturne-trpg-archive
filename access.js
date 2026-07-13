@@ -7,6 +7,7 @@
   var VERIFIER_TEXT = 'NOCTURNE_KEEPER_V1';
   var mode = 'unknown';
   var serverAuthorized = false;
+  var staticAuthorized = false;
   var manifestPromise = null;
   var derivedKeyPromise = null;
   var derivedForPassphrase = null;
@@ -112,12 +113,14 @@
   }
 
   function verifyStaticKey(passphrase) {
+    staticAuthorized = false;
     return loadManifest().then(function (manifest) {
       return decryptEntry(manifest.verifier, passphrase, manifest);
     }).then(function (plaintext) {
       var valid = new TextDecoder('utf-8').decode(plaintext) === VERIFIER_TEXT;
       if (valid) {
         mode = 'static';
+        staticAuthorized = true;
         grantKeeperAccess(passphrase);
       }
       return valid;
@@ -148,6 +151,7 @@
       mode = 'server';
       if (!response.ok) return false;
       serverAuthorized = true;
+      staticAuthorized = false;
       grantKeeperAccess(passphrase);
       return true;
     }).catch(function () {
@@ -164,6 +168,7 @@
   function clearPassphrase() {
     sessionStorage.removeItem(PASSPHRASE_KEY);
     localStorage.removeItem(LEGACY_ACCESS_KEY);
+    staticAuthorized = false;
     derivedKeyPromise = null;
     derivedForPassphrase = null;
   }
@@ -189,7 +194,7 @@
   }
 
   function hasKeeperAccess() {
-    return getRole() === 'keeper' && Boolean(sessionStorage.getItem(PASSPHRASE_KEY) || serverAuthorized);
+    return getRole() === 'keeper' && Boolean(serverAuthorized || staticAuthorized);
   }
 
   function getMode() {
@@ -205,9 +210,10 @@
       if (isStaticResponse(response)) {
         mode = 'static';
         serverAuthorized = false;
-        return false;
+        return restoreStaticAccess();
       }
       mode = 'server';
+      staticAuthorized = false;
       if (!response.ok) {
         serverAuthorized = false;
         return false;
@@ -220,13 +226,25 @@
     }).catch(function () {
       mode = 'static';
       serverAuthorized = false;
-      return false;
+      return restoreStaticAccess();
+    });
+  }
+
+  function restoreStaticAccess() {
+    var passphrase = sessionStorage.getItem(PASSPHRASE_KEY);
+    if (!passphrase) {
+      staticAuthorized = false;
+      return Promise.resolve(false);
+    }
+    return verifyStaticKey(passphrase).then(function (valid) {
+      if (!valid) clearPassphrase();
+      return valid;
     });
   }
 
   function keeperPassphrase() {
     var passphrase = sessionStorage.getItem(PASSPHRASE_KEY);
-    if (!passphrase) throw new Error('守秘人口令已过期，请重新验证。');
+    if (!passphrase || !hasKeeperAccess()) throw new Error('守秘人口令已过期，请重新验证。');
     return passphrase;
   }
 
@@ -292,7 +310,6 @@
     verifyKey: verifyKey,
     getRole: getRole,
     setRole: setRole,
-    grantKeeperAccess: grantKeeperAccess,
     hasKeeperAccess: hasKeeperAccess,
     getMode: getMode,
     checkServerSession: checkServerSession,
