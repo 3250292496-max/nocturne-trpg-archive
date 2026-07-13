@@ -703,8 +703,26 @@
   function publicMapPayload() {
     var publishedLocations = state.publicMap && Array.isArray(state.publicMap.locationIds) ? state.publicMap.locationIds : [];
     var publishedScenes = state.publicMap && Array.isArray(state.publicMap.sceneIds) ? state.publicMap.sceneIds : [];
+    var activeScene = byId(data.scenes || [], state.activeSceneId);
+    var publicCast = (Array.isArray(state.activeNpcs) ? state.activeNpcs : []).map(function (npcId) {
+      var npc = byId(data.npcs || [], npcId);
+      if (!npc || !npc.playerSafe || !safeText(npc.playerSafe.opening, 800)) return null;
+      var locationId = activeScene && Array.isArray(activeScene.npcs) && activeScene.npcs.indexOf(npc.id) !== -1
+        ? activeScene.location
+        : state.npcLocations && state.npcLocations[npc.id] || npc.location;
+      var image = safeText(npc.image, 200).replace(/\\/g, '/');
+      if (!/^assets\/art\/[a-z0-9._-]+$/i.test(image)) image = 'assets/art/hero-null-grail.webp';
+      return {
+        id:safeText(npc.id, 40),
+        name:safeText(npc.publicName || npc.name, 120) || '未署名人物',
+        kind:safeText(npc.playerSafe.kind, 32) || '登场人物',
+        image:image,
+        summary:safeText(npc.playerSafe.opening, 800),
+        locationId:safeText(locationId, 16)
+      };
+    }).filter(Boolean);
     return {
-      version:1,
+      version:2,
       title:'东湖市玩家地图',
       image:'assets/art/eastlake-map.webp',
       visible:Boolean(state.publicMap && state.publicMap.visible),
@@ -746,7 +764,10 @@
           routeNote:loc.routeNote || '',
           current:Boolean(state.publicMap && state.publicMap.activeLocationId === loc.id),
           visited:state.visitedLocations.indexOf(loc.id) !== -1,
-          scenes:scenes
+          scenes:scenes,
+          characters:publicCast.filter(function (character) { return character.locationId === loc.id; }).map(function (character) {
+            return { id:character.id, name:character.name, kind:character.kind, image:character.image, summary:character.summary };
+          })
         };
       })
     };
@@ -798,6 +819,67 @@
       draft.playerProjection = 'map';
     });
     sendPlayerMapState({ focusLocationId:scene.location, openMap:true });
+  }
+
+  function effectiveNpcMapLocation(npc, snapshot) {
+    snapshot = snapshot || state;
+    if (!npc) return null;
+    var activeScene = byId(data.scenes, snapshot.activeSceneId);
+    if (activeScene && Array.isArray(activeScene.npcs) && activeScene.npcs.indexOf(npc.id) !== -1) return activeScene.location;
+    return snapshot.npcLocations && snapshot.npcLocations[npc.id] || npc.location || null;
+  }
+
+  function toggleNpcMapPresence(id, preferredLocationId) {
+    var npc = byId(data.npcs, id);
+    if (!npc || !npc.playerSafe || !npc.playerSafe.opening) { showToast('该人物缺少 PLAYER SAFE 登场资料，未向玩家投送'); return; }
+    var wasActive = state.activeNpcs.indexOf(id) !== -1;
+    var locationId = wasActive ? effectiveNpcMapLocation(npc, state) : preferredLocationId || effectiveNpcMapLocation(npc, state);
+    if (!byId(data.locations, locationId)) { showToast('请先为人物指定有效地点'); return; }
+    var loc = byId(data.locations, locationId);
+    commit((wasActive ? '人物离场：' : '人物登场：') + npc.name + ' · ' + (loc.publicName || loc.name), function (draft) {
+      var at = draft.activeNpcs.indexOf(id);
+      if (wasActive) {
+        while (at !== -1) { draft.activeNpcs.splice(at, 1); at = draft.activeNpcs.indexOf(id); }
+      } else {
+        if (at === -1) draft.activeNpcs.push(id);
+        if (!draft.npcLocations || typeof draft.npcLocations !== 'object') draft.npcLocations = {};
+        draft.npcLocations[id] = locationId;
+        publishLocationOnDraft(draft, locationId);
+        draft.playerProjection = 'map';
+      }
+      if (draft.publicMap && draft.publicMap.locationIds.indexOf(locationId) !== -1) draft.publicMap.updatedAt = new Date().toISOString();
+    });
+    sendPlayerMapState({ focusLocationId:locationId, openMap:wasActive ? state.playerProjection === 'map' : true });
+  }
+
+  function executeNpcDeparture(npc) {
+    if (!npc) return;
+    var locationId = effectiveNpcMapLocation(npc, state);
+    var wasActive = state.activeNpcs.indexOf(npc.id) !== -1;
+    commit('执行离场行动：' + npc.name + ' — ' + npc.action, function (draft) {
+      draft.activeNpcs = draft.activeNpcs.filter(function (item) { return item !== npc.id; });
+      if (wasActive && draft.publicMap && draft.publicMap.locationIds.indexOf(locationId) !== -1) draft.publicMap.updatedAt = new Date().toISOString();
+    });
+    if (wasActive) sendPlayerMapState({ focusLocationId:locationId, openMap:state.playerProjection === 'map' });
+  }
+
+  function toggleSceneClueProjection(scene, index) {
+    if (!scene || !scene.clues || !scene.clues[index]) return;
+    var revealing = (state.sceneClues[scene.id] || []).indexOf(index) === -1;
+    commit((revealing ? '投放' : '收回') + '地图线索 ' + scene.id + '：' + scene.clues[index], function (draft) {
+      var list = (draft.sceneClues[scene.id] || []).slice();
+      var at = list.indexOf(index);
+      if (revealing && at === -1) list.push(index);
+      if (!revealing && at !== -1) list.splice(at, 1);
+      draft.sceneClues[scene.id] = list;
+      if (revealing) publishSceneOnDraft(draft, scene);
+      if (draft.publicMap.sceneIds.indexOf(scene.id) !== -1) {
+        draft.publicMap.activeLocationId = scene.location;
+        draft.publicMap.updatedAt = new Date().toISOString();
+        draft.playerProjection = 'map';
+      }
+    });
+    if (state.publicMap.sceneIds.indexOf(scene.id) !== -1) sendPlayerMapState({ focusLocationId:scene.location, openMap:true });
   }
 
   function retractLocationFromPlayers(id) {
@@ -1095,6 +1177,7 @@
       draft.activeNpcs = [];
       if (day.index > 1 && draft.trackers.grail < day.index - 1) draft.trackers.grail = Math.min(6, day.index - 1);
     });
+    if (state.publicMap.visible) sendPlayerMapState({ focusLocationId:state.publicMap.activeLocationId, openMap:state.playerProjection === 'map' });
     openView('current');
   }
 
@@ -1126,20 +1209,29 @@
 
   function renderMap() {
     var todayLocations = dayScenes(currentDay()).map(function (scene) { return scene.location; });
+    var activeMapCast = state.activeNpcs.map(function (id) { return byId(data.npcs, id); }).filter(function (npc) { return npc && npc.playerSafe && npc.playerSafe.opening; });
+    var publishedClueCount = state.publicMap.sceneIds.reduce(function (total, sceneId) { return total + (state.sceneClues[sceneId] || []).length; }, 0);
+    var playerVisibleCastCount = activeMapCast.filter(function (npc) { return state.publicMap.locationIds.indexOf(effectiveNpcMapLocation(npc, state)) !== -1; }).length;
+    var broadcastStatus = document.getElementById('map-broadcast-status');
+    if (broadcastStatus) broadcastStatus.textContent = '玩家地图 · ' + state.publicMap.locationIds.length + ' 地点 · ' + publishedClueCount + ' 线索 · ' + playerVisibleCastCount + ' 人登场';
     var hotspots = data.locations.map(function (loc) {
       var isToday = todayLocations.indexOf(loc.id) !== -1;
       var visited = state.visitedLocations.indexOf(loc.id) !== -1;
       var selected = selectedLocationId === loc.id;
       var published = state.publicMap.locationIds.indexOf(loc.id) !== -1;
+      var castHere = activeMapCast.filter(function (npc) { return effectiveNpcMapLocation(npc, state) === loc.id; });
+      var castLabel = castHere.map(function (npc) { return npc.name; }).join('、');
       var hidden = (mapFilter === 'today' && !isToday) || (mapFilter === 'danger' && loc.riskLevel < 3);
       var style = 'left:' + loc.x + '%;top:' + loc.y + '%;--pin-x:' + (loc.pinX || 0) + 'px;--pin-y:' + (loc.pinY || 0) + 'px';
-      return '<button class="map-hotspot risk-' + loc.riskLevel + (isToday ? ' today' : '') + (visited ? ' visited' : '') + (published ? ' player-published' : '') + (selected ? ' active' : '') + '" type="button" style="' + style + '" data-location="' + loc.id + '" data-tooltip="' + escapeHtml(loc.name) + (published ? ' · 已投送玩家' : '') + '" aria-label="' + escapeHtml(loc.name) + '，' + riskLabel(loc.riskLevel) + (published ? '，已投送玩家' : '') + '" aria-pressed="' + String(selected) + '"' + (hidden ? ' hidden' : '') + '>' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.shortName || loc.name) + '</span></button>';
+      var tooltip = loc.name + (published ? ' · 已投送玩家' : '') + (castLabel ? ' · 登场：' + castLabel : '');
+      return '<button class="map-hotspot risk-' + loc.riskLevel + (isToday ? ' today' : '') + (visited ? ' visited' : '') + (published ? ' player-published' : '') + (castHere.length ? ' has-cast' : '') + (selected ? ' active' : '') + '" type="button" style="' + style + '" data-location="' + loc.id + '" data-tooltip="' + escapeHtml(tooltip) + '" aria-label="' + escapeHtml(loc.name) + '，' + riskLabel(loc.riskLevel) + (published ? '，已投送玩家' : '') + (castLabel ? '，登场人物：' + escapeHtml(castLabel) : '') + '" aria-pressed="' + String(selected) + '"' + (hidden ? ' hidden' : '') + '>' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.shortName || loc.name) + '</span>' + (castHere.length ? '<span class="map-cast-badge" aria-hidden="true">' + castHere.length + '</span>' : '') + '</button>';
     }).join('');
     document.getElementById('map-hotspots').innerHTML = hotspots;
     document.getElementById('location-list').innerHTML = data.locations.map(function (loc) {
       var selected = selectedLocationId === loc.id;
       var published = state.publicMap.locationIds.indexOf(loc.id) !== -1;
-      return '<button class="' + (selected ? 'active' : '') + '" type="button" data-location="' + loc.id + '" aria-pressed="' + String(selected) + '">' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.name) + '</span><small>' + (published ? '玩家已见 · ' : '') + riskLabel(loc.riskLevel) + ' · 第' + loc.unlockDay + '日</small></button>';
+      var castCount = activeMapCast.filter(function (npc) { return effectiveNpcMapLocation(npc, state) === loc.id; }).length;
+      return '<button class="' + (selected ? 'active' : '') + '" type="button" data-location="' + loc.id + '" aria-pressed="' + String(selected) + '">' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.name) + '</span><small>' + (published ? '玩家已见 · ' : '') + riskLabel(loc.riskLevel) + ' · 第' + loc.unlockDay + '日' + (castCount ? ' · ' + castCount + '人登场' : '') + '</small></button>';
     }).join('');
     document.querySelectorAll('#map-hotspots [data-location], #location-list [data-location]').forEach(function (button) {
       button.addEventListener('click', function () { showLocation(button.getAttribute('data-location'), { scroll:true }); });
@@ -1163,6 +1255,14 @@
     var drawer = document.getElementById('map-drawer');
     var unlocked = currentDay().index >= loc.unlockDay;
     var locationPublished = state.publicMap.locationIds.indexOf(id) !== -1;
+    var liveCast = state.activeNpcs.map(function (npcId) { return byId(data.npcs, npcId); }).filter(function (npc) { return npc && npc.playerSafe && npc.playerSafe.opening && effectiveNpcMapLocation(npc, state) === id; });
+    var publishedClueCount = loc.sceneIds.reduce(function (total, sceneId) {
+      return total + (state.publicMap.sceneIds.indexOf(sceneId) !== -1 ? (state.sceneClues[sceneId] || []).length : 0);
+    }, 0);
+    var liveCastRows = liveCast.map(function (npc) {
+      return '<div class="location-live-cast-row"><button type="button" data-npc="' + npc.id + '">' + escapeHtml(npc.name) + '</button><button type="button" data-live-npc-toggle="' + npc.id + '" data-live-npc-location="' + id + '">离场</button></div>';
+    }).join('');
+    var liveCastPanel = '<section class="location-live-cast"><header><span>PLAYER LIVE CAST · 当前可见人物</span><b>' + liveCast.length + ' 人</b></header>' + (liveCastRows ? '<div class="location-live-cast-list">' + liveCastRows + '</div>' : '<div class="location-list-empty">尚无人物登场；可在下方场景人物中选择登场。</div>') + '</section>';
     var sceneCards = loc.sceneIds.map(function (sceneId) {
       var scene = byId(data.scenes, sceneId);
       if (!scene) return '';
@@ -1171,11 +1271,18 @@
       var scenePublished = state.publicMap.sceneIds.indexOf(scene.id) !== -1;
       var revealed = state.sceneClues[scene.id] || [];
       var clues = scene.clues.map(function (clue, index) {
-        return '<li class="' + (revealed.indexOf(index) !== -1 ? 'revealed' : '') + '"><i>' + (revealed.indexOf(index) !== -1 ? '✓' : String(index + 1)) + '</i><span>' + escapeHtml(clue) + '</span></li>';
+        var isRevealed = revealed.indexOf(index) !== -1;
+        return '<li class="' + (isRevealed ? 'revealed' : '') + '"><button class="location-clue-toggle" type="button" data-map-clue-scene="' + scene.id + '" data-map-clue-index="' + index + '"><i>' + (isRevealed ? '✓' : String(index + 1)) + '</i><span>' + escapeHtml(clue) + '</span><b>' + (isRevealed ? '收回' : '投放') + '</b></button></li>';
       }).join('');
       var npcButtons = scene.npcs.map(function (npcId) {
         var npc = byId(data.npcs, npcId);
-        return npc ? '<button type="button" data-npc="' + npcId + '">' + escapeHtml(npc.name) + '</button>' : '';
+        if (!npc) return '';
+        var active = state.activeNpcs.indexOf(npcId) !== -1;
+        var activeLocationId = active ? effectiveNpcMapLocation(npc, state) : null;
+        var actionLocationId = active ? activeLocationId : id;
+        var activeLocation = activeLocationId ? byId(data.locations, activeLocationId) : null;
+        var actionLabel = active ? (activeLocationId === id ? '离场' : '从' + (activeLocation ? activeLocation.shortName || activeLocation.name : '当前地点') + '离场') : '登场';
+        return '<div class="location-cast-control' + (activeLocationId === id ? ' visible' : '') + '"><button type="button" data-npc="' + npcId + '">' + escapeHtml(npc.name) + '</button><button type="button" data-stage-npc="' + npcId + '" data-stage-location="' + actionLocationId + '">' + escapeHtml(actionLabel) + '</button></div>';
       }).join('');
       var handoutButtons = scene.handouts.map(function (handoutId) {
         var item = byId(data.handouts, handoutId);
@@ -1187,19 +1294,29 @@
         '<section><span>守秘人目标</span><p>' + escapeHtml(scene.objective) + '</p></section>' +
         '<section class="location-scene-risk"><span>忽视／失败后的推进</span><p>' + escapeHtml(scene.risk) + '</p></section>' +
         '<section><span>可得线索</span><ul class="location-clues">' + clues + '</ul></section>' +
-        '<section><span>在场人物</span><div class="location-link-buttons">' + (npcButtons || '<em>无固定人物</em>') + '</div></section>' +
+        '<section><span>人物登场控制</span><div class="location-cast-controls">' + (npcButtons || '<em>无固定人物</em>') + '</div></section>' +
         '<section><span>关联手卡</span><div class="location-link-buttons">' + (handoutButtons || '<em>无独立手卡</em>') + '</div></section>' +
         '<div class="location-scene-actions"><button class="location-scene-button" type="button" data-scene="' + scene.id + '">打开完整场景 <span>↗</span></button><button class="location-scene-publish' + (scenePublished ? ' published' : '') + '" type="button" data-publish-scene="' + scene.id + '">' + (scenePublished ? '重新聚焦玩家地图' : '投送场景到玩家地图') + '</button></div></article>';
     }).join('');
     drawer.innerHTML = '<div class="drawer-location-head"><div><p class="drawer-code">' + escapeHtml(loc.group) + ' · ' + riskLabel(loc.riskLevel) + '</p><h2>' + escapeHtml(loc.name) + '</h2></div><div class="drawer-location-icon">' + mapIconSvg(loc.icon) + '</div></div>' +
       '<p class="drawer-location-copy">' + escapeHtml(loc.visible) + '</p>' +
-      '<div class="location-player-state' + (locationPublished ? ' published' : '') + '"><span>玩家地图状态</span><strong>' + (locationPublished ? '已显示文字热点与公开详情' : '尚未投送') + '</strong></div>' +
+      '<div class="location-player-state' + (locationPublished ? ' published' : '') + '"><span>玩家地图状态</span><strong>' + (locationPublished ? '已投送 · ' + publishedClueCount + ' 线索 · ' + liveCast.length + ' 人登场' : '尚未投送地点') + '</strong></div>' +
       '<div class="location-player-actions"><button type="button" data-publish-location="' + loc.id + '">' + (locationPublished ? '重新聚焦此地点' : '投送此地点到玩家地图') + '</button>' + (locationPublished ? '<button class="retract" type="button" data-retract-location="' + loc.id + '">撤回地点</button>' : '<button type="button" data-publish-location-scenes="' + loc.id + '">连同当前阶段场景</button>') + '</div>' +
+      liveCastPanel +
       '<div class="location-stage ' + (unlocked ? 'unlocked' : 'preview') + '"><span>' + (unlocked ? '当前战役已开放' : '阶段预览') + '</span><strong>' + (unlocked ? '可从下方节点直接开始' : '第' + loc.unlockDay + '日开放；守秘人仍可提前备团') + '</strong></div>' +
       '<div class="location-danger risk-' + loc.riskLevel + '"><span>地点风险</span><strong>' + escapeHtml(loc.danger) + '</strong></div>' +
       '<div class="location-scene-list"><div class="location-scene-list-head"><span>关联场景</span><b>' + loc.sceneIds.length + ' 个节点</b></div>' + sceneCards + '</div>';
     drawer.querySelectorAll('[data-scene]').forEach(function (button) { button.addEventListener('click', function () { openScene(button.getAttribute('data-scene')); }); });
     drawer.querySelectorAll('[data-publish-scene]').forEach(function (button) { button.addEventListener('click', function () { publishScene(byId(data.scenes, button.getAttribute('data-publish-scene'))); }); });
+    drawer.querySelectorAll('[data-map-clue-scene]').forEach(function (button) {
+      button.addEventListener('click', function () { toggleSceneClueProjection(byId(data.scenes, button.getAttribute('data-map-clue-scene')), Number(button.getAttribute('data-map-clue-index'))); });
+    });
+    drawer.querySelectorAll('[data-stage-npc]').forEach(function (button) {
+      button.addEventListener('click', function () { toggleNpcMapPresence(button.getAttribute('data-stage-npc'), button.getAttribute('data-stage-location')); });
+    });
+    drawer.querySelectorAll('[data-live-npc-toggle]').forEach(function (button) {
+      button.addEventListener('click', function () { toggleNpcMapPresence(button.getAttribute('data-live-npc-toggle'), button.getAttribute('data-live-npc-location')); });
+    });
     var publishLocationButton = drawer.querySelector('[data-publish-location]');
     if (publishLocationButton) publishLocationButton.addEventListener('click', function () { publishLocation(id, [], locationPublished ? '重新聚焦玩家地图地点：' + (loc.publicName || loc.name) : null); });
     var publishLocationScenesButton = drawer.querySelector('[data-publish-location-scenes]');
@@ -2707,23 +2824,20 @@
     if (!npc) return;
     var dialog = document.getElementById('npc-dialog');
     var servant = npc.crop != null;
-    var locId = state.npcLocations[npc.id] || npc.location;
+    var locId = effectiveNpcMapLocation(npc, state);
     var loc = byId(data.locations, locId);
     var active = state.activeNpcs.indexOf(id) !== -1;
     var fields = [
       ['现在想要', npc.wants], ['真正害怕', npc.fears], ['确实知道', npc.knows], ['不会接受', npc.refuses], ['离场行动', npc.action], ['声线', npc.voice], ['轮回残留', npc.loop], ['当前位置', loc ? loc.name : '未知']
     ];
-    document.getElementById('npc-dialog-content').innerHTML = '<div class="npc-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="npc-dialog-hero"><div class="npc-dialog-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" alt="' + escapeHtml(npc.name) + '肖像"></div><div class="npc-dialog-copy"><span>' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span><h2>' + escapeHtml(npc.name) + '</h2><small>' + escapeHtml(npc.role) + '</small><p class="npc-intro">' + escapeHtml(npc.intro) + '</p></div></div><div class="npc-fields">' + fields.map(function (field) { return '<section class="npc-field"><span>' + field[0] + '</span><p>' + escapeHtml(field[1]) + '</p></section>'; }).join('') + '</div>' + npcRichDossierHtml(npc) + '<div class="npc-dialog-actions"><button type="button" data-toggle-active="' + id + '">' + (active ? '从当前场景移出' : '加入当前场景') + '</button><button type="button" data-npc-action="' + id + '">执行离场行动</button><button type="button" data-copy-intro="' + id + '">复制开场玩家资料</button></div></div>';
+    document.getElementById('npc-dialog-content').innerHTML = '<div class="npc-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="npc-dialog-hero"><div class="npc-dialog-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" alt="' + escapeHtml(npc.name) + '肖像"></div><div class="npc-dialog-copy"><span>' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span><h2>' + escapeHtml(npc.name) + '</h2><small>' + escapeHtml(npc.role) + '</small><p class="npc-intro">' + escapeHtml(npc.intro) + '</p></div></div><div class="npc-fields">' + fields.map(function (field) { return '<section class="npc-field"><span>' + field[0] + '</span><p>' + escapeHtml(field[1]) + '</p></section>'; }).join('') + '</div>' + npcRichDossierHtml(npc) + '<div class="npc-dialog-actions"><button type="button" data-toggle-active="' + id + '">' + (active ? '从玩家地图离场' : '登场到玩家地图') + '</button><button type="button" data-npc-action="' + id + '">' + (active ? '执行离场行动并移除' : '记录离场行动') + '</button><button type="button" data-copy-intro="' + id + '">复制开场玩家资料</button></div></div>';
     dialog.querySelector('[data-close-dialog]').addEventListener('click', function () { dialog.close(); });
     dialog.querySelector('[data-toggle-active]').addEventListener('click', function () {
-      commit((active ? '移出' : '加入') + '当前场景：' + npc.name, function (draft) {
-        var at = draft.activeNpcs.indexOf(id);
-        if (at === -1) draft.activeNpcs.push(id); else draft.activeNpcs.splice(at, 1);
-      });
+      toggleNpcMapPresence(id, locId);
       dialog.close(); openNpc(id);
     });
     dialog.querySelector('[data-npc-action]').addEventListener('click', function () {
-      commit('执行离场行动：' + npc.name + ' — ' + npc.action, function () {});
+      executeNpcDeparture(npc);
       dialog.close();
     });
     dialog.querySelector('[data-copy-intro]').addEventListener('click', function () {
@@ -2894,6 +3008,7 @@
     });
     lastPlayerPayload = null;
     sendPlayerMessage({ type:'curtain' });
+    sendPlayerMapState({ openMap:false });
     document.getElementById('reset-anchor-facts').value = '';
     document.getElementById('reset-guide-dialog').close();
     openView('current');

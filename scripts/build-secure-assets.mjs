@@ -22,7 +22,7 @@ const TAG_BYTES = 16;
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const VERIFIER_PLAINTEXT = Buffer.from('NOCTURNE_KEEPER_V1', 'utf8');
 
-const ARCHIVE_DIR = resolve(ROOT, 'NullGrail《零之圣杯》v3.2 最终版');
+const ARCHIVE_DIR = resolve(ROOT, 'NullGrail《零之圣杯》');
 const RESOURCE_SPECS = [
   {
     id: 'data',
@@ -34,51 +34,57 @@ const RESOURCE_SPECS = [
   {
     id: 'main-module',
     path: 'secure/book-1-main-module.docx.enc',
-    filename: '《零之圣杯》第一册·主模组（v3.2）.docx',
+    filename: '《零之圣杯》第一册·主模组.docx',
     mime: DOCX_MIME,
     kind: 'document',
-    source: resolve(ARCHIVE_DIR, '四册正文', '《零之圣杯》第一册·主模组（v3.2）.docx')
+    source: resolve(ARCHIVE_DIR, '四册正文', '《零之圣杯》第一册·主模组.docx')
   },
   {
     id: 'npc-guide',
     path: 'secure/book-2-npc-servants.docx.enc',
-    filename: '《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx',
+    filename: '《零之圣杯》第二册·NPC与英灵手册.docx',
     mime: DOCX_MIME,
     kind: 'document',
-    source: resolve(ARCHIVE_DIR, '四册正文', '《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx')
+    source: resolve(ARCHIVE_DIR, '四册正文', '《零之圣杯》第二册·NPC与英灵手册.docx')
   },
   {
     id: 'keeper-toolkit',
     path: 'secure/book-4-keeper-tools.docx.enc',
-    filename: '《零之圣杯》第四册·主持人工具书（v3.2）.docx',
+    filename: '《零之圣杯》第四册·主持人工具书.docx',
     mime: DOCX_MIME,
     kind: 'document',
-    source: resolve(ARCHIVE_DIR, '四册正文', '《零之圣杯》第四册·主持人工具书（v3.2）.docx')
+    source: resolve(ARCHIVE_DIR, '四册正文', '《零之圣杯》第四册·主持人工具书.docx')
   },
   {
     id: 'staged-clues',
     path: 'secure/staged-clue-pack.docx.enc',
-    filename: '《零之圣杯》分阶段线索发放包（v3.2）.docx',
+    filename: '《零之圣杯》分阶段线索发放包.docx',
     mime: DOCX_MIME,
     kind: 'document',
-    source: resolve(ARCHIVE_DIR, '配套资料', '《零之圣杯》分阶段线索发放包（v3.2）.docx')
+    source: resolve(ARCHIVE_DIR, '配套资料', '《零之圣杯》分阶段线索发放包.docx')
   },
   {
     id: 'player-handouts',
     path: 'secure/player-handout-print-pack.docx.enc',
-    filename: '《零之圣杯》玩家手卡打印包（v3.2）.docx',
+    filename: '《零之圣杯》玩家手卡打印包.docx',
     mime: DOCX_MIME,
     kind: 'document',
-    source: resolve(ARCHIVE_DIR, '配套资料', '《零之圣杯》玩家手卡打印包（v3.2）.docx')
+    source: resolve(ARCHIVE_DIR, '配套资料', '《零之圣杯》玩家手卡打印包.docx')
   }
 ];
 
-function requirePassphrase() {
-  const passphrase = process.env.NG_ARCHIVE_KEY;
-  if (typeof passphrase !== 'string' || passphrase.length === 0) {
-    throw new Error('NG_ARCHIVE_KEY is required to build secure assets.');
+async function requirePassphrase() {
+  const environmentPassphrase = String(process.env.NG_ARCHIVE_KEY || '').trim();
+  if (environmentPassphrase) return environmentPassphrase.toUpperCase();
+
+  try {
+    const localPassphrase = String(await readFile(resolve(ROOT, '.keeper-key'), 'utf8')).trim();
+    if (localPassphrase) return localPassphrase.toUpperCase();
+  } catch (error) {
+    if (error && error.code !== 'ENOENT') throw error;
   }
-  return passphrase.trim().toUpperCase();
+
+  throw new Error('NG_ARCHIVE_KEY or a local .keeper-key is required to build secure assets.');
 }
 
 async function loadGmData() {
@@ -132,7 +138,7 @@ async function writeEncryptedItem(spec, plaintext, key) {
 }
 
 async function build() {
-  const passphrase = requirePassphrase();
+  const passphrase = await requirePassphrase();
   const salt = randomBytes(SALT_BYTES);
   const key = pbkdf2Sync(passphrase, salt, ITERATIONS, KEY_BYTES, 'sha256');
   const resources = {};

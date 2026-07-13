@@ -9,8 +9,8 @@
     summary: '七日轮回的圣杯战争里，你们是系统无法命名的空白变量。',
     description: '东湖市跨年夜，天空像玻璃一样裂开。规则书、零门槛站内车卡、进阶 Excel 车卡、玩家手册、公开资料与地图共同组成这份可直接开团的完整作品档案。',
     systems: ['fate', 'agnostic'],
-    rulesetId: 'null-grail-core-d20-v2.0',
-    systemLabel: '《零之圣杯》通用圣杯战争规则 v2.0 · 轻量 d20',
+    rulesetId: 'null-grail-core-d20-v2.1',
+    systemLabel: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
     type: 'campaign',
     typeLabel: '完整长篇战役模组',
     players: '3–5 人（4 人最佳）',
@@ -26,7 +26,7 @@
     forWho: '适合喜欢 Fate 氛围、都市悬疑、关系抉择与多周目结构的团队。',
     status: 'published',
     ownerId: 'site-owner-3250292496',
-    edition: '战役 v3.2 · 规则 v2.0',
+    edition: '战役资料 · 规则 2.1',
     author: { displayName: '夜航模组馆馆主', name: '夜航模组馆馆主', label: '站长 · 已认证作者', avatar: '' },
     updatedAt: '2026-07-13T00:00:00.000Z',
     resources: [
@@ -37,12 +37,12 @@
         mime: 'text/html', size: 0, href: 'player.html?mode=builder'
       },
       {
-        id: 'rules-v2-0-character-library',
-        title: '《零之圣杯》通用圣杯战争规则书 v2.0 · 车卡与资源库增订版（现行）',
+        id: 'rules-v2-1',
+        title: '《零之圣杯》通用圣杯战争规则书 · 规则版本 2.1（现行）',
         category: 'rules', audience: 'player',
-        fileName: '《零之圣杯》通用圣杯战争规则书_v2.0_车卡与资源库增订版.docx',
-        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 337530,
-        href: '《零之圣杯》通用圣杯战争规则书_v2.0_车卡与资源库增订版.docx'
+        fileName: '《零之圣杯》通用圣杯战争规则书.docx',
+        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 363897,
+        href: 'NullGrail《零之圣杯》/规则书/《零之圣杯》通用圣杯战争规则书.docx'
       },
       {
         id: 'builder-v1-1',
@@ -53,24 +53,24 @@
       },
       {
         id: 'player-guide-v3-2',
-        title: '第三册 · 玩家手册 v3.2',
-        category: 'info', audience: 'player', fileName: '《零之圣杯》第三册·玩家手册（v3.2）.docx',
-        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 106807,
-        href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx'
+        title: '第三册 · 玩家手册',
+        category: 'info', audience: 'player', fileName: '《零之圣杯》第三册·玩家手册.docx',
+        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 105293,
+        href: 'NullGrail《零之圣杯》/四册正文/《零之圣杯》第三册·玩家手册.docx'
       },
       {
         id: 'cross-index-v3-2',
-        title: '四册统一编排与跨册索引 v3.2（非规则版本）',
-        category: 'info', audience: 'player', fileName: '《零之圣杯》统一规则与跨册索引（v3.2）.docx',
-        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 45549,
-        href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》统一规则与跨册索引（v3.2）.docx'
+        title: '统一规则与跨册索引',
+        category: 'info', audience: 'player', fileName: '《零之圣杯》统一规则与跨册索引.docx',
+        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 44168,
+        href: 'NullGrail《零之圣杯》/配套资料/《零之圣杯》统一规则与跨册索引.docx'
       },
       {
         id: 'player-pack-v3-2',
-        title: '玩家公开资料包 v3.2',
-        category: 'handouts', audience: 'player', fileName: '《零之圣杯》玩家公开资料包（v3.2）.docx',
-        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 46372,
-        href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx'
+        title: '玩家公开资料包',
+        category: 'handouts', audience: 'player', fileName: '《零之圣杯》玩家公开资料包.docx',
+        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 44906,
+        href: 'NullGrail《零之圣杯》/配套资料/《零之圣杯》玩家公开资料包.docx'
       },
       {
         id: 'eastlake-map',
@@ -84,10 +84,10 @@
   // Rulesets are selectable dependencies for modules. They are not module
   // records and must never inherit a module owner's authorship or badge.
   window.NG_RULESETS = [{
-    id: 'null-grail-core-d20-v2.0',
-    title: '《零之圣杯》通用圣杯战争规则 v2.0',
-    shortTitle: '零之圣杯 · 通用规则 v2.0',
-    systemLabel: '《零之圣杯》通用圣杯战争规则 v2.0 · 轻量 d20',
+    id: 'null-grail-core-d20-v2.1',
+    title: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
+    shortTitle: '零之圣杯 · 通用规则 2.1',
+    systemLabel: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
     description: '《零之圣杯》主模组采用的可选轻量 d20 规则系统，含站内车卡与配套资源。',
     href: 'module.html?id=null-grail',
     builderHref: 'player.html?mode=builder'
