@@ -9,7 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="gm.css?v=20260713b">
+  <link rel="stylesheet" href="gm.css?v=20260713f">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#workspace">跳到控制台内容</a>
@@ -34,6 +36,7 @@
     <div class="session-menu" id="session-menu" hidden>
       <button id="export-button" type="button">导出战役备份</button>
       <button id="import-button" type="button">导入战役备份</button>
+      <button id="new-session-button" type="button">开始新的游戏场次</button>
       <button id="reset-button" type="button">新建空白战役</button>
       <a href="index.html">返回公开档案</a>
       <input id="import-file" type="file" accept="application/json" hidden>
@@ -47,6 +50,7 @@
     <button class="side-nav-button" type="button" data-view="npcs"><span>◫</span><b>人物</b></button>
     <button class="side-nav-button" type="button" data-view="clues"><span>⌁</span><b>线索</b></button>
     <button class="side-nav-button" type="button" data-view="handouts"><span>▱</span><b>发放</b></button>
+    <button class="side-nav-button" type="button" data-view="tabletop"><span>⚄</span><b>战团</b></button>
     <button class="side-nav-button" type="button" data-view="log"><span>≡</span><b>场记</b></button>
   </aside>
 
@@ -98,6 +102,7 @@
         <div><p class="section-kicker">SEVEN-DAY OPERATIONS</p><h1 id="timeline-heading">七日行动线</h1></div>
         <p>点击任意一天切换主持桌面。过去日保留结算记录，未来日可提前查看；只有你手动操作才会改变战役状态。</p>
       </header>
+      <div class="recovery-node-callout"><div><strong>E28 · 偏航补救节点</strong><span>错过核心线索时改变来源并公开时间、关系、权限或异常代价。</span></div><button id="open-recovery-scene" type="button">打开补救卡</button></div>
       <div id="timeline-list" class="timeline-list"></div>
     </section>
 
@@ -134,8 +139,8 @@
         <label class="compact-search"><span class="sr-only">搜索人物</span><input id="npc-search" type="search" placeholder="搜索姓名、身份或当前位置…"></label>
       </header>
       <div class="npc-filter" role="group" aria-label="人物类型筛选">
-        <button class="active" type="button" data-npc-filter="all">全部 19</button>
-        <button type="button" data-npc-filter="human">人物 12</button>
+        <button class="active" type="button" data-npc-filter="all">全部 22</button>
+        <button type="button" data-npc-filter="human">人物 15</button>
         <button type="button" data-npc-filter="servant">英灵 7</button>
         <button type="button" data-npc-filter="today">今日在场</button>
       </div>
@@ -160,6 +165,58 @@
         <p>这里显示的预览就是玩家将看到的内容。守秘提示不会进入分享链接或投屏页。</p>
       </header>
       <div id="handout-grid" class="handout-grid"></div>
+    </section>
+
+    <section class="view-panel" id="view-tabletop" data-panel="tabletop" aria-labelledby="tabletop-heading">
+      <header class="view-heading tabletop-heading">
+        <div><p class="section-kicker">LOCAL TABLETOP DESK</p><h1 id="tabletop-heading">角色与判定</h1></div>
+        <p>当前版通过同源 BroadcastChannel 连接，适用于本机同一浏览器的玩家标签页。</p>
+      </header>
+      <div class="local-channel-note"><strong>同源本机通讯</strong><span>不是跨设备房间；判定中只会发送可公开给玩家的字段。</span></div>
+
+      <div class="tabletop-grid">
+        <section class="console-card tabletop-card roster-card" aria-labelledby="roster-title">
+          <header class="card-heading"><div><span>CHARACTER ROSTER</span><h2 id="roster-title">已接收角色</h2></div><div class="tabletop-heading-actions"><button id="gm-import-character" class="text-action" type="button">导入</button><button id="gm-export-roster" class="text-action" type="button">导出全部</button></div></header>
+          <input id="gm-character-file" type="file" accept="application/json,.json" hidden>
+          <div id="gm-roster" class="gm-roster"></div>
+        </section>
+
+        <section class="console-card tabletop-card inbox-card" aria-labelledby="character-inbox-title">
+          <header class="card-heading"><div><span>CHARACTER INBOX</span><h2 id="character-inbox-title">待确认角色</h2></div><small id="character-inbox-count">0 份</small></header>
+          <div id="gm-character-inbox" class="tabletop-inbox"></div>
+        </section>
+
+        <section class="console-card tabletop-card request-card" aria-labelledby="check-request-title">
+          <header class="card-heading"><div><span>CHECK REQUESTS</span><h2 id="check-request-title">玩家判定申请</h2></div><small id="check-request-count">0 条</small></header>
+          <div id="gm-check-requests" class="tabletop-inbox"></div>
+        </section>
+
+        <section class="console-card tabletop-card check-card" aria-labelledby="check-composer-title">
+          <header class="card-heading"><div><span>LIGHT D20 RESOLUTION</span><h2 id="check-composer-title">公开风险后判定</h2></div><small id="active-request-label">新判定</small></header>
+          <form id="gm-check-form" class="check-form">
+            <div class="form-grid two-columns">
+              <label><span>角色／接收者</span><select id="gm-check-character"></select></label>
+              <label><span>行动方式</span><select id="gm-check-approach"></select></label>
+              <label><span>适用专长</span><select id="gm-check-specialty"></select></label>
+              <label><span>掷骰方式</span><select id="gm-check-mode"><option value="normal">正常 · 1d20</option><option value="advantage">优势 · 2d20 取高</option><option value="disadvantage">劣势 · 2d20 取低</option></select></label>
+              <label><span>团队协助</span><input id="gm-check-assist" type="number" min="0" max="3" step="1" value="0"></label>
+              <label><span>额外修正</span><input id="gm-check-modifier" type="number" min="-20" max="20" step="1" value="0"></label>
+              <label><span>难度</span><select id="gm-check-dc"></select></label>
+              <label><span>代价选择者</span><input id="gm-check-cost-owner" maxlength="80" placeholder="例：玩家从两项代价中选一项"></label>
+            </div>
+            <label><span>正在争取的目标</span><textarea id="gm-check-goal" rows="2" maxlength="500" required placeholder="先说清成功将改变什么…"></textarea></label>
+            <label><span>失败风险</span><textarea id="gm-check-risk" rows="2" maxlength="500" required placeholder="掷骰前公开最可能发生的后果…"></textarea></label>
+            <label><span>公开结果／代价备注</span><textarea id="gm-check-public-note" rows="2" maxlength="800" placeholder="可在掷骰后补充具体代价、额外收益或现场变化。"></textarea></label>
+            <div class="check-preview" id="gm-check-preview" aria-live="polite"><span>尚未掷骰</span><p>1d20 ＋ 行动方式 ＋ 专长 ＋ 协助 ＋ 修正</p></div>
+            <div class="check-form-actions"><button class="primary-action" id="gm-roll-check" type="submit">掷骰并发布结果 <span>↗</span></button><button id="gm-clear-check" type="button">清空当前判定</button></div>
+          </form>
+        </section>
+
+        <section class="console-card tabletop-card history-card check-history-card" aria-labelledby="check-history-title">
+          <header class="card-heading"><div><span>PUBLIC RESULTS</span><h2 id="check-history-title">判定历史</h2></div><small>最近 100 条</small></header>
+          <ol id="gm-check-history" class="check-history-list"></ol>
+        </section>
+      </div>
     </section>
 
     <section class="view-panel" id="view-log" data-panel="log" aria-labelledby="log-heading">
@@ -187,11 +244,19 @@
       <button id="tracker-collapse" type="button" aria-expanded="true" aria-label="收起或展开战役轨道">›</button>
     </div>
     <div class="tracker-content" id="tracker-content">
-      <div class="loop-control"><span>当前循环</span><div><button type="button" data-loop="-1">−</button><strong id="loop-value">0</strong><button type="button" data-loop="1">＋</button></div></div>
+      <div class="loop-control"><span>已完整重置</span><div><button type="button" data-loop="-1">−</button><strong id="loop-value">0</strong><button type="button" data-loop="1">＋</button></div></div>
       <div id="tracker-list" class="tracker-list"></div>
       <div class="seal-block">
-        <header><span>团队空白令印</span><small>点击切换状态</small></header>
+        <header><span>团队空白令印</span><small>点击执行合法状态变化</small></header>
         <div id="seal-list" class="seal-list"></div>
+        <p class="seal-rule-hint" id="seal-rule-hint">空白可使用或锁定契约；已用仅可因可验证修复回流；锚定只在完整重置中发生。</p>
+        <button class="finale-seal-button" id="finale-seal-button" type="button">终局临时令印：未获得</button>
+      </div>
+      <div class="conflict-clock-block">
+        <header><span>当前冲突钟</span><small>默认各 4 格</small></header>
+        <label><span>目标</span><input id="goal-clock-label" maxlength="80" value="玩家目标"><div><button type="button" data-clock="goal" data-clock-delta="-1">−</button><strong id="goal-clock-value">0 / 4</strong><button type="button" data-clock="goal" data-clock-delta="1">＋</button></div></label>
+        <label><span>威胁</span><input id="threat-clock-label" maxlength="80" value="敌方／环境威胁"><div><button type="button" data-clock="threat" data-clock-delta="-1">−</button><strong id="threat-clock-value">0 / 4</strong><button type="button" data-clock="threat" data-clock-delta="1">＋</button></div></label>
+        <p id="clock-resolution-hint">目标与威胁同时填满时，先结算玩家目标，再结算威胁后果。</p>
       </div>
       <div class="rail-warning" id="rail-warning" hidden><strong>完整重置阈值</strong><p>世界异常已达到 6。先解除常驻契约，再用剩余空白令印锚定。</p><button id="reset-guide-button" type="button">打开重置向导</button></div>
     </div>
@@ -203,6 +268,7 @@
     <button type="button" data-view="npcs"><span>◫</span>人物</button>
     <button type="button" data-view="clues"><span>⌁</span>线索</button>
     <button type="button" data-view="handouts"><span>▱</span>发放</button>
+    <button type="button" data-view="tabletop"><span>⚄</span>战团</button>
   </nav>
 
   <dialog class="archive-dialog scene-dialog" id="scene-dialog">
@@ -219,12 +285,14 @@
       <button class="dialog-x" value="cancel" aria-label="关闭">×</button>
       <p class="section-kicker">FULL RESET</p>
       <h2>完整重置向导</h2>
+      <p id="reset-eligibility">仅在世界异常达到 6，或第七夜失败且团队未撤退时执行；战役最多完整重置两次。</p>
       <ol>
         <li><strong>先解除常驻契约。</strong><span>所有锁定令印转为已用；不得在解除前锚定。</span></li>
         <li><strong>再选择锚定事实。</strong><span>每枚剩余空白令印锚定一项，最多三项。</span></li>
         <li><strong>回到第一夜 19:35。</strong><span>玩家记忆、具体创伤与锚定事实保留，其他世界改变复原。</span></li>
         <li><strong>用蒙太奇快进。</strong><span>只详演与上一轮发生变化的节点。</span></li>
       </ol>
+      <label class="reset-anchor-field" for="reset-anchor-facts"><span>本次锚定事实（每行一项）</span><textarea id="reset-anchor-facts" rows="4" maxlength="1200" placeholder="每枚仍为空白的令印可锚定一项；留空表示不锚定。"></textarea></label>
       <button class="primary-action" id="confirm-full-reset" value="cancel" type="button">确认开始下一轮</button>
     </form>
   </dialog>
@@ -249,7 +317,8 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="player-data.js?v=20260713f"></script>
   <script src="access.js?v=20260713d"></script>
-  <script src="gm-gate.js?v=20260713d"></script>
+  <script src="gm-gate.js?v=20260713f"></script>
 </body>
 </html>

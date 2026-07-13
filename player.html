@@ -9,7 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="player.css?v=20260713d">
+  <link rel="stylesheet" href="player.css?v=20260713f">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
 </head>
 <body>
   <header class="player-header">
@@ -41,8 +43,71 @@
       </div>
     </article>
   </main>
-  <div class="projection-note" id="projection-note">投屏模式 · 守秘人发放后会自动更新</div>
-  <script src="player-data.js?v=20260713d"></script>
-  <script src="player.js?v=20260713d"></script>
+  <section class="player-tools" id="player-tools" aria-labelledby="player-tools-title">
+    <header class="player-tools-heading">
+      <div><p>LOCAL PLAYER DESK</p><h2 id="player-tools-title">我的角色与判定</h2></div>
+      <span id="player-sync-status" role="status" aria-live="polite">同源本机通讯 · 尚未提交角色</span>
+    </header>
+    <div class="player-local-note">当前版仅连接本机同源标签页，不是跨设备在线房间。角色只在你点击“提交给守秘人”后才会发送。</div>
+
+    <div class="player-tools-grid">
+      <section class="player-tool-card character-editor" aria-labelledby="player-character-title">
+        <header><div><span>NULL CHARACTER</span><h3 id="player-character-title">基础角色卡</h3></div><small id="character-save-status">本地自动保存</small></header>
+        <form id="player-character-form">
+          <div class="player-form-grid two-columns">
+            <label><span>角色名／代称</span><input id="character-name" maxlength="80" required></label>
+            <label><span>玩家名</span><input id="character-player-name" maxlength="80"></label>
+            <label><span>年龄／代词</span><input id="character-pronouns" maxlength="80"></label>
+            <label><span>来源</span><input id="character-origin" maxlength="120" placeholder="例：本地遗漏者"></label>
+            <label><span>存在形态</span><select id="character-existence"><option value="present">现世者／NULL</option><option value="master">NULL 御主</option><option value="servant">NULL 英灵</option></select></label>
+          </div>
+          <label><span>一句身份</span><textarea id="character-identity" rows="2" maxlength="400"></textarea></label>
+          <label><span>未竟愿望</span><textarea id="character-wish" rows="2" maxlength="600"></textarea></label>
+          <label><span>害怕被赋予的身份</span><textarea id="character-feared-identity" rows="2" maxlength="400"></textarea></label>
+          <label><span>个人锚点</span><textarea id="character-anchor" rows="2" maxlength="400"></textarea></label>
+
+          <fieldset class="approach-editor"><legend>五项行动方式</legend><p>推荐分配：＋3、＋2、＋2、＋1、＋0。</p><div id="player-approach-inputs" class="approach-inputs"></div></fieldset>
+          <fieldset class="specialty-editor"><legend>三项专长</legend><p>每项适用时＋2。</p><div class="player-form-grid three-columns"><input class="character-specialty" maxlength="80" placeholder="专长 1"><input class="character-specialty" maxlength="80" placeholder="专长 2"><input class="character-specialty" maxlength="80" placeholder="专长 3"></div></fieldset>
+
+          <div class="player-form-grid three-columns resource-fields">
+            <label><span>决意</span><input id="character-resolve" type="number" min="0" max="3" step="1" value="3"></label>
+            <label><span>压力</span><input id="character-stress" type="number" min="0" max="3" step="1" value="0"></label>
+            <label><span>伤势</span><select id="character-injury"><option value="none">无伤</option><option value="light">轻伤</option><option value="serious">重伤</option><option value="critical">濒危</option></select></label>
+            <label id="character-core-load-field"><span>灵核负荷</span><input id="character-core-load" type="number" min="0" max="3" step="1" value="0"><small>仅 NULL 英灵使用；满 3 须离开当前冲突。</small></label>
+            <label id="character-noble-field"><span>宝具状态</span><select id="character-noble-ready"><option value="ready">可用</option><option value="used">已用</option></select><small>每个完整循环一次；重置刷新。</small></label>
+          </div>
+          <label><span>创伤状态（每行一项）</span><textarea id="character-trauma" rows="2" maxlength="800"></textarea></label>
+          <label><span>其他记录</span><textarea id="character-notes" rows="3" maxlength="1600"></textarea></label>
+          <div class="player-character-actions"><button class="player-primary" type="submit">保存角色卡</button><button id="player-import-character" type="button">导入 JSON</button><button id="player-export-character" type="button">导出 JSON</button><button id="player-submit-character" type="button">提交给守秘人</button></div>
+          <input id="player-character-file" type="file" accept="application/json,.json" hidden>
+        </form>
+      </section>
+
+      <section class="player-tool-card check-request-card" aria-labelledby="player-check-title">
+        <header><div><span>CHECK REQUEST</span><h3 id="player-check-title">发起判定申请</h3></div><small>守秘人确认 DC 并掷骰</small></header>
+        <form id="player-check-request-form">
+          <div class="player-form-grid two-columns">
+            <label><span>行动方式</span><select id="player-check-approach"></select></label>
+            <label><span>适用专长</span><select id="player-check-specialty"></select></label>
+            <label><span>状态</span><select id="player-check-mode"><option value="normal">正常</option><option value="advantage">优势</option><option value="disadvantage">劣势</option></select></label>
+            <label><span>协助数量</span><input id="player-check-assist" type="number" min="0" max="3" step="1" value="0"></label>
+            <label><span>已知额外修正</span><input id="player-check-modifier" type="number" min="-20" max="20" step="1" value="0"></label>
+            <label><span>建议难度</span><select id="player-check-dc"></select></label>
+          </div>
+          <label><span>想要争取的目标</span><textarea id="player-check-goal" rows="3" maxlength="500" required></textarea></label>
+          <label><span>已知风险／你希望先确认的后果</span><textarea id="player-check-risk" rows="3" maxlength="500"></textarea></label>
+          <button class="player-primary full-width" type="submit">发送判定申请 <span>↗</span></button>
+        </form>
+      </section>
+
+      <section class="player-tool-card result-inbox-card" aria-labelledby="player-result-title">
+        <header><div><span>RESULT INBOX</span><h3 id="player-result-title">判定结果收件箱</h3></div><button id="player-clear-results" type="button">清空</button></header>
+        <ol id="player-result-list" class="player-result-list" aria-live="polite"></ol>
+      </section>
+    </div>
+  </section>
+  <div class="projection-note" id="projection-note">同机投屏模式 · 守秘人发放后会自动更新</div>
+  <script src="player-data.js?v=20260713f"></script>
+  <script src="player.js?v=20260713f"></script>
 </body>
 </html>

@@ -1,0 +1,58 @@
+:root {
+  --reading-scale: 1;
+}
+
+html[data-reading-size="large"] {
+  --reading-scale: 1.12;
+}
+
+/* Keep the carefully composed typography intact while enlarging the whole
+   interface. Unlike browser-only zoom, this preference follows every page. */
+@supports (zoom: 1) {
+  body {
+    zoom: var(--reading-scale);
+  }
+}
+
+.reading-size-toggle {
+  position: fixed;
+  z-index: 10000;
+  right: 18px;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  min-width: 92px;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid rgba(209, 173, 108, .48);
+  border-radius: 999px;
+  color: #f0d59f;
+  background: rgba(10, 16, 25, .94);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .34);
+  font: 600 12px/1 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .05em;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+}
+
+.reading-size-toggle:hover {
+  border-color: #d1ad6c;
+  background: rgba(27, 37, 51, .97);
+}
+
+.reading-size-toggle:focus-visible {
+  outline: 2px solid #d1ad6c;
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .reading-size-toggle {
+    right: 12px;
+    bottom: 80px;
+    min-width: 84px;
+    min-height: 38px;
+  }
+}
+
+@media print {
+  body { zoom: 1; }
+  .reading-size-toggle { display: none !important; }
+}
