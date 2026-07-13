@@ -6,6 +6,7 @@
   var toastTimer = null;
 
   function byId(id) { return document.getElementById(id); }
+  function isStaticMode() { return auth && auth.getMode && auth.getMode() === 'static'; }
 
   function setBusy(form, active) {
     var button = form && form.querySelector('[type="submit"]');
@@ -56,6 +57,9 @@
     byId('profile-content').hidden = true;
     byId('signed-out-card').hidden = false;
     byId('logout-button').hidden = true;
+    if (isStaticMode()) {
+      byId('profile-storage-note').textContent = '当前为 GitHub Pages 临时账号：登录与注册只保留在本标签页中，关闭后可能清除。';
+    }
   }
 
   function renderIdentity(user) {
@@ -79,6 +83,12 @@
     verified.hidden = user.authorStatus !== 'verified';
     pending.hidden = user.authorStatus !== 'pending';
     form.hidden = user.authorStatus === 'verified' || user.authorStatus === 'pending';
+    if (isStaticMode() && user.authorStatus !== 'verified') {
+      form.hidden = false;
+      form.querySelector('p').textContent = 'GitHub Pages 临时账号不能真正提交作者认证；作者审核需要网站后端。';
+      form.querySelector('textarea').disabled = true;
+      form.querySelector('[type="submit"]').disabled = true;
+    }
     if (user.authorStatus === 'pending' && user.authorApplication) {
       byId('pending-statement').textContent = user.authorApplication.statement || '';
     }
@@ -88,17 +98,22 @@
   }
 
   function workMarkup(work, index) {
-    var value = work.accessKey || '';
+    var staticMode = isStaticMode();
+    var value = staticMode ? '' : work.accessKey || '';
     var hint = work.accessKeyConfigured ? '该密钥也用于进入《零之圣杯》守秘人控制台。' : '尚未配置 NG_ACCESS_KEY 或 .keeper-key。';
+    var showKey = !staticMode && work.id === 'null-grail' && (work.accessKeyConfigured || value);
     return '<article class="work-card">' +
       '<div><p class="profile-eyebrow">WORK · ' + String(index + 1).padStart(2, '0') + '</p>' +
       '<h3>' + escapeHtml(work.title) + ' <small>' + escapeHtml(work.edition || '') + '</small></h3>' +
-      '<p>' + escapeHtml(work.relationship || '作者') + '</p></div>' +
-      '<div class="work-key"><label for="work-key-' + index + '">作品密钥</label>' +
+      '<p>' + escapeHtml(work.relationship || '作品所有者') + ' · ' + escapeHtml(work.status === 'published' ? '已发布' : '草稿') + '</p>' +
+      '<div class="work-actions"><a href="index.html#archive">查看模组</a><a class="manage" href="gm.html">进入创作者面板 →</a></div></div>' +
+      (showKey ? '<div class="work-key"><label for="work-key-' + index + '">作品密钥</label>' +
       '<div class="key-control"><input id="work-key-' + index + '" type="password" readonly value="' + escapeAttribute(value) + '" placeholder="尚未配置">' +
       '<button type="button" data-key-toggle="work-key-' + index + '">显示</button>' +
       '<button type="button" data-key-copy="work-key-' + index + '"' + (value ? '' : ' disabled') + '>复制</button></div>' +
-      '<small>' + escapeHtml(hint) + '</small></div></article>';
+      '<small>' + escapeHtml(hint) + '</small></div>' : staticMode && work.secretUnavailableOnStatic
+        ? '<div class="work-key static-key-note"><label>作品密钥</label><small>公开版不保存作品密钥。进入创作者面板时，请单独输入守秘口令验证。</small></div>'
+        : '') + '</article>';
   }
 
   function escapeHtml(value) {
@@ -109,11 +124,13 @@
 
   function escapeAttribute(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
 
-  function renderWorks(works) {
+  function renderWorks(works, user) {
     var panel = byId('works-panel');
     var list = byId('works-list');
-    panel.hidden = !works || works.length === 0;
-    list.innerHTML = works && works.length ? works.map(workMarkup).join('') : '';
+    var canCreate = user && (user.authorStatus === 'verified' || user.role === 'owner');
+    panel.hidden = !canCreate && (!works || works.length === 0);
+    byId('new-work-link').hidden = !canCreate || isStaticMode();
+    list.innerHTML = works && works.length ? works.map(workMarkup).join('') : '<div class="works-empty"><span>◇</span><div><strong>还没有创建模组</strong><p>建立第一份作品档案后，就能导入信息、地图、规则与自动车卡器。</p></div><a href="studio.html?new=1">创建第一份模组 →</a></div>';
   }
 
   function renderProfile(payload) {
@@ -122,10 +139,11 @@
     byId('signed-out-card').hidden = true;
     byId('profile-content').hidden = false;
     byId('logout-button').hidden = false;
+    byId('static-session-note').hidden = !isStaticMode();
     renderIdentity(payload.user);
     renderAuthor(payload.user);
-    renderWorks(payload.works || []);
-    if (payload.user.role === 'owner') loadApplications();
+    renderWorks(payload.works || [], payload.user);
+    if (payload.user.role === 'owner' && !isStaticMode()) loadApplications();
     else byId('applications-panel').hidden = true;
   }
 

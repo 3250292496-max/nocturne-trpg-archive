@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0b1019">
   <title>个人中心 · 夜航模组馆</title>
   <link rel="stylesheet" href="styles.css?v=20260713b">
-  <link rel="stylesheet" href="profile.css?v=20260713a">
+  <link rel="stylesheet" href="profile.css?v=20260713c">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -37,7 +37,7 @@
     <section class="signed-out-card" id="signed-out-card" hidden aria-labelledby="signed-out-title">
       <p class="profile-eyebrow">MEMBER SIGN IN</p>
       <h1 id="signed-out-title">登录后继续航行</h1>
-      <p>你的个人资料、作者认证进度和作品权限都保存在本地站点账号中。</p>
+      <p id="profile-storage-note">服务器版会保存个人资料与作者认证状态；GitHub Pages 使用当前标签页的临时账号。</p>
       <form id="profile-login-form" class="compact-form">
         <label><span>账号</span><input name="account" type="text" autocomplete="username" required></label>
         <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -48,6 +48,7 @@
     </section>
 
     <div id="profile-content" hidden>
+      <p class="static-session-note" id="static-session-note" hidden><strong>GitHub Pages 临时账号</strong>登录、注册和资料修改只保留在当前标签页中；关闭标签页后可能清除。作品密钥与守秘口令不会保存到公开网页，进入创作者面板时仍需单独验证。</p>
       <section class="identity-hero" aria-labelledby="identity-name">
         <div class="identity-avatar" id="identity-avatar" aria-hidden="true">航</div>
         <div class="identity-copy">
@@ -105,8 +106,8 @@
 
       <section class="profile-panel works-panel" id="works-panel" aria-labelledby="works-title" hidden>
         <header>
-          <div><p class="profile-eyebrow">MY WORKS</p><h2 id="works-title">我的作品与密钥</h2></div>
-          <span>仅作品所有者本人可见</span>
+          <div><p class="profile-eyebrow">MY WORKS</p><h2 id="works-title">我的模组</h2></div>
+          <a class="new-work-link" id="new-work-link" href="gm.html">打开创作者面板</a>
         </header>
         <div id="works-list" class="works-list"></div>
       </section>
@@ -122,7 +123,7 @@
   </main>
 
   <div class="profile-toast" id="profile-toast" role="status" aria-live="polite"></div>
-  <script src="site-auth.js?v=20260713a"></script>
-  <script src="profile.js?v=20260713a"></script>
+  <script src="site-auth.js?v=20260713c"></script>
+  <script src="profile.js?v=20260713c"></script>
 </body>
 </html>
