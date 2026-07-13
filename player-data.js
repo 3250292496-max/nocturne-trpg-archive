@@ -358,16 +358,21 @@
       { id: 'severe', label: '失败', help: '总值不高于 DC-5；目标未达成并产生明确后果，但关键线索不会凭空消失。' }
     ],
     blankCharacter: {
-      protocol: 'null-grail-character-v3', rulesetId: 'null-grail-core-d20-v2.0', id: '', name: '', alias: '', playerName: '', pronouns: '',
-      identityType: 'mortal', buildMode: 'fixed-array', realIdentity: '', wishMotivation: '', boundaryFear: '', backgroundId: '', realAdvantageId: '', contacts: ['', ''], equipment: ['', ''], safePlace: '',
-      attributes: { physique: 3, endurance: 2, agility: 2, perception: 1, knowledge: 1, will: 0, mana: 0 },
-      skills: { athletics: 'untrained', melee: 'untrained', ranged: 'untrained', stealth: 'untrained', awareness: 'untrained', investigation: 'untrained', academics: 'untrained', technology: 'untrained', medicine: 'untrained', magecraft: 'untrained', negotiation: 'untrained', command: 'untrained' },
-      derived: { hp: 12, mp: 0, evasion: 12, fortitude: 12, mind: 10, perception: 11, resolve: 3, armor: 0 },
-      signatureTalent: { name: '', action: '', cost: '', check: '', target: '', effect: '', failure: '', duration: '', cooldown: '', counter: '' },
-      lineages: [], mediumRestriction: '', spellIds: [], mysticCodeId: '', mysticCodeRestriction: '',
-      masterContract: { enabled: false, servantPublicName: '', supplyLevel: 'stable', communicationDistance: '', contractSource: '', terminationConditions: '', masterNeverCommands: '', servantNeverAccepts: '', commandSeals: 3, campaignSpecialRules: '' },
-      servant: { publicName: '', trueName: '', classId: '', legendCore: '', conceptWeaknesses: ['', ''], classFeature: '', retainedSkills: [], noblePhantasm: null, neverAccepts: '', spiritualizationMethod: '', trueNameExposureIntel: '', luckRank: 'C' },
-      notes: ''
+      protocol: 'null-grail-character-v3', rulesetId: 'null-grail-core-d20-v2.0', rulesetVersion: 'v2.0·车卡增订',
+      id: '', name: '', playerName: '', pronouns: '', origin: '', identity: '', wish: '', boundary: '',
+      identityType: 'mortal', isMaster: false,
+      attributes: { physique: 0, endurance: 0, agility: 0, perception: 0, knowledge: 0, will: 0, mana: 0 },
+      skills: { athletics: 0, melee: 0, ranged: 0, stealth: 0, awareness: 0, investigation: 0, academics: 0, technology: 0, medicine: 0, magecraft: 0, negotiation: 0, command: 0 },
+      ordinary: { backgroundId: '', realAdvantage: '', contacts: ['', ''], safePlace: '', equipment: '', signatureTalent: '' },
+      magus: { lineages: [], spellIds: [], mysticCodeId: '', limitation: '' },
+      servant: {
+        classId: 'saber', publicTitle: '', trueName: '', legendCore: '', luck: 'C', weaknesses: ['', ''], refusedCommand: '',
+        retainedSkills: [{ name: '', rank: 'B', effect: '' }, { name: '', rank: 'C', effect: '' }, { name: '', rank: 'C', effect: '' }],
+        noblePhantasm: { name: '', rank: 'C', type: '对人', cost: '5 MP', effect: '', counter: '' }
+      },
+      master: { servantName: '', supplyLevel: 'stable', communicationDistance: '同一场景', source: '', termination: '', masterRefusal: '', servantRefusal: '', commandSeals: 3 },
+      current: { hp: null, mp: null, hpDirty: false, mpDirty: false, resolve: 3, armor: 0, conditions: [], notes: '' },
+      createdAt: '', updatedAt: ''
     },
     handouts: []
   });

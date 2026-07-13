@@ -222,7 +222,7 @@
     output.magus.mysticCodeId = safeTrim(magus.mysticCodeId,100);
     output.magus.limitation = safeTrim(magus.limitation,300);
     var servant = raw.servant || {};
-    output.servant.classId = safeTrim(servant.classId,80) || 'saber';
+    output.servant.classId = safeTrim(servant.classId,80);
     output.servant.publicTitle = safeTrim(servant.publicTitle,120);
     output.servant.trueName = safeTrim(servant.trueName,160);
     output.servant.legendCore = safeTrim(servant.legendCore,600);
@@ -234,12 +234,13 @@
     var noble = servant.noblePhantasm || {};
     output.servant.noblePhantasm = { name:safeTrim(noble.name,180), rank:['E','D','C','B','A'].indexOf(noble.rank) !== -1 ? noble.rank : 'C', type:['对人','对军','对城／对堡','结界／支援','概念／特殊'].indexOf(noble.type) !== -1 ? noble.type : '对人', cost:safeTrim(noble.cost,80), effect:safeTrim(noble.effect,1200), counter:safeTrim(noble.counter,800) };
     var master = raw.master || {};
-    output.master = { servantName:safeTrim(master.servantName,160), supplyLevel:safeTrim(master.supplyLevel,80) || 'stable', communicationDistance:safeTrim(master.communicationDistance,160), source:safeTrim(master.source,220), termination:safeTrim(master.termination,220), masterRefusal:safeTrim(master.masterRefusal,220), servantRefusal:safeTrim(master.servantRefusal,220), commandSeals:integer(master.commandSeals,0,3,3) };
+    output.master = { servantName:safeTrim(master.servantName,160), supplyLevel:safeTrim(master.supplyLevel,80), communicationDistance:safeTrim(master.communicationDistance,160), source:safeTrim(master.source,220), termination:safeTrim(master.termination,220), masterRefusal:safeTrim(master.masterRefusal,220), servantRefusal:safeTrim(master.servantRefusal,220), commandSeals:integer(master.commandSeals,0,3,3) };
     var current = raw.current || {};
     var currentHp = current.hp === null || current.hp === '' || current.hp === undefined ? null : integer(current.hp,0,99,0);
     var currentMp = current.mp === null || current.mp === '' || current.mp === undefined ? null : integer(current.mp,0,99,0);
-    var hpDirty = current.hpDirty === true && currentHp !== null;
-    var mpDirty = current.mpDirty === true && currentMp !== null;
+    var currentDerived = derivedValues(output);
+    var hpDirty = currentHp !== null && (typeof current.hpDirty === 'boolean' ? current.hpDirty : currentHp !== currentDerived.maxHp);
+    var mpDirty = currentMp !== null && (typeof current.mpDirty === 'boolean' ? current.mpDirty : currentMp !== currentDerived.maxMp);
     output.current = { hp:hpDirty ? currentHp : null, mp:mpDirty ? currentMp : null, hpDirty:hpDirty, mpDirty:mpDirty, resolve:integer(current.resolve,0,3,3), armor:integer(current.armor,0,20,0), conditions:Array.isArray(current.conditions) ? current.conditions.slice(0,12).map(function (item) { return safeTrim(item,120); }).filter(Boolean) : [], notes:safeText(current.notes,1600) };
     output.createdAt = safeText(raw.createdAt,40) || output.createdAt;
     output.updatedAt = safeText(raw.updatedAt,40) || new Date().toISOString();
@@ -309,16 +310,27 @@
   function identityType() { return fieldValue('character-existence') || 'mortal'; }
 
   function listedItems(value) {
-    return String(value || '').split(/[；;、，,\r\n]+/).map(function (item) { return item.trim(); }).filter(Boolean);
+    return String(value || '').split(/[；;\r\n]+/).map(function (item) { return item.trim(); }).filter(Boolean);
   }
 
   function missingAbilityCardSections(value) {
     var text = String(value || '');
-    return [
-      ['动作', /动作\s*[：:]/], ['成本', /成本\s*[：:]/], ['检定', /检定\s*[：:]/],
-      ['目标', /目标\s*[：:]/], ['效果', /效果\s*[：:]/], ['失败', /失败\s*[：:]/],
-      ['持续', /持续\s*[：:]/], ['冷却', /冷却\s*[：:]/], ['反制', /反制\s*[：:]/]
-    ].filter(function (section) { return !section[1].test(text); }).map(function (section) { return section[0]; });
+    var labels = ['动作','成本','检定','目标','效果','失败','持续','冷却','反制'];
+    var nextLabel = labels.join('|');
+    return labels.filter(function (label) {
+      var match = text.match(new RegExp(label + '\\s*[：:]\\s*([\\s\\S]*?)(?=(?:' + nextLabel + ')\\s*[：:]|$)'));
+      if (!match) return true;
+      return !match[1].replace(/^[\s｜|；;。、，,]+|[\s｜|；;。、，,]+$/g,'');
+    });
+  }
+
+  function hasExplicitNobleRequirement(value) {
+    var text = String(value || '');
+    var labeled = text.match(/(?:额外触发|追加触发|额外条件|追加条件|使用条件|解放条件|额外代价|追加代价)\s*[：:]\s*([^｜|；;\r\n]+)/);
+    if (labeled && labeled[1].trim()) return true;
+    var conditional = text.match(/(?:^|[｜|；;\r\n])\s*仅当\s*([^｜|；;\r\n]+)/) ||
+      text.match(/效果\s*[：:]\s*仅当\s*([^｜|；;\r\n]+)/);
+    return Boolean(conditional && conditional[1].trim());
   }
 
   function attributeStatus(value) {
@@ -408,6 +420,7 @@
     if (!value.isMaster) return { errors:errors, valid:true };
     var master = value.master;
     if (!master.servantName || !master.supplyLevel || !master.communicationDistance || !master.source || !master.termination || !master.masterRefusal || !master.servantRefusal) errors.push('御主契约模块仍有必填字段');
+    if (master.supplyLevel && !(config.masterSupplyLevels || []).some(function (item) { return (item.id || item.value) === master.supplyLevel; })) errors.push('供魔等级不在当前 v2.0 的四档规则中');
     if (value.identityType === 'servant') errors.push('御主模块不能附加在从者基础卡上');
     return { errors:errors, valid:errors.length === 0 };
   }
@@ -423,8 +436,8 @@
       else if (distinctTextCount(contacts) !== 2) errors.push('两名联系人不能重复');
       if (!value.ordinary.safePlace) errors.push('请填写安全地点');
       var equipmentItems = listedItems(value.ordinary.equipment);
-      if (equipmentItems.length < 2) errors.push('请用分号或换行分开填写两件常用装备');
-      else if (distinctTextCount(equipmentItems) < 2) errors.push('两件常用装备不能重复');
+      if (equipmentItems.length !== 2) errors.push('请用分号或换行分开填写恰好两件常用装备');
+      else if (distinctTextCount(equipmentItems) !== 2) errors.push('两件常用装备不能重复');
       if (!value.ordinary.signatureTalent) errors.push('请填写标志才能的完整能力卡');
       else if (missingAbilityCardSections(value.ordinary.signatureTalent).length) errors.push('标志才能要写清动作、成本、检定、目标、效果、失败、持续、冷却与反制');
     }
@@ -442,6 +455,7 @@
     }
     if (value.identityType === 'servant') {
       if (!value.servant.classId) errors.push('请选择职阶');
+      else if (!classTemplates().some(function (item) { return item.id === value.servant.classId; })) errors.push('所选职阶不在当前 v2.0 的七个基础职阶中');
       if (!value.servant.publicTitle || !value.servant.trueName || !value.servant.legendCore) errors.push('请填写公开称谓、真名与传说核心');
       var weaknessCount = value.servant.weaknesses.filter(Boolean).length;
       if (weaknessCount < (value.servant.luck === 'A' ? 3 : 2)) errors.push('概念弱点数量不足');
@@ -453,7 +467,7 @@
       var noble = value.servant.noblePhantasm;
       if (!noble.name || !noble.effect || !noble.counter) errors.push('宝具必须填写名称、触发／效果与可执行反制');
       else if (missingAbilityCardSections('成本：' + noble.cost + '｜' + noble.effect + '｜反制：' + noble.counter).length) errors.push('宝具能力卡要写清动作、成本、检定、目标、效果、失败、持续、冷却与反制');
-      if (noble.rank === 'A' && !/(代价|触发|需要|每场|仅当)/.test(noble.effect + noble.counter)) errors.push('A 阶宝具必须增加一个额外触发或代价');
+      if (noble.rank === 'A' && !hasExplicitNobleRequirement(noble.effect)) errors.push('A 阶宝具必须在效果栏明确写“额外触发／额外代价／仅当……”');
     }
     errors = errors.concat(masterStatus(value).errors);
     return { errors:errors, warnings:warnings, valid:errors.length === 0 };
@@ -509,7 +523,7 @@
     document.getElementById('character-supply-level').innerHTML = supplies.map(function (item) { return '<option value="' + escapeHtml(item.id || item.value) + '">' + escapeHtml(item.label || item.name) + '</option>'; }).join('');
     var retainedRanks = config.retainedSkillRanks || [{ id:'E',label:'E／0点' },{ id:'D',label:'D／1点' },{ id:'C',label:'C／2点' },{ id:'B',label:'B／3点' },{ id:'A',label:'A／4点' }];
     document.getElementById('retained-skill-list').innerHTML = [0,1,2].map(function (index) {
-      return '<article class="retained-skill-row"><label><span>保有技能 ' + (index + 1) + ' · 名称</span><input id="retained-name-' + index + '" maxlength="120"></label><label><span>阶位</span><select id="retained-rank-' + index + '">' + retainedRanks.map(function (item) { var rank = item.id || item.rank || item.value; return '<option value="' + escapeHtml(rank) + '">' + escapeHtml(item.label || rank) + '</option>'; }).join('') + '</select></label><label><span>完整能力卡</span><textarea id="retained-effect-' + index + '" rows="4" maxlength="1200" placeholder="动作／成本／检定／目标／成功／失败／持续／反制"></textarea></label></article>';
+      return '<article class="retained-skill-row"><label><span>保有技能 ' + (index + 1) + ' · 名称</span><input id="retained-name-' + index + '" maxlength="120"></label><label><span>阶位</span><select id="retained-rank-' + index + '">' + retainedRanks.filter(function (item) { return (item.id || item.rank || item.value) !== 'EX'; }).map(function (item) { var rank = item.id || item.rank || item.value; return '<option value="' + escapeHtml(rank) + '">' + escapeHtml(item.label || rank) + '</option>'; }).join('') + '</select></label><label><span>完整能力卡</span><textarea id="retained-effect-' + index + '" rows="4" maxlength="1200" placeholder="动作／成本／检定／目标／成功／失败／持续／反制"></textarea></label></article>';
     }).join('');
     var nobleRanks = config.noblePhantasmRanks || [{ id:'E',label:'E' },{ id:'D',label:'D' },{ id:'C',label:'C（默认）' },{ id:'B',label:'B' },{ id:'A',label:'A' }];
     document.getElementById('character-noble-rank').innerHTML = nobleRanks.filter(function (item) { return ['E','D','C','B','A'].indexOf(item.id || item.rank) !== -1; }).map(function (item) { var rank = item.id || item.rank; return '<option value="' + escapeHtml(rank) + '">' + escapeHtml(item.label || rank) + '</option>'; }).join('');
@@ -618,7 +632,12 @@
   }
 
   function selectArchetype(type, applyDefaults) {
+    var previousType = identityType();
     if (['mortal','magus','servant'].indexOf(type) === -1) type = 'mortal';
+    if (applyDefaults && type !== previousType) {
+      currentHpDirty = false;
+      currentMpDirty = false;
+    }
     setField('character-existence', type);
     activeAttributePreset = '';
     renderArchetypeUi();
@@ -913,11 +932,26 @@
     return output;
   }
 
+  function applyMasterQuickBuild(output) {
+    output.master = {
+      servantName:'待命名契约从者／公开称谓',
+      supplyLevel:'stable',
+      communicationDistance:'同一场景内可直接通信；同城可感知大致方向',
+      source:'双方在召唤仪式中自愿缔结契约',
+      termination:'任一方明确提出解除，或契约媒介被彻底破坏',
+      masterRefusal:'绝不命令从者主动伤害无辜者',
+      servantRefusal:'拒绝把平民或盟友当作一次性消耗品的命令',
+      commandSeals:3
+    };
+    return output;
+  }
+
   function applyQuickBuild() {
     var type = identityType();
     var output = mergeQuickBuild(fallbackQuickBuild(type), config.quickBuilds && config.quickBuilds[type]);
     output.identityType = type;
     output.isMaster = type !== 'servant' && document.getElementById('character-is-master').checked;
+    if (output.isMaster) applyMasterQuickBuild(output);
     fillCharacterForm(normalizeCharacter(output));
     goBuilderStep(5, true);
     renderBuilderReview();
@@ -965,10 +999,9 @@
   }
 
   function renderBuilderReview() {
+    syncDerivedCurrentFields();
     var value = collectCharacter(false);
     var derived = derivedValues(value);
-    if (fieldValue('character-current-hp') === '') setField('character-current-hp', derived.maxHp);
-    if (fieldValue('character-current-mp') === '') setField('character-current-mp', derived.maxMp);
     var attributeChips = attributes.map(function (item) { var number = value.attributes[item.id]; return '<span><b>' + escapeHtml(item.label) + '</b> ' + FATE_RANKS[number] + '／' + number + '</span>'; }).join('');
     var trained = skills.filter(function (item) { return value.skills[item.id] > 0; }).map(function (item) { return '<span><b>' + escapeHtml(item.label) + '</b> +' + skillBonus(value.skills[item.id]) + '</span>'; }).join('');
     document.getElementById('builder-review').innerHTML = [
@@ -977,12 +1010,13 @@
       '<article>', resourceSummary(value), '</article>'
     ].join('');
     var report = validation(value);
+    var masterReport = masterStatus(value);
     var checks = [
       { severity:report.identity.valid ? 'ready' : 'missing', label:'人物概念', detail:report.identity.errors[0] || '姓名、概念、愿望与底线完整' },
       { severity:report.attribute.errors.length ? 'missing' : report.attribute.warnings.length ? 'warning' : 'ready', label:'七项属性', detail:report.attribute.errors[0] || report.attribute.warnings[0] || '预算与上限通过' },
       { severity:report.skill.errors.length ? 'missing' : report.skill.warnings.length ? 'warning' : 'ready', label:'通用技能', detail:report.skill.errors[0] || report.skill.warnings[0] || '预算与专家数通过' },
       { severity:report.resource.errors.length ? 'missing' : report.resource.warnings.length ? 'warning' : 'ready', label:'身份资源', detail:report.resource.errors[0] || report.resource.warnings[0] || '专属资源通过' },
-      { severity:value.isMaster ? (value.master.commandSeals >= 0 ? 'ready' : 'missing') : 'ready', label:'御主模块', detail:value.isMaster ? '独立令咒 ' + value.master.commandSeals + ' / 3' : '未附加；符合基础身份规则' },
+      { severity:masterReport.errors.length ? 'missing' : 'ready', label:'御主模块', detail:masterReport.errors[0] || (value.isMaster ? '契约字段完整 · 独立令咒 ' + value.master.commandSeals + ' / 3' : '未附加；符合基础身份规则') },
       { severity:report.errors.length ? 'missing' : report.warnings.length ? 'warning' : 'ready', label:'最终结果', detail:report.errors[0] || report.warnings[0] || '角色卡合法，可保存并提交' }
     ];
     document.getElementById('builder-checklist').innerHTML = checks.map(function (check) { var icon = check.severity === 'ready' ? '✓' : check.severity === 'warning' ? '?' : '!'; return '<div class="' + check.severity + '"><span>' + icon + '</span><strong>' + escapeHtml(check.label) + '</strong><small>' + escapeHtml(check.detail) + '</small></div>'; }).join('');
@@ -1047,6 +1081,10 @@
     document.getElementById('character-luck').addEventListener('change', renderNobleAndRetainedStatus);
     document.getElementById('character-noble-rank').addEventListener('change', renderNobleAndRetainedStatus);
     document.getElementById('retained-skill-list').addEventListener('input', renderNobleAndRetainedStatus);
+    document.getElementById('character-current-hp').addEventListener('input', function (event) { currentHpDirty = event.target.value !== ''; });
+    document.getElementById('character-current-mp').addEventListener('input', function (event) { currentMpDirty = event.target.value !== ''; });
+    document.getElementById('character-current-hp').addEventListener('change', function () { if (!currentHpDirty) syncDerivedCurrentFields(); });
+    document.getElementById('character-current-mp').addEventListener('change', function () { if (!currentMpDirty) syncDerivedCurrentFields(); });
     document.getElementById('player-character-form').addEventListener('click', function (event) { var suggestion = event.target.closest('[data-fill-target]'); if (suggestion) { setField(suggestion.getAttribute('data-fill-target'), suggestion.getAttribute('data-fill-value')); clearBuilderError(); updateBuilderCompletion(); } });
     document.getElementById('builder-back').addEventListener('click', function () { goBuilderStep(builderStep - 1, true); });
     document.getElementById('builder-next').addEventListener('click', function () { goBuilderStep(builderStep + 1, false); });
@@ -1124,7 +1162,19 @@
     pendingSubmissionId = makeId('submission');
     showSync(sendToKeeper({ type:'character-submit',submissionId:pendingSubmissionId,sentAt:new Date().toISOString(),character:next }) ? 'v2.0 角色已发送；守秘人页面打开时会收到确认' : '未找到同源本机守秘人标签页；可导出 JSON 交付');
   });
-  document.getElementById('player-export-character').addEventListener('click', function () { var next = collectCharacter(); saveCharacter(next); downloadJson('零之圣杯-v2.0-角色-' + (next.name || '未命名') + '.json', next); });
+  document.getElementById('player-export-character').addEventListener('click', function () {
+    var next = collectCharacter();
+    var missing = firstIncompleteStep();
+    var report = validation(next);
+    if (missing !== 5 || report.errors.length) {
+      goBuilderStep(missing === 5 ? 5 : missing,true);
+      showBuilderError(builderStepError(missing) || report.errors[0] || '角色卡还有未完成项目。');
+      showSync('导出前请先通过 v2.0 合法性终检；本次没有保存或下载');
+      return;
+    }
+    saveCharacter(next);
+    downloadJson('零之圣杯-v2.0-角色-' + (next.name || '未命名') + '.json', next);
+  });
   document.getElementById('player-import-character').addEventListener('click', function () { document.getElementById('player-character-file').click(); });
   document.getElementById('player-character-file').addEventListener('change', function (event) {
     var file = event.target.files[0];
@@ -1136,10 +1186,18 @@
         var parsed = JSON.parse(reader.result);
         if (parsed.protocol !== CHARACTER_PROTOCOL || parsed.rulesetId !== RULESET_ID) throw new Error('protocol');
         var imported = normalizeCharacter(parsed);
-        saveCharacter(imported);
         fillCharacterForm(imported);
         goBuilderStep(5,true);
-        showSync('v2.0 角色 JSON 已导入并完成合法性复核');
+        var reviewed = collectCharacter(false);
+        var report = validation(reviewed);
+        if (report.errors.length) {
+          showBuilderError(report.errors[0]);
+          showSync('角色 JSON 已载入终检，但存在不合法项目；修正前不会保存到本机');
+          return;
+        }
+        saveCharacter(reviewed);
+        renderBuilderReview();
+        showSync('v2.0 角色 JSON 已导入、通过终检并保存在本机');
       } catch (error) { showSync('角色 JSON 无效，或不是当前 v2.0 车卡协议'); }
     };
     reader.readAsText(file);
