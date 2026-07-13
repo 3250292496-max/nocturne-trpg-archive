@@ -25,7 +25,7 @@
     status: 'published',
     ownerId: 'site-owner-3250292496',
     edition: 'v3.2',
-    author: { account: '3250292496', displayName: '夜航模组馆馆主' },
+    author: { displayName: '夜航模组馆馆主', name: '夜航模组馆馆主', label: '站长 · 已认证作者', avatar: '' },
     updatedAt: '2026-07-13T00:00:00.000Z',
     resources: [
       {

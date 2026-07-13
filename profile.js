@@ -241,7 +241,7 @@
     var application = user.authorApplication || {};
     var pending = user.authorStatus === 'pending';
     return '<article class="application-card" data-application="' + escapeAttribute(user.id) + '">' +
-      '<div><h3>' + escapeHtml(user.displayName || user.account) + '</h3>' +
+      '<div><h3>' + escapeHtml(displayName(user)) + '</h3>' +
       '<small>账号 ' + escapeHtml(user.account) + ' · ' + escapeHtml(formatDate(application.submittedAt)) + ' · ' + escapeHtml(authorLabel(user.authorStatus)) + '</small>' +
       '<p>' + escapeHtml(application.statement || '') + '</p></div>' +
       (pending ? '<div class="review-actions"><button class="approve" type="button" data-review="verified">通过</button><button class="reject" type="button" data-review="rejected">拒绝</button></div>' : '') +
@@ -267,6 +267,9 @@
     var profileForm = byId('profile-form');
     var authorForm = byId('author-form');
     var bioInput = byId('bio-input');
+    var displayNameInput = byId('display-name-input');
+    var avatarInput = byId('avatar-input');
+    var avatarMessage = byId('avatar-message');
 
     loginForm.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -290,14 +293,49 @@
       byId('bio-count').textContent = String(bioInput.value.length);
     });
 
+    displayNameInput.addEventListener('input', function () {
+      if (!pendingAvatar) updateAvatarPreview();
+    });
+
+    avatarInput.addEventListener('change', function () {
+      var file = avatarInput.files && avatarInput.files[0];
+      if (!file) return;
+      var saveButton = profileForm.querySelector('[type="submit"]');
+      avatarProcessing = true;
+      saveButton.disabled = true;
+      message(avatarMessage, '正在裁剪和压缩头像…', false);
+      prepareAvatar(file).then(function (avatar) {
+        pendingAvatar = avatar;
+        updateAvatarPreview();
+        message(avatarMessage, '头像已准备好，点击下方按钮保存。', false);
+      }).catch(function (error) {
+        message(avatarMessage, error.message, true);
+      }).finally(function () {
+        avatarProcessing = false;
+        saveButton.disabled = false;
+        avatarInput.value = '';
+      });
+    });
+
+    byId('avatar-remove').addEventListener('click', function () {
+      pendingAvatar = '';
+      updateAvatarPreview();
+      message(avatarMessage, '头像已移除，点击下方按钮保存。', false);
+    });
+
     profileForm.addEventListener('submit', function (event) {
       event.preventDefault();
+      if (avatarProcessing) {
+        message(byId('profile-message'), '头像仍在处理中，请稍候。', true);
+        return;
+      }
       message(byId('profile-message'), '', false);
       setBusy(profileForm, true);
-      auth.updateProfile(profileForm.elements.displayName.value, profileForm.elements.bio.value)
+      auth.updateProfile(profileForm.elements.displayName.value, profileForm.elements.bio.value, pendingAvatar)
         .then(function (payload) {
           renderProfile(payload);
-          message(byId('profile-message'), '个人资料已经保存。', false);
+          message(avatarMessage, '', false);
+          message(byId('profile-message'), '昵称、头像和个人资料已经保存。', false);
         }).catch(function (error) {
           message(byId('profile-message'), error.message, true);
         }).finally(function () { setBusy(profileForm, false); });

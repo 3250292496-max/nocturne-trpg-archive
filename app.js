@@ -18,7 +18,7 @@
       icon: 'grail',
       status: '本站作者作品',
       updated: '2026.07.13',
-      author: { name: '3250292496', label: '站长 · 已认证作者' },
+      author: { name: '夜航模组馆馆主', label: '站长 · 已认证作者' },
       summary: '七日轮回的圣杯战争里，你们是系统无法命名的空白变量。',
       description: '东湖市跨年夜，天空像玻璃一样裂开。圣杯试图为每个人分配御主、从者、祭品或观测者的身份，却无法容纳一群保留轮回记忆的来客。规则书、自动车卡器、主模组、人物手册、玩家资料和主持工具共同组成这一份完整作品。',
       players: '3–6 人',
@@ -299,7 +299,7 @@
           '<div class="dialog-heading">',
             '<p class="eyebrow"><span></span>ARCHIVE · ', escapeHtml(entry.number), ' · ', escapeHtml(entry.english), '</p>',
             '<h2 id="dialog-title">', escapeHtml(entry.title), '</h2>',
-            '<div class="entry-creator"><span>✓ 已认证</span><strong>', escapeHtml(entry.author.label), '</strong><small>@', escapeHtml(entry.author.name), '</small></div>',
+            '<div class="entry-creator"><span>✓ 已认证</span><strong>', escapeHtml(entry.author.label), '</strong><small>昵称 · ', escapeHtml(entry.author.name), '</small></div>',
             '<p>', escapeHtml(entry.summary), '</p>',
           '</div>',
           '<div class="dialog-emblem" aria-hidden="true">', archiveIconTemplate(entry.icon), '</div>',
@@ -597,8 +597,9 @@
       status: module.status === 'draft' ? '草稿' : '已发布',
       updated: module.updatedAt ? String(module.updatedAt).slice(0, 10).replace(/-/g, '.') : '—',
       author: {
-        name: fallbackAuthor.account || fallbackAuthor.name || module.authorName || 'night-voyager',
-        label: fallbackAuthor.displayName || fallbackAuthor.label || fallbackAuthor.name || module.authorName || '认证作者'
+        name: fallbackAuthor.displayName || fallbackAuthor.name || module.authorName || '夜航创作者',
+        label: fallbackAuthor.label || '认证作者',
+        avatar: fallbackAuthor.avatar || ''
       },
       summary: module.summary || '创作者还没有填写一句话简介。',
       description: module.description || module.summary || '这份模组的详细介绍正在整理中。',
@@ -646,6 +647,19 @@
   }).catch(function () {
     document.getElementById('all-module-count').textContent = String(entries.length).padStart(2, '0');
   });
+
+  function syncAuthenticatedIdentity(user) {
+    if (!user || user.role !== 'owner') return;
+    var entry = entries.find(function (candidate) { return candidate.id === 'null-grail'; });
+    if (!entry) return;
+    entry.author.name = window.NG_AUTH && window.NG_AUTH.displayName ? window.NG_AUTH.displayName(user) : (user.displayName || '夜航模组馆馆主');
+    entry.author.avatar = user.avatar || '';
+    renderEntries();
+  }
+  if (window.NG_AUTH) {
+    window.NG_AUTH.ready().then(syncAuthenticatedIdentity);
+    window.NG_AUTH.subscribe(syncAuthenticatedIdentity);
+  }
 
   // Resume an authenticated owner/author session without asking for the work
   // key a second time. The server remains the authority for this decision.

@@ -109,9 +109,10 @@
     text('module-english', module.english, 'COMMUNITY MODULE');
     text('module-title', module.title, '未命名模组');
     text('module-summary', module.summary, '创作者还没有填写一句话简介。');
-    var authorName = module.author && (module.author.displayName || module.author.name || module.author.account) || module.authorName || '夜航创作者';
+    var authorName = module.author && (module.author.displayName || module.author.name) || module.authorName || '夜航创作者';
     text('module-author', authorName);
-    text('author-avatar', authorName.charAt(0));
+    if (auth && auth.renderAvatar) auth.renderAvatar(byId('author-avatar'), { displayName: authorName, avatar: module.author && module.author.avatar || '' });
+    else text('author-avatar', Array.from(authorName)[0] || '航');
     text('module-system', module.systemLabel);
     text('module-players', module.players);
     text('module-duration', module.duration);
