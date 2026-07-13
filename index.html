@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="night">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="夜航模组馆——收藏原创 CoC、Fate/FGO、D&D 与泛用跑团模组的私人档案馆。">
+  <meta name="theme-color" content="#0b1019">
+  <meta property="og:title" content="夜航模组馆 · Nocturne Archive">
+  <meta property="og:description" content="把尚未发生的冒险，先收进一盏灯里。">
+  <title>夜航模组馆 · Nocturne Archive</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b1019'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='%23d1ad6c' stroke-width='2'/%3E%3Cpath d='M32 14l4.8 13.2L50 32l-13.2 4.8L32 50l-4.8-13.2L14 32l13.2-4.8z' fill='%23e6d8b8'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260713b">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <div class="page-progress" aria-hidden="true"><span id="page-progress-bar"></span></div>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+
+  <header class="site-header" id="top">
+    <div class="shell header-inner">
+      <a class="brand" href="#top" aria-label="夜航模组馆首页">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="img">
+            <circle cx="24" cy="24" r="17.5"></circle>
+            <path d="M24 7.5l3.8 12.7L40.5 24l-12.7 3.8L24 40.5l-3.8-12.7L7.5 24l12.7-3.8z"></path>
+            <circle cx="24" cy="24" r="3.2"></circle>
+          </svg>
+        </span>
+        <span>
+          <strong>夜航模组馆</strong>
+          <small>NOCTURNE ARCHIVE</small>
+        </span>
+      </a>
+
+      <button class="nav-toggle icon-button" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="打开导航">
+        <span></span><span></span>
+      </button>
+
+      <nav class="site-nav" id="site-nav" aria-label="主导航">
+        <a href="#archive">模组档案</a>
+        <a href="#world">世界索引</a>
+        <a href="#console">守秘人控制台</a>
+        <a href="#notes">创作手记</a>
+        <a href="#about">关于馆主</a>
+      </nav>
+
+      <div class="header-tools">
+        <button class="audience-button" id="audience-button" type="button" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 20c.7-4 2.9-6 6.5-6s5.8 2 6.5 6"></path></svg>
+          <span id="audience-label">选择访问身份</span>
+        </button>
+        <button class="theme-toggle icon-button" id="theme-toggle" type="button" aria-label="切换明暗主题" title="切换明暗主题">
+          <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.5 8.5 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
+          <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero shell" aria-labelledby="hero-title">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span></span> PRIVATE TRPG COLLECTION · 001</p>
+        <h1 id="hero-title">把尚未发生的冒险，<br><em>先收进一盏灯里。</em></h1>
+        <p class="hero-lead">这里收藏关于轮回、抉择与未知的原创跑团模组。愿每一位夜航者，都能在故事落幕前找到自己的航标。</p>
+        <div class="hero-actions">
+          <button class="button button-primary" id="player-entry-button" type="button">玩家安全入口 <span aria-hidden="true">↗</span></button>
+          <a class="button button-keeper" href="gm.html"><span aria-hidden="true">◇</span> 守秘人控制台 · 需密钥</a>
+          <button class="button button-ghost" id="random-entry" type="button"><span class="spark" aria-hidden="true">✦</span> 随机点亮一份模组</button>
+        </div>
+        <dl class="hero-stats" aria-label="档案馆概览">
+          <div><dt id="published-count">08</dt><dd>份公开档案</dd></div>
+          <div><dt>01</dt><dd>个持续世界</dd></div>
+          <div><dt>v3.2</dt><dd>最近修订</dd></div>
+        </dl>
+      </div>
+
+      <div class="hero-art reveal" aria-label="本月主灯：零之圣杯">
+        <img class="hero-key-art" src="assets/art/hero-null-grail.webp" alt="雨夜东湖市中的白发少女、调查者与七骑英灵">
+        <div class="star-map" aria-hidden="true">
+          <span class="star star-1"></span><span class="star star-2"></span><span class="star star-3"></span><span class="star star-4"></span><span class="star star-5"></span>
+          <i class="line line-1"></i><i class="line line-2"></i><i class="line line-3"></i>
+        </div>
+        <div class="orbit orbit-outer" aria-hidden="true"></div>
+        <div class="orbit orbit-inner" aria-hidden="true"></div>
+        <div class="feature-dossier">
+          <div class="dossier-topline"><span>本月主灯</span><span>ARCHIVE · 001</span></div>
+          <div class="dossier-sigil" aria-hidden="true">
+            <svg viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="77"></circle>
+              <circle cx="110" cy="110" r="55"></circle>
+              <path d="M110 22l12.8 61.2L198 110l-75.2 26.8L110 198l-12.8-61.2L22 110l75.2-26.8z"></path>
+              <path d="M57 57l38 28M163 57l-38 28M57 163l38-28M163 163l-38-28"></path>
+              <circle cx="110" cy="110" r="8"></circle>
+            </svg>
+          </div>
+          <div class="dossier-title">
+            <p>NULL GRAIL</p>
+            <h2>零之圣杯</h2>
+            <span>七日轮回圣杯战争</span>
+          </div>
+          <div class="dossier-footer"><span>轻量 d20 · 长篇战役</span><button type="button" data-open-entry="null-grail">查看档案 ↗</button></div>
+        </div>
+        <p class="art-caption"><span>NO. 001</span> 错误不会自动成为命运。</p>
+      </div>
+    </section>
+
+    <section class="keeper-showcase shell reveal" id="console" aria-labelledby="console-title">
+      <div class="keeper-showcase-art">
+        <img src="assets/art/night-06.webp" alt="第六夜川风洋宅围攻与三碎片会议场景">
+        <span>AUTHOR EDITION · FULL SPOILERS</span>
+      </div>
+      <div class="keeper-showcase-copy">
+        <p class="eyebrow"><span></span> LIVE KEEPER CONSOLE</p>
+        <h2 id="console-title">从“阅读模组”，到<br><em>直接开团。</em></h2>
+        <p>七日节点、东湖市完整地图、19 名核心人物与英灵、六项真相、23 张玩家安全手卡和战役轨道已经接入同一张主持桌面。开团时点场景、点 NPC、点线索即可继续。</p>
+        <div class="keeper-feature-list" aria-label="控制台功能">
+          <span><strong>27</strong> 场景节点</span>
+          <span><strong>19</strong> 人物档案</span>
+          <span><strong>23</strong> PLAYER SAFE</span>
+        </div>
+        <div class="hero-actions">
+          <a class="button button-primary" href="gm.html">打开完整作者版 <span>↗</span></a>
+          <a class="button button-ghost" href="player.html?mode=projection" target="_blank" rel="noreferrer">预览玩家投屏</a>
+        </div>
+        <small>注意：完整作者版包含人物秘密、默认余波与结局结构，玩家请勿进入。</small>
+      </div>
+    </section>
+
+    <section class="systems shell" aria-label="按规则浏览">
+      <button class="system-gate active" type="button" data-system-jump="all">
+        <span class="gate-icon gate-all" aria-hidden="true">✦</span>
+        <span><small>ALL ARCHIVES</small><strong>全部档案</strong></span>
+        <i aria-hidden="true">08</i>
+      </button>
+      <button class="system-gate" type="button" data-system-jump="fate">
+        <span class="gate-icon gate-fate" aria-hidden="true">◉</span>
+        <span><small>HOLY GRAIL</small><strong>圣杯战争</strong></span>
+        <i aria-hidden="true">08</i>
+      </button>
+      <button class="system-gate" type="button" data-system-jump="coc">
+        <span class="gate-icon gate-coc" aria-hidden="true">⌁</span>
+        <span><small>CALL OF CTHULHU</small><strong>CoC 调查</strong></span>
+        <i aria-hidden="true">00</i>
+      </button>
+      <button class="system-gate" type="button" data-system-jump="dnd">
+        <span class="gate-icon gate-dnd" aria-hidden="true">◇</span>
+        <span><small>FANTASY JOURNEY</small><strong>D&amp;D 冒险</strong></span>
+        <i aria-hidden="true">00</i>
+      </button>
+    </section>
+
+    <section class="archive-section" id="archive" aria-labelledby="archive-title">
+      <div class="shell">
+        <header class="section-heading reveal">
+          <div>
+            <p class="eyebrow"><span></span> OPEN SHELVES</p>
+            <h2 id="archive-title">模组档案</h2>
+          </div>
+          <p>从无剧透简介开始，选择适合今晚的故事。守秘资料与玩家资料均有明确标识。</p>
+        </header>
+
+        <div class="archive-toolbar reveal">
+          <label class="search-box" for="archive-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+            <input id="archive-search" type="search" aria-label="搜索模组档案" placeholder="搜索标题、规则、舞台或标签…" autocomplete="off">
+            <kbd>/</kbd>
+          </label>
+          <label class="select-box">
+            <span class="sr-only">按资料类型筛选</span>
+            <select id="type-filter">
+              <option value="all">全部类型</option>
+              <option value="campaign">战役模组</option>
+              <option value="guide">规则手册</option>
+              <option value="toolkit">主持工具</option>
+              <option value="handout">玩家材料</option>
+            </select>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
+          </label>
+          <div class="view-switch" role="group" aria-label="切换档案视图">
+            <button class="active" id="grid-view" type="button" aria-label="网格视图" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6"></rect><rect x="14" y="4" width="6" height="6"></rect><rect x="4" y="14" width="6" height="6"></rect><rect x="14" y="14" width="6" height="6"></rect></svg></button>
+            <button id="list-view" type="button" aria-label="列表视图" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+          </div>
+        </div>
+
+        <div class="filter-row reveal" aria-label="规则筛选">
+          <div class="filter-chips" id="system-filters">
+            <button class="active" type="button" data-filter="all" aria-pressed="true">全部 <span>08</span></button>
+            <button type="button" data-filter="fate" aria-pressed="false">圣杯战争 <span>08</span></button>
+            <button type="button" data-filter="coc" aria-pressed="false">CoC <span>00</span></button>
+            <button type="button" data-filter="dnd" aria-pressed="false">D&amp;D <span>00</span></button>
+            <button type="button" data-filter="agnostic" aria-pressed="false">系统无关 <span>05</span></button>
+          </div>
+          <p class="result-count" aria-live="polite">显示 <strong id="result-count">8</strong> 份档案</p>
+        </div>
+
+        <div class="archive-grid" id="archive-grid" aria-live="polite"></div>
+
+        <div class="empty-state" id="empty-state" hidden>
+          <div class="empty-sigil" aria-hidden="true">✦</div>
+          <h3>这一段航线尚未点亮</h3>
+          <p>目前没有符合条件的档案。CoC 与 D&amp;D 书架已经预留，下一份作品可以直接加入。</p>
+          <button class="button button-ghost" id="clear-filters" type="button">清除筛选</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="world-section shell" id="world" aria-labelledby="world-title">
+      <header class="section-heading reveal">
+        <div>
+          <p class="eyebrow"><span></span> WORLD INDEX</p>
+          <h2 id="world-title">世界索引</h2>
+        </div>
+        <p>模组不是孤立的文件。地点、人物与事件在这里彼此照亮，形成可以反复抵达的世界。</p>
+      </header>
+
+      <article class="world-feature reveal">
+        <div class="world-map" aria-hidden="true">
+          <img class="world-map-art" src="assets/art/eastlake-map.webp" alt="">
+          <svg viewBox="0 0 620 510" preserveAspectRatio="xMidYMid slice">
+            <defs><filter id="soft-glow"><feGaussianBlur stdDeviation="4" result="blur"></feGaussianBlur><feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter></defs>
+            <path class="river" d="M-20 370C90 330 110 260 198 272s105 106 210 73 118-113 245-79"></path>
+            <path class="road" d="M61 82 178 146 281 112 372 186 522 142"></path>
+            <path class="road" d="M106 439 206 340 334 390 463 304 568 368"></path>
+            <path class="road minor" d="M178 146 206 340M372 186 463 304M281 112 334 390"></path>
+            <g class="district"><path d="m137 111 42 24-14 47-53 5-22-40z"></path><path d="m287 82 53 17 8 52-53 23-37-39z"></path><path d="m412 104 61-9 29 49-26 51-67-13-18-43z"></path><path d="m131 294 67-15 38 53-32 65-76 2-30-54z"></path><path d="m329 287 62-35 62 38-11 75-76 24-54-47z"></path></g>
+            <g class="map-point" filter="url(#soft-glow)"><circle cx="178" cy="146" r="5"></circle><circle cx="372" cy="186" r="5"></circle><circle cx="206" cy="340" r="5"></circle><circle cx="463" cy="304" r="5"></circle><circle cx="334" cy="390" r="5"></circle></g>
+          </svg>
+          <span class="map-label label-school">东湖学园 <i>01</i></span>
+          <span class="map-label label-church">圣安东尼教堂 <i>02</i></span>
+          <span class="map-label label-null">观测点 NULL <i>03</i></span>
+          <span class="map-label label-square">中央广场 <i>04</i></span>
+          <div class="map-coordinates">35°41′N<br>139°42′E</div>
+        </div>
+        <div class="world-copy">
+          <p class="world-number">WORLD · 001</p>
+          <h3>东湖市</h3>
+          <p class="world-kicker">循环第七日 / 冬季 / 架空都市</p>
+          <p>跨年烟火升起时，天空像玻璃一样裂开。圣杯试图分配所有人的位置，却无法解释一群保留轮回记忆的“空白变量”。</p>
+          <blockquote>“你们不是被选中的英雄。你们是一个错误系统无法命名的人。”</blockquote>
+          <div class="world-facts">
+            <div><span>关键地点</span><strong>12</strong></div>
+            <div><span>主要人物</span><strong>23</strong></div>
+            <div><span>循环上限</span><strong>03</strong></div>
+          </div>
+          <button class="text-link" type="button" data-open-entry="null-grail">进入世界档案 <span>↗</span></button>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes-section" id="notes" aria-labelledby="notes-title">
+      <div class="shell notes-grid">
+        <div class="notes-intro reveal">
+          <p class="eyebrow"><span></span> KEEPER'S NOTES</p>
+          <h2 id="notes-title">守灯人的<br>创作手记</h2>
+          <p>一些关于版本、边界与“为什么这样写”的记录。也许它们能成为下一次开团时的一盏小灯。</p>
+        </div>
+        <div class="note-list reveal">
+          <article>
+            <time datetime="2026-07-13">2026.07.13</time>
+            <div><span>版本记录</span><h3>《零之圣杯》v3.2：让失败打开新的路径</h3><p>统一规则口径，补齐玩家安全边界与跨册索引。</p></div>
+            <button type="button" data-open-entry="rules-index" aria-label="查看版本记录">↗</button>
+          </article>
+          <article>
+            <time datetime="2026-07-12">2026.07.12</time>
+            <div><span>设计原则</span><h3>交涉检定不能替他人同意</h3><p>把人物的决定权写进机制，而不只是写进台词。</p></div>
+            <button type="button" data-open-entry="player-guide" aria-label="查看设计原则">↗</button>
+          </article>
+          <article>
+            <time datetime="2026-07-11">2026.07.11</time>
+            <div><span>主持工具</span><h3>把七日战役压缩进桌边控制台</h3><p>用事件卡、人物卡与发放索引减少临场翻找。</p></div>
+            <button type="button" data-open-entry="gm-toolkit" aria-label="查看主持工具">↗</button>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section shell" id="about" aria-labelledby="about-title">
+      <div class="about-card reveal">
+        <div class="about-mark" aria-hidden="true"><span>守灯人</span><strong>NOCTURNE<br>KEEPER</strong></div>
+        <div class="about-copy">
+          <p class="eyebrow"><span></span> ABOUT THE ARCHIVIST</p>
+          <h2 id="about-title">故事是共同做出的选择。</h2>
+          <p>这里是一座私人创作档案馆，保存原创或同人跑团模组、玩家资料与主持工具。馆主偏爱都市异闻、角色抉择、轮回结构，以及不会被一次失败锁死的故事。</p>
+          <p class="about-note">本站所涉规则及相关作品版权归原权利方所有；同人内容仅作非商业交流与展示。转载或开团使用前，请保留作者署名与版本信息。</p>
+        </div>
+        <a class="button button-primary" href="#archive">从第一份档案开始 <span>↗</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-main">
+      <div class="footer-brand">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17.5"></circle><path d="M24 7.5l3.8 12.7L40.5 24l-12.7 3.8L24 40.5l-3.8-12.7L7.5 24l12.7-3.8z"></path></svg></span>
+        <p><strong>夜航模组馆</strong><br><span>把尚未发生的冒险，先收进一盏灯里。</span></p>
+      </div>
+      <nav aria-label="页脚导航"><a href="#archive">档案</a><a href="#world">世界</a><a href="gm.html">守秘人控制台</a><a href="#notes">手记</a><a href="#about">关于</a></nav>
+      <a class="back-top" href="#top">回到顶部 ↑</a>
+    </div>
+    <div class="shell footer-meta"><span>© 2026 NOCTURNE ARCHIVE</span><span>BUILT FOR STORIES YET UNTOLD</span></div>
+  </footer>
+
+  <dialog class="entry-dialog" id="entry-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-shell">
+      <button class="dialog-close icon-button" id="dialog-close" type="button" aria-label="关闭档案详情">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+      </button>
+      <div id="dialog-content"></div>
+    </div>
+  </dialog>
+
+  <dialog class="access-dialog" id="access-dialog" aria-labelledby="access-title">
+    <div class="access-shell">
+      <button class="dialog-close icon-button" id="access-close" type="button" aria-label="关闭身份选择">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+      </button>
+      <p class="eyebrow"><span></span> INFORMATION BOUNDARY</p>
+      <h2 id="access-title">你将以什么身份阅读？</h2>
+      <p class="access-intro">玩家入口只提供无剧透简介与 PLAYER SAFE 文件。守秘人入口包含完整流程、人物秘密与结局，需要访问密钥。</p>
+      <div class="role-grid" id="role-grid">
+        <button class="role-card player-role" id="choose-player" type="button">
+          <span class="role-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 5 9 11v11c0 10 6 17 15 21 9-4 15-11 15-21V11Z"></path><path d="m17 24 5 5 10-11"></path></svg></span>
+          <span><small>PLAYER SAFE</small><strong>我是玩家</strong><em>浏览无剧透导读、规则与已公开资料</em></span>
+        </button>
+        <button class="role-card keeper-role" id="choose-keeper" type="button">
+          <span class="role-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="19" cy="20" r="9"></circle><path d="m26 26 15 15M34 34l4-4M29 29l4-4"></path></svg></span>
+          <span><small>FULL SPOILERS</small><strong>我是守秘人 / 已结团</strong><em>使用守秘人提供的密钥解锁完整档案</em></span>
+        </button>
+      </div>
+      <form class="access-key-form" id="access-key-form" hidden>
+        <button class="access-back" id="access-back" type="button">← 返回身份选择</button>
+        <label for="access-key-input"><span>访问密钥</span><input id="access-key-input" type="password" autocomplete="current-password" placeholder="输入守秘人提供的密钥" required></label>
+        <button class="button button-primary" type="submit">验证并解锁完整档案 <span>↗</span></button>
+        <p class="access-error" id="access-error" role="alert" hidden>密钥不正确。请向本次战役的守秘人确认。</p>
+        <small>密钥只会在当前浏览器中验证，不会显示在页面或分享链接里。</small>
+      </form>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="access.js?v=20260713d"></script>
+  <script src="app.js?v=20260713d"></script>
+</body>
+</html>

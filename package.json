@@ -1,0 +1,15 @@
+{
+  "name": "nocturne-trpg-archive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "夜航模组馆——原创 TRPG 模组收藏与展示网站",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "build:secure": "node scripts/build-secure-assets.mjs",
+    "verify:secure": "node scripts/verify-secure-assets.mjs",
+    "check": "node --check access.js && node --check app.js && node --check gm-gate.js && node --check gm.js && node --check player-data.js && node --check player.js && node --check server.mjs",
+    "check:private": "npm run check && node --check gm-data.js"
+  }
+}

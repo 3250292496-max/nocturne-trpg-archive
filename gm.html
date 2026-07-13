@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="keeper">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d14">
+  <meta name="description" content="《零之圣杯》v3.2 守秘人互动控制台：七日流程、东湖市地图、人物、线索、手卡与状态追踪。">
+  <title>零之圣杯 · 守秘人控制台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="gm.css?v=20260713b">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">跳到控制台内容</a>
+  <div class="keeper-watermark" aria-hidden="true">KEEPER · 全剧透</div>
+
+  <header class="command-bar">
+    <a class="command-brand" href="index.html" aria-label="返回夜航模组馆">
+      <span class="brand-sigil" aria-hidden="true">◇</span>
+      <span><strong>零之圣杯</strong><small>KEEPER CONSOLE · v3.2</small></span>
+    </a>
+    <div class="command-now" aria-live="polite">
+      <span id="top-day">第一日</span>
+      <strong id="top-title">错误召唤之夜</strong>
+      <small id="save-status">已自动保存</small>
+    </div>
+    <div class="command-actions">
+      <button class="command-button" id="undo-button" type="button" title="撤销上一步">↶ <span>撤销</span></button>
+      <button class="command-button" id="curtain-button" type="button" title="立即遮住玩家投屏">◉ <span>投屏帷幕</span></button>
+      <button class="command-button" id="player-window-button" type="button">↗ <span>玩家视图</span></button>
+      <button class="command-button" id="session-menu-button" type="button" aria-expanded="false" aria-controls="session-menu">••• <span>战役</span></button>
+    </div>
+    <div class="session-menu" id="session-menu" hidden>
+      <button id="export-button" type="button">导出战役备份</button>
+      <button id="import-button" type="button">导入战役备份</button>
+      <button id="reset-button" type="button">新建空白战役</button>
+      <a href="index.html">返回公开档案</a>
+      <input id="import-file" type="file" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <aside class="side-nav" aria-label="守秘人控制台导航">
+    <button class="side-nav-button active" type="button" data-view="current" aria-current="page"><span>✦</span><b>当前</b></button>
+    <button class="side-nav-button" type="button" data-view="timeline"><span>Ⅶ</span><b>七日</b></button>
+    <button class="side-nav-button" type="button" data-view="map"><span>⌖</span><b>地图</b></button>
+    <button class="side-nav-button" type="button" data-view="npcs"><span>◫</span><b>人物</b></button>
+    <button class="side-nav-button" type="button" data-view="clues"><span>⌁</span><b>线索</b></button>
+    <button class="side-nav-button" type="button" data-view="handouts"><span>▱</span><b>发放</b></button>
+    <button class="side-nav-button" type="button" data-view="log"><span>≡</span><b>场记</b></button>
+  </aside>
+
+  <main class="workspace" id="workspace">
+    <section class="view-panel active" id="view-current" data-panel="current" aria-labelledby="current-heading">
+      <article class="day-stage" id="day-stage">
+        <img id="day-image" src="assets/art/night-01.webp" alt="第一夜雨中的东湖市与错误召唤信号">
+        <div class="day-stage-shade"></div>
+        <div class="day-stage-copy">
+          <p class="section-kicker" id="day-kicker">DAY 01 · 12月29日</p>
+          <h1 id="current-heading">错误召唤之夜</h1>
+          <blockquote id="day-question">这真的是一场圣杯战争吗？</blockquote>
+          <p id="day-priority">完整介入一处召唤，再追查一处余波。</p>
+          <div class="day-stage-actions">
+            <button class="primary-action" id="start-first-scene" type="button">打开首个节点 <span>↗</span></button>
+            <button class="soft-action" type="button" data-go="map">查看今日地图</button>
+          </div>
+        </div>
+        <div class="day-window-strip" id="day-windows"></div>
+      </article>
+
+      <div class="current-grid">
+        <section class="console-card scene-stack" aria-labelledby="scene-stack-title">
+          <header class="card-heading"><div><span>LIVE NODES</span><h2 id="scene-stack-title">现在可以开始</h2></div><p id="scene-progress">0 / 7 已结算</p></header>
+          <div id="today-scenes" class="today-scenes"></div>
+        </section>
+
+        <section class="console-card today-brief" aria-labelledby="today-brief-title">
+          <header class="card-heading"><div><span>DAY BRIEF</span><h2 id="today-brief-title">今日不可替代变化</h2></div></header>
+          <ul id="today-goals" class="goal-list"></ul>
+          <div class="brief-callout"><span>主持提醒</span><p>核心线索不会因一次失败消失。失败改变来源、代价、先后手与现实后果。</p></div>
+          <button class="full-soft-action" type="button" data-go="timeline">展开七日总线</button>
+        </section>
+
+        <section class="console-card active-cast" aria-labelledby="active-cast-title">
+          <header class="card-heading"><div><span>ON STAGE</span><h2 id="active-cast-title">今日人物</h2></div><button class="text-action" type="button" data-go="npcs">全部人物</button></header>
+          <div id="active-cast" class="cast-row"></div>
+        </section>
+
+        <section class="console-card pending-handouts" aria-labelledby="pending-title">
+          <header class="card-heading"><div><span>PLAYER SAFE</span><h2 id="pending-title">待发资料</h2></div><button class="text-action" type="button" data-go="handouts">全部手卡</button></header>
+          <div id="pending-handouts" class="pending-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view-panel" id="view-timeline" data-panel="timeline" aria-labelledby="timeline-heading">
+      <header class="view-heading">
+        <div><p class="section-kicker">SEVEN-DAY OPERATIONS</p><h1 id="timeline-heading">七日行动线</h1></div>
+        <p>点击任意一天切换主持桌面。过去日保留结算记录，未来日可提前查看；只有你手动操作才会改变战役状态。</p>
+      </header>
+      <div id="timeline-list" class="timeline-list"></div>
+    </section>
+
+    <section class="view-panel" id="view-map" data-panel="map" aria-labelledby="map-heading">
+      <header class="view-heading compact-heading">
+        <div><p class="section-kicker">EASTLAKE · INTERACTIVE ATLAS</p><h1 id="map-heading">东湖市完整地图</h1></div>
+        <div class="map-filter" role="group" aria-label="地图地点筛选">
+          <button class="active" type="button" data-map-filter="all">全部</button>
+          <button type="button" data-map-filter="today">当前日</button>
+          <button type="button" data-map-filter="danger">高危</button>
+        </div>
+      </header>
+      <div class="map-layout">
+        <div class="atlas" id="atlas">
+          <img src="assets/art/eastlake-map.webp" alt="雨夜东湖市俯视地图：河流纵贯东部，主路、学园、旧图书馆、洋宅、教堂、神社、维修店、工地与中央广场可辨">
+          <div id="map-hotspots" class="map-hotspots"></div>
+          <div class="atlas-legend"><span><i class="known"></i>可访问</span><span><i class="current"></i>当前日</span><span><i class="visited"></i>已访问</span></div>
+        </div>
+        <aside class="map-drawer" id="map-drawer" aria-live="polite">
+          <p class="drawer-code">选择地图热点</p>
+          <h2>地点情报</h2>
+          <p>点击地图上的标记，查看场景入口、相关人物、可得线索与忽视后的风险。</p>
+        </aside>
+      </div>
+      <details class="location-list-fallback">
+        <summary>使用地点列表浏览地图</summary>
+        <div id="location-list"></div>
+      </details>
+    </section>
+
+    <section class="view-panel" id="view-npcs" data-panel="npcs" aria-labelledby="npcs-heading">
+      <header class="view-heading compact-heading">
+        <div><p class="section-kicker">CAST &amp; HEROIC SPIRITS</p><h1 id="npcs-heading">人物档案</h1></div>
+        <label class="compact-search"><span class="sr-only">搜索人物</span><input id="npc-search" type="search" placeholder="搜索姓名、身份或当前位置…"></label>
+      </header>
+      <div class="npc-filter" role="group" aria-label="人物类型筛选">
+        <button class="active" type="button" data-npc-filter="all">全部 19</button>
+        <button type="button" data-npc-filter="human">人物 12</button>
+        <button type="button" data-npc-filter="servant">英灵 7</button>
+        <button type="button" data-npc-filter="today">今日在场</button>
+      </div>
+      <div id="npc-grid" class="npc-grid"></div>
+    </section>
+
+    <section class="view-panel" id="view-clues" data-panel="clues" aria-labelledby="clues-heading">
+      <header class="view-heading">
+        <div><p class="section-kicker">REDUNDANT CLUE WEB</p><h1 id="clues-heading">六项核心真相</h1></div>
+        <p>每项真相都有三个独立来源。失败只会改变取得方式与代价，不会把主线永久锁死。</p>
+      </header>
+      <div id="truth-grid" class="truth-grid"></div>
+      <section class="console-card player-notes-card">
+        <header class="card-heading"><div><span>PLAYER THEORY</span><h2>玩家当前解释与未决问题</h2></div><small>自动保存</small></header>
+        <textarea id="clue-notes" rows="8" placeholder="记录玩家已经知道的事实、当前解释、来源可靠性与未决问题…"></textarea>
+      </section>
+    </section>
+
+    <section class="view-panel" id="view-handouts" data-panel="handouts" aria-labelledby="handouts-heading">
+      <header class="view-heading">
+        <div><p class="section-kicker">PLAYER SAFE DELIVERY</p><h1 id="handouts-heading">玩家资料与视觉手卡</h1></div>
+        <p>这里显示的预览就是玩家将看到的内容。守秘提示不会进入分享链接或投屏页。</p>
+      </header>
+      <div id="handout-grid" class="handout-grid"></div>
+    </section>
+
+    <section class="view-panel" id="view-log" data-panel="log" aria-labelledby="log-heading">
+      <header class="view-heading">
+        <div><p class="section-kicker">SESSION RECORD</p><h1 id="log-heading">场记与变更历史</h1></div>
+        <p>场景结算、轨道变化、手卡发放与真相公开都会写入这里；可随战役备份一起导出。</p>
+      </header>
+      <div class="log-layout">
+        <section class="console-card session-notes-card">
+          <header class="card-heading"><div><span>KEEPER NOTES</span><h2>本次场记</h2></div><small>自动保存</small></header>
+          <textarea id="session-notes" rows="14" placeholder="记录即兴人物、玩家承诺、安全工具、下次开场钩子…"></textarea>
+        </section>
+        <section class="console-card history-card">
+          <header class="card-heading"><div><span>ACTION LOG</span><h2>操作历史</h2></div><button id="clear-log" class="text-action" type="button">清空</button></header>
+          <ol id="history-list" class="history-list"></ol>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <aside class="tracker-rail" aria-label="战役状态轨道">
+    <div class="tracker-rail-head">
+      <span>CAMPAIGN STATE</span>
+      <strong>战役轨道</strong>
+      <button id="tracker-collapse" type="button" aria-expanded="true" aria-label="收起或展开战役轨道">›</button>
+    </div>
+    <div class="tracker-content" id="tracker-content">
+      <div class="loop-control"><span>当前循环</span><div><button type="button" data-loop="-1">−</button><strong id="loop-value">0</strong><button type="button" data-loop="1">＋</button></div></div>
+      <div id="tracker-list" class="tracker-list"></div>
+      <div class="seal-block">
+        <header><span>团队空白令印</span><small>点击切换状态</small></header>
+        <div id="seal-list" class="seal-list"></div>
+      </div>
+      <div class="rail-warning" id="rail-warning" hidden><strong>完整重置阈值</strong><p>世界异常已达到 6。先解除常驻契约，再用剩余空白令印锚定。</p><button id="reset-guide-button" type="button">打开重置向导</button></div>
+    </div>
+  </aside>
+
+  <nav class="mobile-nav" aria-label="移动端控制台导航">
+    <button class="active" type="button" data-view="current"><span>✦</span>当前</button>
+    <button type="button" data-view="map"><span>⌖</span>地图</button>
+    <button type="button" data-view="npcs"><span>◫</span>人物</button>
+    <button type="button" data-view="clues"><span>⌁</span>线索</button>
+    <button type="button" data-view="handouts"><span>▱</span>发放</button>
+  </nav>
+
+  <dialog class="archive-dialog scene-dialog" id="scene-dialog">
+    <div id="scene-dialog-content"></div>
+  </dialog>
+  <dialog class="archive-dialog npc-dialog" id="npc-dialog">
+    <div id="npc-dialog-content"></div>
+  </dialog>
+  <dialog class="archive-dialog handout-dialog" id="handout-dialog">
+    <div id="handout-dialog-content"></div>
+  </dialog>
+  <dialog class="archive-dialog guide-dialog" id="reset-guide-dialog">
+    <form method="dialog" class="guide-content">
+      <button class="dialog-x" value="cancel" aria-label="关闭">×</button>
+      <p class="section-kicker">FULL RESET</p>
+      <h2>完整重置向导</h2>
+      <ol>
+        <li><strong>先解除常驻契约。</strong><span>所有锁定令印转为已用；不得在解除前锚定。</span></li>
+        <li><strong>再选择锚定事实。</strong><span>每枚剩余空白令印锚定一项，最多三项。</span></li>
+        <li><strong>回到第一夜 19:35。</strong><span>玩家记忆、具体创伤与锚定事实保留，其他世界改变复原。</span></li>
+        <li><strong>用蒙太奇快进。</strong><span>只详演与上一轮发生变化的节点。</span></li>
+      </ol>
+      <button class="primary-action" id="confirm-full-reset" value="cancel" type="button">确认开始下一轮</button>
+    </form>
+  </dialog>
+
+  <div class="keeper-gate" id="keeper-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <div class="gate-card">
+      <div class="gate-art"><img src="assets/art/hero-null-grail.webp" alt="雨夜东湖市中的零之圣杯人物群像"></div>
+      <div class="gate-copy">
+        <p class="section-kicker">AUTHOR EDITION · FULL SPOILERS</p>
+        <h1 id="gate-title">守秘人控制台</h1>
+        <p>这里包含完整七日流程、人物秘密、默认余波与结局结构。玩家请使用独立的 PLAYER SAFE 页面。</p>
+        <form class="keeper-key-form" id="keeper-key-form">
+          <label for="keeper-key-input">守秘人访问密钥</label>
+          <input id="keeper-key-input" type="password" autocomplete="current-password" placeholder="输入本次战役的访问密钥" required>
+          <button class="primary-action" id="enter-keeper" type="submit">验证密钥并进入 <span>↗</span></button>
+          <small id="keeper-key-error" role="alert" hidden>密钥不正确，请向档案馆维护者确认。</small>
+        </form>
+        <div class="gate-safe-links"><a href="player.html">我是玩家，打开 PLAYER SAFE</a><a href="index.html">返回无剧透档案</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="access.js?v=20260713d"></script>
+  <script src="gm-gate.js?v=20260713d"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+.codex_work/
+.upgrade_v32/
+.tools/
+.art_refs/
+node_modules/
+.DS_Store
+Thumbs.db
+.keeper-key
+.secure-publish/
+*.bundle

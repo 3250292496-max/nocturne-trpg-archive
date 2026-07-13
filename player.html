@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d14">
+  <meta name="description" content="《零之圣杯》玩家安全视觉手卡。">
+  <title>零之圣杯 · PLAYER SAFE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="player.css?v=20260713d">
+</head>
+<body>
+  <header class="player-header">
+    <a href="index.html"><span>◇</span><strong>零之圣杯</strong></a>
+    <p>PLAYER SAFE · 玩家可见资料</p>
+    <button id="fullscreen-button" type="button">全屏展示</button>
+  </header>
+  <main class="player-stage" id="player-stage">
+    <section class="curtain" id="curtain">
+      <img src="assets/art/hero-null-grail.webp" alt="雨夜东湖市中的零之圣杯人物群像">
+      <div><span>NULL GRAIL</span><h1>等待守秘人发放资料</h1><p>此页面只显示 PLAYER SAFE 内容，不包含人物秘密、默认余波或结局答案。</p></div>
+    </section>
+    <article class="handout-view" id="handout-view" hidden>
+      <figure><img id="handout-image" alt=""></figure>
+      <div class="handout-copy">
+        <p id="handout-id">PLAYER SAFE</p>
+        <h1 id="handout-title"></h1>
+        <p class="handout-source" id="handout-source"></p>
+        <div class="gold-rule"></div>
+        <p class="handout-body" id="handout-body"></p>
+        <section class="handout-facts" id="handout-facts-section" aria-labelledby="handout-facts-label">
+          <h2 id="handout-facts-label">资料要点</h2>
+          <ul id="handout-facts"></ul>
+        </section>
+        <aside class="handout-prompt" id="handout-prompt-section">
+          <span>可操作提示</span>
+          <p id="handout-prompt"></p>
+        </aside>
+      </div>
+    </article>
+  </main>
+  <div class="projection-note" id="projection-note">投屏模式 · 守秘人发放后会自动更新</div>
+  <script src="player-data.js?v=20260713d"></script>
+  <script src="player.js?v=20260713d"></script>
+</body>
+</html>
