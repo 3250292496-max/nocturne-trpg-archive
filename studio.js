@@ -9,6 +9,7 @@
   var pendingDeleteId = null;
   var toastTimer = null;
   var staticStudioKey = 'nocturne-studio:modules:v1';
+  var rulesets = Array.isArray(window.NG_RULESETS) ? window.NG_RULESETS : [];
   var categoryLabels = { module:'模组正文', map:'地图', rules:'规则', builder:'车卡器', handouts:'玩家材料', info:'作品信息', other:'其他' };
   var audienceLabels = { player:'玩家公开', keeper:'守秘人', creator:'创作团队' };
 
@@ -25,10 +26,16 @@
 
   function staticModules() {
     var merged = {};
-    (window.NG_STATIC_MODULES || []).forEach(function (module) { if (module && module.id) merged[module.id] = clone(module); });
+    (window.NG_STATIC_MODULES || []).forEach(function (module) {
+      if (module && module.id && module.id !== 'coc7' && module.id !== 'coc7-7e') merged[module.id] = clone(module);
+    });
     try {
       var local = JSON.parse(window.localStorage.getItem(staticStudioKey) || '[]');
-      if (Array.isArray(local)) local.forEach(function (module) { if (module && module.id) merged[module.id] = module; });
+      if (Array.isArray(local)) {
+        var cleaned = local.filter(function (module) { return module && module.id !== 'coc7' && module.id !== 'coc7-7e'; });
+        if (cleaned.length !== local.length) window.localStorage.setItem(staticStudioKey, JSON.stringify(cleaned));
+        cleaned.forEach(function (module) { if (module.id) merged[module.id] = module; });
+      }
     } catch (error) {}
     return Object.keys(merged).map(function (id) { return merged[id]; });
   }
@@ -151,6 +158,21 @@
     return (currentModule.resources || []).filter(function (resource) { return resource.category === category; });
   }
   function formValue(name) { return byId('module-form').elements[name].value.trim(); }
+  function rulesetById(id) {
+    return rulesets.find(function (ruleset) { return ruleset.id === id; }) || null;
+  }
+  function rulesetLabel(id, fallback) {
+    var ruleset = rulesetById(id);
+    return ruleset ? ruleset.systemLabel : String(fallback || '').trim();
+  }
+  function populateRulesetSelects() {
+    var options = '<option value="">请选择规则系统</option>' + rulesets.map(function (ruleset) {
+      return '<option value="' + escapeHtml(ruleset.id) + '">' + escapeHtml(ruleset.title) + '</option>';
+    }).join('') + '<option value="custom">其他 / 自定义规则</option>';
+    Array.prototype.forEach.call(document.querySelectorAll('select[name="rulesetId"]'), function (select) {
+      select.innerHTML = options;
+    });
+  }
   function isInformationReady() {
     return Boolean(currentModule.title && currentModule.summary && currentModule.description && currentModule.systemLabel);
   }
@@ -226,6 +248,13 @@
     ['title','english','typeLabel','systemLabel','summary','description','players','duration','era','difficulty'].forEach(function (name) {
       if (form.elements[name]) form.elements[name].value = currentModule[name] || '';
     });
+    if (form.elements.rulesetId) {
+      var selected = currentModule.rulesetId === 'null-grail-core-d20-v2' ? 'null-grail-core-d20-v2.0' : currentModule.rulesetId || '';
+      if (!selected && currentModule.systemLabel) selected = rulesets.some(function (ruleset) { return ruleset.systemLabel === currentModule.systemLabel; })
+        ? rulesets.find(function (ruleset) { return ruleset.systemLabel === currentModule.systemLabel; }).id
+        : 'custom';
+      form.elements.rulesetId.value = selected;
+    }
     form.elements.tags.value = (currentModule.tags || []).join(', ');
     updateCounts();
     byId('publish-form').elements.status.value = currentModule.status || 'draft';
@@ -412,7 +441,8 @@
     var form = event.currentTarget;
     var button = form.querySelector('[type="submit"]');
     var payload = {
-      title:formValue('title'), english:formValue('english'), typeLabel:formValue('typeLabel'), systemLabel:formValue('systemLabel'),
+      title:formValue('title'), english:formValue('english'), typeLabel:formValue('typeLabel'),
+      rulesetId:formValue('rulesetId'), systemLabel:rulesetLabel(formValue('rulesetId'), formValue('systemLabel')),
       summary:formValue('summary'), description:formValue('description'), players:formValue('players'), duration:formValue('duration'),
       era:formValue('era'), difficulty:formValue('difficulty'),
       tags:formValue('tags').split(/[,，]/).map(function (tag) { return tag.trim(); }).filter(Boolean).slice(0, 12)
@@ -438,7 +468,11 @@
     var button = form.querySelector('[type="submit"]');
     button.disabled = true;
     message(byId('create-message'), '', false);
-    request('/api/creator/modules', { method:'POST', body:{ title:form.elements.title.value.trim(), systemLabel:form.elements.systemLabel.value.trim(), summary:form.elements.summary.value.trim() } }).then(function (payload) {
+    var selectedRuleset = form.elements.rulesetId.value.trim();
+    request('/api/creator/modules', { method:'POST', body:{
+      title:form.elements.title.value.trim(), rulesetId:selectedRuleset,
+      systemLabel:rulesetLabel(selectedRuleset, form.elements.systemLabel.value), summary:form.elements.summary.value.trim()
+    } }).then(function (payload) {
       var module = payload.module || payload;
       window.location.replace('studio.html?id=' + encodeURIComponent(module.id));
     }).catch(function (error) {
@@ -493,7 +527,7 @@
         var data = JSON.parse(reader.result);
         if (data.module && typeof data.module === 'object') data = data.module;
         var form = byId('module-form');
-        ['title','english','typeLabel','systemLabel','summary','description','players','duration','era','difficulty'].forEach(function (name) {
+        ['title','english','typeLabel','rulesetId','systemLabel','summary','description','players','duration','era','difficulty'].forEach(function (name) {
           if (data[name] !== undefined && form.elements[name]) form.elements[name].value = String(data[name]);
         });
         if (Array.isArray(data.tags)) form.elements.tags.value = data.tags.join(', ');
@@ -554,6 +588,13 @@
     byId('create-form').addEventListener('submit', createModule);
     byId('module-form').addEventListener('submit', saveMetadata);
     byId('module-form').addEventListener('input', updateCounts);
+    Array.prototype.forEach.call(document.querySelectorAll('select[name="rulesetId"]'), function (select) {
+      select.addEventListener('change', function () {
+        var form = select.form;
+        var ruleset = rulesetById(select.value);
+        if (ruleset && form && form.elements.systemLabel) form.elements.systemLabel.value = ruleset.systemLabel;
+      });
+    });
     byId('runbook-form').addEventListener('submit', saveRunbook);
     Array.prototype.forEach.call(document.querySelectorAll('[data-runbook-add]'), function (button) {
       button.addEventListener('click', function () { addRunbookItem(button.getAttribute('data-runbook-add')); });
@@ -584,6 +625,7 @@
     byId('confirm-delete').addEventListener('click', confirmDelete);
   }
 
+  populateRulesetSelects();
   bindEvents();
   if (!auth) { showGate('账号组件未能加载', '请返回模组馆刷新页面后重试。'); return; }
   auth.ready().then(function (user) {

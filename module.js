@@ -7,6 +7,10 @@
   };
   var categoryOrder = ['module', 'map', 'rules', 'builder', 'handouts', 'info', 'other'];
   var moduleId = new URL(window.location.href).searchParams.get('id') || 'null-grail';
+  if (moduleId === 'coc7' || moduleId === 'coc7-7e') {
+    window.location.replace('coc7.html?tab=rules');
+    return;
+  }
   var auth = window.NG_AUTH;
   var loadedModule = null;
   var staticStudioKey = 'nocturne-studio:modules:v1';
@@ -40,10 +44,16 @@
 
   function staticModules() {
     var merged = {};
-    (window.NG_STATIC_MODULES || []).forEach(function (module) { merged[module.id] = module; });
+    (window.NG_STATIC_MODULES || []).forEach(function (module) {
+      if (module && module.id && module.id !== 'coc7' && module.id !== 'coc7-7e') merged[module.id] = module;
+    });
     try {
       var local = JSON.parse(window.localStorage.getItem(staticStudioKey) || '[]');
-      if (Array.isArray(local)) local.forEach(function (module) { if (module && module.id) merged[module.id] = module; });
+      if (Array.isArray(local)) {
+        var cleaned = local.filter(function (module) { return module && module.id !== 'coc7' && module.id !== 'coc7-7e'; });
+        if (cleaned.length !== local.length) window.localStorage.setItem(staticStudioKey, JSON.stringify(cleaned));
+        cleaned.forEach(function (module) { if (module.id) merged[module.id] = module; });
+      }
     } catch (error) {}
     return Object.keys(merged).map(function (id) { return merged[id]; });
   }

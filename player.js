@@ -7,6 +7,8 @@
   var RULESET_ID = config.rulesetId || 'null-grail-general-v2.0';
   var CHARACTER_PROTOCOL = config.characterProtocol || 'null-grail-character-v3';
   var SESSION_KEY = 'ng-player-current-handout:v4';
+  var MAP_KEY = 'ng-player-public-map:v1';
+  var VIEW_KEY = 'ng-player-stage-view:v1';
   var CHARACTER_KEY = 'ng-player-character:v3';
   var RESULTS_KEY = 'ng-player-check-results:v2';
   var ATTRIBUTE_COSTS = [0, 1, 3, 6, 10];
@@ -55,9 +57,14 @@
   var currentHpDirty = false;
   var currentMpDirty = false;
   var currentHandoutId = null;
+  var publicMap = null;
+  var selectedMapLocationId = null;
   var mode = new URLSearchParams(location.search).get('mode');
   var curtain = document.getElementById('curtain');
   var view = document.getElementById('handout-view');
+  var mapView = document.getElementById('player-map-view');
+  var handoutTab = document.getElementById('player-handout-tab');
+  var mapTab = document.getElementById('player-map-tab');
 
   function safeText(value, maximum) { return (typeof value === 'string' ? value : '').slice(0, maximum); }
   function safeTrim(value, maximum) { return safeText(value, maximum).trim(); }
@@ -104,8 +111,127 @@
     return { id:id, title:safeText(value.title,160), day:safeText(value.day,40), image:image, source:safeText(value.source,180), factLabel:safeText(value.factLabel,80), body:safeText(value.body,2400), playerFacts:Array.isArray(value.playerFacts) ? value.playerFacts.slice(0,16).map(function (fact) { return safeText(fact,600); }) : [], playerPrompt:safeText(value.playerPrompt,1200) };
   }
 
+  function normalizeMapPayload(value) {
+    if (!value || typeof value !== 'object') return null;
+    var image = safeText(value.image, 200).replace(/\\/g, '/');
+    if (!/^assets\/art\/[a-z0-9._-]+$/i.test(image)) image = 'assets/art/eastlake-map.webp';
+    var locations = Array.isArray(value.locations) ? value.locations.slice(0, 80).map(function (rawLocation) {
+      if (!rawLocation || typeof rawLocation !== 'object') return null;
+      var id = safeText(rawLocation.id, 16).toUpperCase();
+      if (!/^[A-Z][A-Z0-9-]{0,15}$/.test(id)) return null;
+      var scenes = Array.isArray(rawLocation.scenes) ? rawLocation.scenes.slice(0, 24).map(function (rawScene) {
+        if (!rawScene || typeof rawScene !== 'object') return null;
+        var sceneId = safeText(rawScene.id, 16).toUpperCase();
+        if (!/^[A-Z][A-Z0-9-]{0,15}$/.test(sceneId)) return null;
+        var handouts = Array.isArray(rawScene.handouts) ? rawScene.handouts.slice(0, 16).map(function (rawHandout) {
+          if (!rawHandout || typeof rawHandout !== 'object') return null;
+          return { id:safeText(rawHandout.id,16).toUpperCase(), title:safeText(rawHandout.title,160) };
+        }).filter(Boolean) : [];
+        return {
+          id:sceneId,
+          title:safeText(rawScene.title,160),
+          time:safeText(rawScene.time,80),
+          visible:safeText(rawScene.visible,2400),
+          active:rawScene.active === true,
+          completed:rawScene.completed === true,
+          resultNote:safeText(rawScene.resultNote,800),
+          clues:Array.isArray(rawScene.clues) ? rawScene.clues.slice(0,20).map(function (clue) { return safeText(clue,600); }).filter(Boolean) : [],
+          handouts:handouts
+        };
+      }).filter(Boolean) : [];
+      return {
+        id:id,
+        name:safeText(rawLocation.name,160) || id,
+        shortName:safeText(rawLocation.shortName,80) || safeText(rawLocation.name,160) || id,
+        icon:safeText(rawLocation.icon,32),
+        x:clamp(rawLocation.x,0,100,50),
+        y:clamp(rawLocation.y,0,100,50),
+        pinX:clamp(rawLocation.pinX,-80,80,0),
+        pinY:clamp(rawLocation.pinY,-80,80,0),
+        summary:safeText(rawLocation.summary,2400),
+        tags:Array.isArray(rawLocation.tags) ? rawLocation.tags.slice(0,8).map(function (tag) { return safeText(tag,80); }).filter(Boolean) : [],
+        routeNote:safeText(rawLocation.routeNote,800),
+        current:rawLocation.current === true,
+        visited:rawLocation.visited === true,
+        scenes:scenes
+      };
+    }).filter(Boolean) : [];
+    var activeLocationId = safeText(value.activeLocationId,16).toUpperCase();
+    if (!locations.some(function (item) { return item.id === activeLocationId; })) activeLocationId = locations[0] && locations[0].id || null;
+    return {
+      version:integer(value.version,1,10,1),
+      title:safeText(value.title,160) || '东湖市玩家地图',
+      image:image,
+      visible:value.visible === true && locations.length > 0,
+      activeLocationId:activeLocationId,
+      updatedAt:safeText(value.updatedAt,40),
+      locations:locations
+    };
+  }
+
   function rememberHandout(payload) { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload)); } catch (error) {} }
   function forgetHandout() { try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {} }
+  function rememberMap(payload) { try { sessionStorage.setItem(MAP_KEY, JSON.stringify(payload)); } catch (error) {} }
+  function rememberView(name) { try { sessionStorage.setItem(VIEW_KEY, name); } catch (error) {} }
+
+  function mergePlayerMapPayload(value) {
+    var baseline = normalizeMapPayload(config.publicMap);
+    var projected = normalizeMapPayload(value);
+    if (!baseline) return projected;
+    if (!projected) return baseline;
+    var projectedById = {};
+    projected.locations.forEach(function (locationItem) { projectedById[locationItem.id] = locationItem; });
+    var locations = baseline.locations.map(function (baseLocation) {
+      var update = projectedById[baseLocation.id];
+      if (!update) return baseLocation;
+      delete projectedById[baseLocation.id];
+      return Object.assign({}, baseLocation, update, {
+        name:update.name || baseLocation.name,
+        shortName:update.shortName || baseLocation.shortName,
+        summary:update.summary || baseLocation.summary,
+        tags:update.tags.length ? update.tags : baseLocation.tags,
+        routeNote:update.routeNote || baseLocation.routeNote,
+        scenes:update.scenes
+      });
+    });
+    projected.locations.forEach(function (locationItem) {
+      if (projectedById[locationItem.id]) locations.push(locationItem);
+    });
+    var hasProjection = projected.locations.length > 0;
+    return normalizeMapPayload({
+      version:Math.max(baseline.version, projected.version),
+      title:hasProjection ? projected.title : baseline.title,
+      image:projected.image || baseline.image,
+      visible:true,
+      activeLocationId:hasProjection ? projected.activeLocationId : baseline.activeLocationId,
+      updatedAt:projected.updatedAt,
+      locations:locations
+    });
+  }
+
+  function requestPlayerView(name) {
+    document.body.setAttribute('data-projection-view', name);
+    if (!document.body.classList.contains('clue-journal-open')) showPlayerView(name);
+  }
+
+  function showPlayerView(name) {
+    var hasHandout = Boolean(currentHandoutId);
+    var hasMap = Boolean(publicMap && publicMap.visible && publicMap.locations.length);
+    if (name === 'handout' && !hasHandout) name = hasMap ? 'map' : 'curtain';
+    if (name === 'map' && !hasMap) name = hasHandout ? 'handout' : 'curtain';
+    curtain.hidden = name !== 'curtain';
+    view.hidden = name !== 'handout';
+    mapView.hidden = name !== 'map';
+    handoutTab.disabled = !hasHandout;
+    mapTab.disabled = !hasMap;
+    handoutTab.classList.toggle('active', name === 'handout');
+    mapTab.classList.toggle('active', name === 'map');
+    if (name === 'handout') document.title = (document.getElementById('handout-title').textContent || '当前资料') + ' · 零之圣杯';
+    if (name === 'map') document.title = (publicMap.title || '东湖市互动地图') + ' · 零之圣杯';
+    if (name === 'curtain') document.title = '零之圣杯 · PLAYER SAFE';
+    document.body.setAttribute('data-projection-view', name);
+    rememberView(name);
+  }
 
   function showHandout(rawPayload) {
     var item = normalizePayload(rawPayload);
@@ -126,19 +252,70 @@
     var promptSection = document.getElementById('handout-prompt-section');
     document.getElementById('handout-prompt').textContent = item.playerPrompt;
     promptSection.hidden = !item.playerPrompt;
-    curtain.hidden = true;
-    view.hidden = false;
-    document.title = item.title + ' · 零之圣杯';
     rememberHandout(item);
+    handoutTab.disabled = false;
+    requestPlayerView('handout');
     return true;
   }
 
   function showCurtain() {
     currentHandoutId = null;
-    view.hidden = true;
-    curtain.hidden = false;
-    document.title = '零之圣杯 · PLAYER SAFE';
     forgetHandout();
+    handoutTab.disabled = true;
+    requestPlayerView('curtain');
+  }
+
+  function mapLocation(id) { return publicMap && publicMap.locations.find(function (item) { return item.id === id; }) || null; }
+  function locationClueCount(locationItem) { return (locationItem.scenes || []).reduce(function (total, scene) { return total + scene.clues.length; }, 0); }
+
+  function showMapLocation(id) {
+    var locationItem = mapLocation(id);
+    if (!locationItem) return;
+    selectedMapLocationId = id;
+    var detail = document.getElementById('player-map-detail');
+    var tags = locationItem.tags.map(function (tag) { return '<span>' + escapeHtml(tag) + '</span>'; }).join('');
+    var scenes = locationItem.scenes.map(function (scene) {
+      var clues = scene.clues.length ? '<ul class="player-map-clues">' + scene.clues.map(function (clue) { return '<li>' + escapeHtml(clue) + '</li>'; }).join('') + '</ul>' : '';
+      var handouts = scene.handouts.length ? '<p>已发资料：' + scene.handouts.map(function (item) { return escapeHtml(item.id + ' · ' + item.title); }).join('；') + '</p>' : '';
+      var result = scene.resultNote ? '<p><strong>公开结算：</strong>' + escapeHtml(scene.resultNote) + '</p>' : '';
+      return '<article class="player-map-scene' + (scene.active ? ' active' : '') + (scene.completed ? ' completed' : '') + '"><header><h3>' + escapeHtml(scene.id + ' · ' + scene.title) + '</h3><time>' + escapeHtml(scene.time) + '</time></header><p>' + escapeHtml(scene.visible) + '</p>' + clues + handouts + result + '</article>';
+    }).join('');
+    detail.innerHTML = '<p>PLAYER MAP · ' + escapeHtml(locationItem.id) + '</p><h2>' + escapeHtml(locationItem.name) + '</h2><span class="player-map-detail-copy">' + escapeHtml(locationItem.summary || '守秘人尚未公开更多地点说明。') + '</span>' + (tags ? '<div class="player-map-tags">' + tags + '</div>' : '') + (locationItem.routeNote ? '<div class="player-route-note"><strong>公开路线提示</strong><br>' + escapeHtml(locationItem.routeNote) + '</div>' : '') + (scenes ? '<section class="player-map-scenes"><header><span>已公开场景</span><b>' + locationItem.scenes.length + ' 个</b></header>' + scenes + '</section>' : '<div class="player-map-empty">地点已经标上地图；场景内容尚未投送。你仍可以用此标记讨论路线和行动目标。</div>');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-player-map-location]'), function (button) {
+      var selected = button.getAttribute('data-player-map-location') === id;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+  }
+
+  function renderPlayerMap(payload, focusLocationId, openMap) {
+    publicMap = normalizeMapPayload(payload);
+    if (!publicMap) return false;
+    rememberMap(publicMap);
+    var locationCount = publicMap.locations.length;
+    var clueCount = publicMap.locations.reduce(function (total, locationItem) { return total + locationClueCount(locationItem); }, 0);
+    document.getElementById('player-map-title').textContent = publicMap.title;
+    document.getElementById('player-map-image').src = publicMap.image;
+    document.getElementById('player-map-location-count').textContent = String(locationCount);
+    document.getElementById('player-map-clue-count').textContent = String(clueCount);
+    document.getElementById('player-map-summary').textContent = locationCount ? '公共地点始终可浏览；守秘人投送后会追加剧情地点、公开场景与已取得线索。点击文字标记查看详情。' : '等待守秘人投送地点标记。';
+    document.getElementById('player-map-hotspots').innerHTML = publicMap.locations.map(function (locationItem) {
+      var style = 'left:' + locationItem.x + '%;top:' + locationItem.y + '%;--pin-x:' + locationItem.pinX + 'px;--pin-y:' + locationItem.pinY + 'px';
+      var sceneCount = locationItem.scenes.length;
+      var clues = locationClueCount(locationItem);
+      return '<button class="player-map-hotspot' + (locationItem.current ? ' current' : '') + (locationItem.visited ? ' visited' : '') + '" type="button" style="' + style + '" data-player-map-location="' + locationItem.id + '" aria-label="' + escapeHtml(locationItem.name) + '，' + sceneCount + ' 个公开场景，' + clues + ' 条线索" aria-pressed="false"><span class="player-map-pin">' + escapeHtml(locationItem.id) + '</span><strong>' + escapeHtml(locationItem.shortName) + '</strong><small>' + sceneCount + ' 场景 · ' + clues + ' 线索</small></button>';
+    }).join('');
+    document.getElementById('player-map-list').innerHTML = publicMap.locations.map(function (locationItem) {
+      return '<button type="button" data-player-map-location="' + locationItem.id + '" aria-pressed="false"><span>' + escapeHtml(locationItem.name) + '</span><small>' + locationItem.scenes.length + ' 场景／' + locationClueCount(locationItem) + ' 线索</small></button>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-player-map-location]'), function (button) { button.addEventListener('click', function () { showMapLocation(button.getAttribute('data-player-map-location')); }); });
+    selectedMapLocationId = mapLocation(focusLocationId) ? focusLocationId : mapLocation(selectedMapLocationId) ? selectedMapLocationId : publicMap.activeLocationId;
+    if (selectedMapLocationId) showMapLocation(selectedMapLocationId);
+    else document.getElementById('player-map-detail').innerHTML = '<p>MAP EMPTY</p><h2>尚无已公开地点</h2><span>守秘人投送地图、地点或场景后，这里会出现可点击文字标记。</span>';
+    handoutTab.disabled = !currentHandoutId;
+    mapTab.disabled = !publicMap.visible;
+    if (openMap === true && publicMap.visible) requestPlayerView('map');
+    return true;
   }
 
   function identityRule(type) {
@@ -1088,6 +1265,10 @@
     return false;
   }
 
+  function sendReadyToKeeper() {
+    return sendToKeeper({ type:'ready', mode:mode || 'player', characterId:character && character.id });
+  }
+
   function normalizeResult(raw) {
     if (!raw || typeof raw !== 'object') return null;
     var id = safeText(raw.id,80);
@@ -1115,10 +1296,17 @@
 
   function handleMessage(message) {
     if (!message || typeof message !== 'object') return;
-    if (message.protocol && message.protocol !== MESSAGE_PROTOCOL) return;
+    if (message.protocol !== MESSAGE_PROTOCOL) return;
+    if (message.type === 'keeper-ready') { sendReadyToKeeper(); return; }
     if (message.type === 'show' && message.handout) showHandout(message.handout);
+    if (message.type === 'map-state' && message.map) renderPlayerMap(mergePlayerMapPayload(message.map), safeText(message.focusLocationId,16).toUpperCase(), message.openMap === true);
     if (message.type === 'curtain') showCurtain();
-    if (message.type === 'retract' && String(message.handoutId || '').toUpperCase() === currentHandoutId) showCurtain();
+    if (message.type === 'retract' && String(message.handoutId || '').toUpperCase() === currentHandoutId) {
+      currentHandoutId = null;
+      forgetHandout();
+      handoutTab.disabled = true;
+      requestPlayerView(publicMap && publicMap.visible ? 'map' : 'curtain');
+    }
     if (message.type === 'character-ack' && character && message.characterId === character.id && (!pendingSubmissionId || message.submissionId === pendingSubmissionId)) { showSync(message.accepted ? '守秘人已确认 v2.0 角色卡' : '守秘人未接收这份角色卡'); if (message.submissionId === pendingSubmissionId) pendingSubmissionId = null; }
     if (message.type === 'check-ack' && character && message.characterId === character.id) showSync('守秘人已收到判定申请');
     if (message.type === 'check-result') { var result = normalizeResult(message.result); if (result && (result.targetCharacterId === 'all' || character && result.targetCharacterId === character.id) && !results.some(function (item) { return item.id === result.id; })) { results.unshift(result); results = results.slice(0,50); rememberResults(); renderResults(); showSync('已收到判定结果：' + result.tierLabel); } }
@@ -1212,11 +1400,447 @@
   });
   document.getElementById('player-clear-results').addEventListener('click', function () { results = []; rememberResults(); renderResults(); });
 
-  try { channel = new BroadcastChannel(CHANNEL_NAME); channel.onmessage = function (event) { handleMessage(event.data); }; channel.postMessage({ protocol:MESSAGE_PROTOCOL,type:'ready',mode:mode || 'player',characterId:character && character.id }); } catch (error) { channel = null; }
+  try { channel = new BroadcastChannel(CHANNEL_NAME); channel.onmessage = function (event) { handleMessage(event.data); }; } catch (error) { channel = null; }
+  sendReadyToKeeper();
   window.addEventListener('message', function (event) { if (event.origin === window.location.origin) handleMessage(event.data); });
-  try { var restored = JSON.parse(sessionStorage.getItem(SESSION_KEY) || sessionStorage.getItem('ng-player-current-handout:v3') || 'null'); if (!showHandout(restored)) showCurtain(); } catch (error) { showCurtain(); }
+  window.addEventListener('ng-player-view-request', function (event) {
+    var requestedView = safeText(event && event.detail, 16);
+    if (requestedView === 'curtain' || requestedView === 'handout' || requestedView === 'map') showPlayerView(requestedView);
+  });
+  handoutTab.addEventListener('click', function () { showPlayerView('handout'); });
+  mapTab.addEventListener('click', function () { showPlayerView('map'); });
+  document.getElementById('player-map-open').addEventListener('click', function () { showPlayerView('map'); });
+  var restoredMap = null;
+  try {
+    restoredMap = JSON.parse(sessionStorage.getItem(MAP_KEY) || 'null');
+    if (restoredMap) renderPlayerMap(mergePlayerMapPayload(restoredMap), restoredMap.activeLocationId, false);
+  } catch (error) { publicMap = null; }
+  if (!publicMap && config.publicMap) renderPlayerMap(config.publicMap, config.publicMap.activeLocationId, false);
+  var restoredHandout = false;
+  try { restoredHandout = showHandout(JSON.parse(sessionStorage.getItem(SESSION_KEY) || sessionStorage.getItem('ng-player-current-handout:v3') || 'null')); } catch (error) { restoredHandout = false; }
+  var restoredView = '';
+  try { restoredView = sessionStorage.getItem(VIEW_KEY) || ''; } catch (error) {}
+  if (restoredView === 'map' && publicMap && publicMap.visible) showPlayerView('map');
+  else if (!restoredHandout) showPlayerView(restoredView === 'curtain' ? 'curtain' : publicMap && publicMap.visible ? 'map' : 'curtain');
   if (mode === 'projection') document.body.classList.add('projection-mode');
   else if (mode === 'builder') { document.body.classList.add('builder-mode'); document.getElementById('projection-note').hidden = true; document.title = '零之圣杯 v2.0 · 傻瓜车卡'; }
   else document.getElementById('projection-note').hidden = true;
   document.getElementById('fullscreen-button').addEventListener('click', function () { if (!document.fullscreenElement) { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); } else if (document.exitFullscreen) document.exitFullscreen(); });
 }());
+
+/* PLAYER CLUE JOURNAL START
+ * Player-owned local notes. This block intentionally has no dependency on the
+ * keeper projection channel or map payload, and renders imported text with
+ * textContent only.
+ */
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'ng-player-clue-journal:v1';
+  var JOURNAL_PROTOCOL = 'null-grail-clue-journal-v1';
+  var MAX_ENTRIES = 300;
+  var FIELD_LIMITS = { fact:2400, interpretation:2400, sourceReliability:1200, unresolved:2400 };
+  var journalTab = document.getElementById('player-clue-journal-tab');
+  var journalView = document.getElementById('clue-journal-view');
+  var journalForm = document.getElementById('clue-journal-form');
+  var journalList = document.getElementById('clue-journal-list');
+  var journalCount = document.getElementById('clue-journal-count');
+  var journalStatus = document.getElementById('clue-journal-status');
+  var journalFile = document.getElementById('clue-journal-file');
+  var factField = document.getElementById('clue-known-fact');
+  var interpretationField = document.getElementById('clue-player-interpretation');
+  var sourceField = document.getElementById('clue-source-reliability');
+  var unresolvedField = document.getElementById('clue-unresolved-question');
+  var formTitle = document.getElementById('clue-journal-form-title');
+  var cancelButton = document.getElementById('clue-journal-cancel');
+  var editingId = '';
+  var storageWarning = '';
+  var entries = [];
+  var journalReturnView = 'curtain';
+
+  if (!journalTab || !journalView || !journalForm || !journalList) return;
+
+  function makeJournalId() {
+    var randomPart = '';
+    try { randomPart = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID().replace(/-/g, '').slice(0, 12) : ''; } catch (error) {}
+    if (!randomPart) randomPart = Math.random().toString(36).slice(2, 14);
+    return 'clue-' + Date.now().toString(36) + '-' + randomPart;
+  }
+
+  function fieldText(value, maximum) {
+    if (Array.isArray(value)) value = value.map(function (item) { return typeof item === 'string' || typeof item === 'number' ? String(item) : ''; }).filter(Boolean).join('\n');
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') return '';
+    return String(value).replace(/\u0000/g, '').replace(/\r\n?/g, '\n').trim().slice(0, maximum);
+  }
+
+  function ownValue(raw, names) {
+    for (var index = 0; index < names.length; index += 1) {
+      if (Object.prototype.hasOwnProperty.call(raw, names[index]) && raw[names[index]] !== undefined && raw[names[index]] !== null) return raw[names[index]];
+    }
+    return '';
+  }
+
+  function safeIso(value, fallback) {
+    var text = fieldText(value, 40);
+    var date = new Date(text);
+    return text && !Number.isNaN(date.getTime()) ? date.toISOString() : fallback;
+  }
+
+  function normalizeJournalEntry(raw) {
+    if (typeof raw === 'string') raw = { fact:raw };
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    var fact = fieldText(ownValue(raw, ['fact', 'knownFact', 'known', 'knownFacts', '已知事实']), FIELD_LIMITS.fact);
+    var interpretation = fieldText(ownValue(raw, ['interpretation', 'playerInterpretation', 'theory', 'meaning', '玩家解释']), FIELD_LIMITS.interpretation);
+    var sourceReliability = fieldText(ownValue(raw, ['sourceReliability', 'sourceAndReliability', 'evidence', '来源与可靠度']), FIELD_LIMITS.sourceReliability);
+    if (!sourceReliability) {
+      var source = fieldText(ownValue(raw, ['source', '来源']), 800);
+      var reliability = fieldText(ownValue(raw, ['reliability', 'confidence', '可靠度']), 380);
+      sourceReliability = [source, reliability].filter(Boolean).join(' · ').slice(0, FIELD_LIMITS.sourceReliability);
+    }
+    var unresolved = fieldText(ownValue(raw, ['unresolved', 'unresolvedQuestion', 'unresolvedQuestions', 'question', 'openQuestion', '尚未解决问题']), FIELD_LIMITS.unresolved);
+    if (!fact && !interpretation && !sourceReliability && !unresolved) return null;
+    var now = new Date().toISOString();
+    var rawId = fieldText(raw.id, 90);
+    var id = /^[a-z0-9][a-z0-9_-]{0,89}$/i.test(rawId) ? rawId : makeJournalId();
+    var createdAt = safeIso(raw.createdAt, now);
+    return {
+      id:id,
+      fact:fact,
+      interpretation:interpretation,
+      sourceReliability:sourceReliability,
+      unresolved:unresolved,
+      createdAt:createdAt,
+      updatedAt:safeIso(raw.updatedAt, createdAt)
+    };
+  }
+
+  function extractJournalEntries(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (!payload || typeof payload !== 'object') return null;
+    if (Array.isArray(payload.entries)) return payload.entries;
+    if (Array.isArray(payload.clues)) return payload.clues;
+    if (Array.isArray(payload.journal)) return payload.journal;
+    if (payload.journal && Array.isArray(payload.journal.entries)) return payload.journal.entries;
+    if (payload.clueJournal && Array.isArray(payload.clueJournal.entries)) return payload.clueJournal.entries;
+    if (ownValue(payload, ['fact', 'knownFact', 'known', 'knownFacts', '已知事实'])) return [payload];
+    return null;
+  }
+
+  function uniqueNormalized(rawEntries) {
+    var ids = {};
+    return (rawEntries || []).slice(0, MAX_ENTRIES).map(normalizeJournalEntry).filter(Boolean).map(function (entry) {
+      while (ids[entry.id]) entry.id = makeJournalId();
+      ids[entry.id] = true;
+      return entry;
+    });
+  }
+
+  function readJournal() {
+    try {
+      var parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (!parsed) return [];
+      var rawEntries = extractJournalEntries(parsed);
+      if (!rawEntries) throw new Error('schema');
+      return uniqueNormalized(rawEntries);
+    } catch (error) {
+      storageWarning = '本机线索日志无法读取；已打开空白日志，保存前请先导出旧数据备份。';
+      return [];
+    }
+  }
+
+  function journalPayload() {
+    return {
+      protocol:JOURNAL_PROTOCOL,
+      version:1,
+      updatedAt:new Date().toISOString(),
+      fields:['fact', 'interpretation', 'sourceReliability', 'unresolved'],
+      entries:entries.map(function (entry) {
+        return {
+          id:entry.id,
+          fact:entry.fact,
+          interpretation:entry.interpretation,
+          sourceReliability:entry.sourceReliability,
+          unresolved:entry.unresolved,
+          createdAt:entry.createdAt,
+          updatedAt:entry.updatedAt
+        };
+      })
+    };
+  }
+
+  function saveJournal() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(journalPayload()));
+      storageWarning = '';
+      return true;
+    } catch (error) {
+      storageWarning = '浏览器拒绝保存线索日志。请立即导出 JSON，并检查隐私模式或站点存储空间。';
+      return false;
+    }
+  }
+
+  function setJournalStatus(message, isError) {
+    journalStatus.textContent = message;
+    journalStatus.classList.toggle('error', Boolean(isError));
+  }
+
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function fieldDefinition(label, value) {
+    var wrapper = document.createElement('div');
+    var term = document.createElement('dt');
+    var description = document.createElement('dd');
+    term.textContent = label;
+    description.textContent = value || '（未填写）';
+    if (!value) description.classList.add('clue-journal-blank');
+    wrapper.appendChild(term);
+    wrapper.appendChild(description);
+    return wrapper;
+  }
+
+  function formatJournalTime(value) {
+    try { return new Date(value).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); }
+    catch (error) { return '时间未知'; }
+  }
+
+  function renderJournal() {
+    clearNode(journalList);
+    journalCount.textContent = entries.length + ' 条';
+    if (!entries.length) {
+      var empty = document.createElement('p');
+      empty.className = 'clue-journal-empty';
+      empty.textContent = '还没有线索。先记录一个已经确认的事实，再把解释、来源可靠度和待解决问题分开写下。';
+      journalList.appendChild(empty);
+      return;
+    }
+    entries.forEach(function (entry, index) {
+      var article = document.createElement('article');
+      var heading = document.createElement('header');
+      var number = document.createElement('strong');
+      var time = document.createElement('time');
+      var fields = document.createElement('dl');
+      var actions = document.createElement('footer');
+      var edit = document.createElement('button');
+      var remove = document.createElement('button');
+      article.className = 'clue-journal-entry';
+      number.textContent = '线索 ' + String(index + 1).padStart(2, '0');
+      time.dateTime = entry.updatedAt;
+      time.textContent = '更新于 ' + formatJournalTime(entry.updatedAt);
+      heading.appendChild(number);
+      heading.appendChild(time);
+      fields.className = 'clue-journal-entry-fields';
+      fields.appendChild(fieldDefinition('已知事实', entry.fact));
+      fields.appendChild(fieldDefinition('玩家解释', entry.interpretation));
+      fields.appendChild(fieldDefinition('来源与可靠度', entry.sourceReliability));
+      fields.appendChild(fieldDefinition('尚未解决问题', entry.unresolved));
+      actions.className = 'clue-journal-entry-actions';
+      edit.type = 'button';
+      edit.dataset.action = 'edit';
+      edit.dataset.entryId = entry.id;
+      edit.textContent = '编辑';
+      remove.type = 'button';
+      remove.dataset.action = 'delete';
+      remove.dataset.entryId = entry.id;
+      remove.textContent = '删除';
+      actions.appendChild(edit);
+      actions.appendChild(remove);
+      article.appendChild(heading);
+      article.appendChild(fields);
+      article.appendChild(actions);
+      journalList.appendChild(article);
+    });
+  }
+
+  function resetJournalEditor(announce) {
+    editingId = '';
+    journalForm.reset();
+    formTitle.textContent = '新增一条线索';
+    cancelButton.hidden = true;
+    journalForm.querySelector('[type="submit"]').textContent = '保存线索';
+    if (announce) setJournalStatus('已取消编辑；日志内容没有改变。', false);
+  }
+
+  function beginJournalEdit(id) {
+    var entry = entries.find(function (item) { return item.id === id; });
+    if (!entry) return;
+    editingId = id;
+    factField.value = entry.fact;
+    interpretationField.value = entry.interpretation;
+    sourceField.value = entry.sourceReliability;
+    unresolvedField.value = entry.unresolved;
+    formTitle.textContent = '编辑线索';
+    cancelButton.hidden = false;
+    journalForm.querySelector('[type="submit"]').textContent = '保存修改';
+    journalForm.scrollIntoView({ behavior:'smooth', block:'start' });
+    factField.focus({ preventScroll:true });
+    setJournalStatus('正在编辑一条本机线索；保存后会更新原记录。', false);
+  }
+
+  function fingerprint(entry) {
+    return [entry.fact, entry.interpretation, entry.sourceReliability, entry.unresolved].map(function (value) { return value.trim().toLocaleLowerCase(); }).join('\u001f');
+  }
+
+  function importJournalPayload(payload) {
+    var rawEntries = extractJournalEntries(payload);
+    if (!rawEntries) throw new Error('schema');
+    var imported = uniqueNormalized(rawEntries);
+    if (!imported.length) throw new Error('empty');
+    var fingerprints = {};
+    var ids = {};
+    entries.forEach(function (entry) { fingerprints[fingerprint(entry)] = true; ids[entry.id] = true; });
+    var additions = [];
+    var skipped = 0;
+    imported.forEach(function (entry) {
+      var key = fingerprint(entry);
+      if (fingerprints[key]) { skipped += 1; return; }
+      while (ids[entry.id]) entry.id = makeJournalId();
+      if (entries.length + additions.length >= MAX_ENTRIES) { skipped += 1; return; }
+      fingerprints[key] = true;
+      ids[entry.id] = true;
+      additions.push(entry);
+    });
+    entries = additions.concat(entries).slice(0, MAX_ENTRIES);
+    resetJournalEditor(false);
+    var saved = saveJournal();
+    renderJournal();
+    setJournalStatus('已合并 ' + additions.length + ' 条线索；跳过 ' + skipped + ' 条重复或超出上限的记录。', !saved);
+  }
+
+  function openJournalView() {
+    journalReturnView = !document.getElementById('handout-view').hidden ? 'handout' : !document.getElementById('player-map-view').hidden ? 'map' : 'curtain';
+    document.getElementById('curtain').hidden = true;
+    document.getElementById('handout-view').hidden = true;
+    document.getElementById('player-map-view').hidden = true;
+    journalView.hidden = false;
+    journalTab.classList.add('active');
+    journalTab.setAttribute('aria-pressed', 'true');
+    document.getElementById('player-handout-tab').classList.remove('active');
+    document.getElementById('player-map-tab').classList.remove('active');
+    document.body.classList.add('clue-journal-open');
+    document.title = '玩家线索日志 · 零之圣杯';
+    if (storageWarning) setJournalStatus(storageWarning, true);
+  }
+
+  function closeJournalView() {
+    journalView.hidden = true;
+    journalTab.classList.remove('active');
+    journalTab.setAttribute('aria-pressed', 'false');
+    document.body.classList.remove('clue-journal-open');
+  }
+
+  function restoreProjectionView() {
+    var requestedView = document.body.getAttribute('data-projection-view') || journalReturnView;
+    closeJournalView();
+    window.dispatchEvent(new CustomEvent('ng-player-view-request', { detail:requestedView }));
+  }
+
+  entries = readJournal();
+  renderJournal();
+  if (storageWarning) setJournalStatus(storageWarning, true);
+
+  journalTab.setAttribute('aria-pressed', 'false');
+  journalTab.addEventListener('click', function () { if (journalView.hidden) openJournalView(); else restoreProjectionView(); });
+  document.getElementById('player-handout-tab').addEventListener('click', closeJournalView);
+  document.getElementById('player-map-tab').addEventListener('click', closeJournalView);
+  document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !journalView.hidden) restoreProjectionView(); });
+  cancelButton.addEventListener('click', function () { resetJournalEditor(true); });
+
+  journalForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var fact = fieldText(factField.value, FIELD_LIMITS.fact);
+    if (!fact) {
+      setJournalStatus('请先填写“已知事实”。推测可以留在“玩家解释”一栏。', true);
+      factField.focus();
+      return;
+    }
+    var now = new Date().toISOString();
+    var existing = entries.find(function (entry) { return entry.id === editingId; });
+    var next = {
+      id:existing ? existing.id : makeJournalId(),
+      fact:fact,
+      interpretation:fieldText(interpretationField.value, FIELD_LIMITS.interpretation),
+      sourceReliability:fieldText(sourceField.value, FIELD_LIMITS.sourceReliability),
+      unresolved:fieldText(unresolvedField.value, FIELD_LIMITS.unresolved),
+      createdAt:existing ? existing.createdAt : now,
+      updatedAt:now
+    };
+    if (existing) entries = entries.map(function (entry) { return entry.id === existing.id ? next : entry; });
+    else entries.unshift(next);
+    entries = entries.slice(0, MAX_ENTRIES);
+    var wasEditing = Boolean(existing);
+    resetJournalEditor(false);
+    var saved = saveJournal();
+    renderJournal();
+    setJournalStatus(saved ? (wasEditing ? '线索修改已保存到本机。' : '新线索已保存到本机。') : storageWarning, !saved);
+  });
+
+  journalList.addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-action][data-entry-id]');
+    if (!button || !journalList.contains(button)) return;
+    var id = button.dataset.entryId;
+    if (button.dataset.action === 'edit') { beginJournalEdit(id); return; }
+    if (button.dataset.action !== 'delete' || !window.confirm('确定删除这条线索吗？此操作只影响本机日志。')) return;
+    entries = entries.filter(function (entry) { return entry.id !== id; });
+    if (editingId === id) resetJournalEditor(false);
+    var saved = saveJournal();
+    renderJournal();
+    setJournalStatus(saved ? '线索已从本机日志删除。' : storageWarning, !saved);
+  });
+
+  document.getElementById('clue-journal-export').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(journalPayload(), null, 2)], { type:'application/json' });
+    var link = document.createElement('a');
+    var url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = '零之圣杯-玩家线索日志-' + new Date().toISOString().slice(0, 10) + '.json';
+    link.hidden = true;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+    setJournalStatus('已导出 ' + entries.length + ' 条线索；JSON 可在其他浏览器中导入并合并。', false);
+  });
+
+  document.getElementById('clue-journal-import').addEventListener('click', function () { journalFile.click(); });
+  journalFile.addEventListener('change', function (event) {
+    var file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (file.size > 2097152) {
+      setJournalStatus('线索日志 JSON 超过 2 MB，已拒绝导入。', true);
+      event.target.value = '';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      try { importJournalPayload(JSON.parse(String(reader.result || ''))); }
+      catch (error) { setJournalStatus('无法导入：请选择本功能导出的 JSON，或包含 entries／clues／journal 数组的兼容 JSON。', true); }
+    };
+    reader.onerror = function () { setJournalStatus('浏览器无法读取这个文件，请重新选择。', true); };
+    reader.readAsText(file);
+    event.target.value = '';
+  });
+
+  window.addEventListener('storage', function (event) {
+    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    try {
+      var rawEntries = extractJournalEntries(JSON.parse(event.newValue));
+      if (!rawEntries) return;
+      entries = uniqueNormalized(rawEntries);
+      resetJournalEditor(false);
+      renderJournal();
+      setJournalStatus('已同步本浏览器另一标签页中的线索修改。', false);
+    } catch (error) {}
+  });
+
+  var projectionViews = [document.getElementById('curtain'), document.getElementById('handout-view'), document.getElementById('player-map-view')];
+  if (window.MutationObserver) {
+    var viewObserver = new MutationObserver(function (records) {
+      if (journalView.hidden) return;
+      if (records.some(function (record) { return record.target.hidden === false; })) closeJournalView();
+    });
+    projectionViews.forEach(function (element) { viewObserver.observe(element, { attributes:true, attributeFilter:['hidden'] }); });
+  }
+}());
+/* PLAYER CLUE JOURNAL END */

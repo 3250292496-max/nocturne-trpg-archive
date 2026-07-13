@@ -8,12 +8,14 @@
     english: 'NULL GRAIL',
     summary: '七日轮回的圣杯战争里，你们是系统无法命名的空白变量。',
     description: '东湖市跨年夜，天空像玻璃一样裂开。规则书、零门槛站内车卡、进阶 Excel 车卡、玩家手册、公开资料与地图共同组成这份可直接开团的完整作品档案。',
-    systemLabel: 'Fate/FGO 同人 · 通用圣杯战争规则 · 轻量 d20',
+    systems: ['fate', 'agnostic'],
+    rulesetId: 'null-grail-core-d20-v2.0',
+    systemLabel: '《零之圣杯》通用圣杯战争规则 v2.0 · 轻量 d20',
     type: 'campaign',
     typeLabel: '完整长篇战役模组',
-    players: '3–5 人',
-    duration: '6–10 次团',
-    era: '架空现代',
+    players: '3–5 人（4 人最佳）',
+    duration: '标准 8 次 × 3–4 小时',
+    era: '2018 年末 · 架空现代东湖市',
     difficulty: '进阶',
     tone: 'gold',
     accent: '#d1ad6c',
@@ -58,8 +60,8 @@
       },
       {
         id: 'cross-index-v3-2',
-        title: '统一规则与跨册索引 v3.2',
-        category: 'rules', audience: 'player', fileName: '《零之圣杯》统一规则与跨册索引（v3.2）.docx',
+        title: '四册统一编排与跨册索引 v3.2（非规则版本）',
+        category: 'info', audience: 'player', fileName: '《零之圣杯》统一规则与跨册索引（v3.2）.docx',
         mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 45549,
         href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》统一规则与跨册索引（v3.2）.docx'
       },
@@ -77,6 +79,27 @@
         mime: 'image/webp', size: 435302, href: 'assets/art/eastlake-map.webp'
       }
     ]
+  }];
+
+  // Rulesets are selectable dependencies for modules. They are not module
+  // records and must never inherit a module owner's authorship or badge.
+  window.NG_RULESETS = [{
+    id: 'null-grail-core-d20-v2.0',
+    title: '《零之圣杯》通用圣杯战争规则 v2.0',
+    shortTitle: '零之圣杯 · 通用规则 v2.0',
+    systemLabel: '《零之圣杯》通用圣杯战争规则 v2.0 · 轻量 d20',
+    description: '《零之圣杯》主模组采用的可选轻量 d20 规则系统，含站内车卡与配套资源。',
+    href: 'module.html?id=null-grail',
+    builderHref: 'player.html?mode=builder'
+  }, {
+    id: 'coc7-7e',
+    title: '克苏鲁的呼唤 第七版',
+    shortTitle: 'COC 7th',
+    systemLabel: 'Call of Cthulhu · 第七版 · 百分骰',
+    description: '独立可选规则与站内工具，不是本站模组；规则作者与权利信息以 Chaosium 官方资料及所持版本版权页为准。',
+    href: 'coc7.html?tab=rules',
+    builderHref: 'coc7.html?tab=builder',
+    combatHref: 'combat.html'
   }];
 
   window.NG_SITE_TOOLS = [{

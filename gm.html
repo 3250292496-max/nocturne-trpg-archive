@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="gm.css?v=20260713k">
+  <link rel="stylesheet" href="gm.css?v=20260713n">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -97,6 +97,50 @@
           <div id="pending-handouts" class="pending-list"></div>
         </section>
       </div>
+
+      <section class="session-audit" id="session-audit" aria-labelledby="session-audit-heading">
+        <header class="session-audit-heading">
+          <div><p class="section-kicker">KEEPER RUN AUDIT</p><h2 id="session-audit-heading">主持运行审计</h2></div>
+          <p>把阵营推进、联盟条件、碎片偏转、终局原话与每次投送后的误读留在同一份自动保存的战役状态中。</p>
+        </header>
+
+        <div class="session-audit-grid">
+          <section class="console-card audit-card audit-factions" aria-labelledby="audit-factions-heading">
+            <header class="card-heading"><div><span>FACTION CLOCKS · 0—4</span><h3 id="audit-factions-heading">四个阵营钟</h3></div></header>
+            <div id="audit-faction-clocks" class="audit-clock-list"></div>
+          </section>
+
+          <section class="console-card audit-card audit-alliances" aria-labelledby="audit-alliances-heading">
+            <header class="card-heading"><div><span>FOUR PROMISES</span><h3 id="audit-alliances-heading">联盟承诺</h3></div></header>
+            <div id="audit-alliance-promises" class="audit-promise-list"></div>
+          </section>
+
+          <section class="console-card audit-card audit-fragments" aria-labelledby="audit-fragments-heading">
+            <header class="card-heading"><div><span>FRAGMENT CUSTODY</span><h3 id="audit-fragments-heading">三类碎片审计</h3></div></header>
+            <div id="audit-fragment-list" class="audit-fragment-list"></div>
+          </section>
+
+          <section class="console-card audit-card audit-consent" aria-labelledby="audit-consent-heading">
+            <header class="card-heading"><div><span>FINALE CONSENT</span><h3 id="audit-consent-heading">终局同意审计</h3></div></header>
+            <p class="audit-consent-warning"><strong>不可用检定替代。</strong>田乃与茂必须分别听见完整方案，并分别保留同意、加条件、拒绝、暂停或撤回的权利。</p>
+            <div id="audit-consent-list" class="audit-consent-list"></div>
+          </section>
+
+          <section class="console-card audit-card audit-delivery" aria-labelledby="audit-delivery-heading">
+            <header class="card-heading"><div><span>DELIVERY FOLLOW-UP</span><h3 id="audit-delivery-heading">投送跟进日志</h3></div><span id="audit-delivery-count" class="audit-count">0 条</span></header>
+            <form id="audit-delivery-form" class="audit-delivery-form">
+              <label><span>手卡</span><input id="audit-delivery-handout" type="text" list="audit-handout-options" maxlength="120" placeholder="H01 · 手卡标题" required></label>
+              <datalist id="audit-handout-options"></datalist>
+              <label><span>投送时间</span><input id="audit-delivery-time" type="datetime-local" required></label>
+              <label><span>投送对象</span><input id="audit-delivery-target" type="text" maxlength="120" placeholder="全体／角色／小组" required></label>
+              <label class="audit-field-wide"><span>玩家误读／遗漏</span><textarea id="audit-delivery-misread" rows="2" maxlength="600" placeholder="没有误读也可写“已确认理解”。"></textarea></label>
+              <label class="audit-field-wide"><span>GM 跟进</span><textarea id="audit-delivery-follow-up" rows="2" maxlength="600" placeholder="下一次澄清、补卡、场景内验证或待观察事项。"></textarea></label>
+              <button class="soft-action audit-add-delivery" type="submit">新增跟进记录</button>
+            </form>
+            <div id="audit-delivery-log" class="audit-delivery-log"></div>
+          </section>
+        </div>
+      </section>
     </section>
 
     <section class="view-panel" id="view-timeline" data-panel="timeline" aria-labelledby="timeline-heading">
@@ -111,10 +155,16 @@
     <section class="view-panel" id="view-map" data-panel="map" aria-labelledby="map-heading">
       <header class="view-heading compact-heading">
         <div><p class="section-kicker">EASTLAKE · INTERACTIVE ATLAS</p><h1 id="map-heading">东湖市完整地图</h1></div>
-        <div class="map-filter" role="group" aria-label="地图地点筛选">
-          <button class="active" type="button" data-map-filter="all">全部</button>
-          <button type="button" data-map-filter="today">当前日</button>
-          <button type="button" data-map-filter="danger">高危</button>
+        <div class="map-heading-actions">
+          <div class="map-filter" role="group" aria-label="地图地点筛选">
+            <button class="active" type="button" data-map-filter="all">全部</button>
+            <button type="button" data-map-filter="today">当前日</button>
+            <button type="button" data-map-filter="danger">高危</button>
+          </div>
+          <div class="map-broadcast-actions" role="group" aria-label="玩家地图投送">
+            <button id="publish-today-map" type="button">投送今日地点与场景</button>
+            <button id="sync-player-map" type="button">重发玩家地图</button>
+          </div>
         </div>
       </header>
       <div class="map-layout">
@@ -126,7 +176,7 @@
         <aside class="map-drawer" id="map-drawer" aria-live="polite">
           <p class="drawer-code">选择地图热点</p>
           <h2>地点情报</h2>
-          <p>点击地图上的标记，查看场景入口、相关人物、可得线索与忽视后的风险。</p>
+          <p>点击地图标记查看主持资料。地点、场景和逐条公开的线索只有在投送后才会进入玩家地图；守秘人目标与失败余波绝不会随地图发送。</p>
         </aside>
       </div>
       <details class="location-list-fallback">
@@ -141,8 +191,8 @@
         <label class="compact-search"><span class="sr-only">搜索人物</span><input id="npc-search" type="search" placeholder="搜索姓名、身份或当前位置…"></label>
       </header>
       <div class="npc-filter" role="group" aria-label="人物类型筛选">
-        <button class="active" type="button" data-npc-filter="all">全部 22</button>
-        <button type="button" data-npc-filter="human">人物 15</button>
+        <button class="active" type="button" data-npc-filter="all">全部 31</button>
+        <button type="button" data-npc-filter="human">人物／群体 24</button>
         <button type="button" data-npc-filter="servant">英灵 7</button>
         <button type="button" data-npc-filter="today">今日在场</button>
       </div>

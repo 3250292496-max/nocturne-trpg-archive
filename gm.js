@@ -5,7 +5,7 @@
   if (!data) return;
 
   var STORAGE_KEY = 'ng-session:null-grail-v3.2';
-  var STATE_SCHEMA_VERSION = 5;
+  var STATE_SCHEMA_VERSION = 8;
   var playerData = window.NG_PLAYER_DATA || {};
   var RULESET_ID = playerData.rulesetId || data.rulesetId || 'null-grail-core-d20-v2.0';
   var coc7 = window.COC7_CORE || null;
@@ -18,7 +18,7 @@
   var skills = Array.isArray(playerData.skills) ? playerData.skills : [];
   var difficulties = Array.isArray(playerData.difficulties) ? playerData.difficulties : [];
   var resultBands = Array.isArray(playerData.resultBands) ? playerData.resultBands : [];
-  var LEGACY_RULESET_IDS = ['null-grail-v3.2-light-d20'];
+  var LEGACY_RULESET_IDS = ['null-grail-core-d20-v2','null-grail-v3.2-light-d20'];
   var LEGACY_CHARACTER_PROTOCOLS = ['null-grail-character-v1','null-grail-character-v2'];
   var LEGACY_COLLECTION_PROTOCOLS = ['null-grail-character-collection-v1','null-grail-character-collection-v2'];
   var LEGACY_CHECK_PROTOCOLS = ['null-grail-check-v1'];
@@ -35,18 +35,39 @@
   var playerWindows = [];
   var messageOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
   var allowedSealStates = ['blank','used','anchored','locked'];
+  var AUDIT_ALLIANCE_STATES = [
+    { id:'unspoken', label:'未谈' },
+    { id:'conditional', label:'有条件' },
+    { id:'confirmed', label:'确认' },
+    { id:'withdrawn', label:'撤回' }
+  ];
+  var AUDIT_FRAGMENT_WILLINGNESS = [
+    { id:'unasked', label:'未询问' },
+    { id:'refused', label:'拒绝' },
+    { id:'hesitant', label:'犹豫' },
+    { id:'conditional', label:'有条件' },
+    { id:'willing', label:'愿意交付' },
+    { id:'delivered', label:'已交付' }
+  ];
+  var AUDIT_CONSENT_STATES = [
+    { id:'unasked', label:'未询问' },
+    { id:'conditional', label:'犹豫／有条件' },
+    { id:'consented', label:'明确同意' },
+    { id:'refused', label:'明确拒绝' },
+    { id:'withdrawn', label:'已撤回' }
+  ];
 
   try {
     channel = new BroadcastChannel(CHANNEL_NAME);
     channel.onmessage = function (event) {
       var message = event.data;
       if (!message || typeof message !== 'object') return;
-      if (message.protocol && message.protocol !== MESSAGE_PROTOCOL) return;
+      if (message.protocol !== MESSAGE_PROTOCOL) return;
       if (message.type === 'ready') {
-        sendPlayerMessage({ type:'keeper-ready', mode:message.mode || '' });
         sendPlayerMessage(lastPlayerPayload
           ? { type:'show', handout:lastPlayerPayload }
           : { type:'curtain' });
+        sendPlayerMapState({ openMap:state.playerProjection === 'map' });
         var readyCharacterId = normalizeId(message.characterId, 'pc', false);
         var latestResult = state && state.checkHistory.find(function (result) {
           return result.targetCharacterId === 'all' || (readyCharacterId && result.targetCharacterId === readyCharacterId);
@@ -58,6 +79,30 @@
       if (message.type === 'check-request') receiveCheckRequest(message.request);
     };
   } catch (error) { channel = null; }
+
+  function freshSessionAudit() {
+    return {
+      factionClocks: [
+        { id:'faction-1', name:'川风家', value:0 },
+        { id:'faction-2', name:'大目／龙之助', value:0 },
+        { id:'faction-3', name:'久保观测计划', value:0 },
+        { id:'faction-4', name:'城市恐慌', value:0 }
+      ],
+      alliancePromises: ['莱茵', '阿罗德', '久保', '茂'].map(function (target, index) {
+        return { id:'alliance-' + (index + 1), target:target, promise:'', status:'unspoken' };
+      }),
+      fragments: [
+        { id:'theory', label:'理论碎片', holder:'', leaning:'', willingness:'unasked' },
+        { id:'memory', label:'记忆碎片', holder:'', leaning:'', willingness:'unasked' },
+        { id:'observation', label:'观测碎片', holder:'', leaning:'', willingness:'unasked' }
+      ],
+      finaleConsent: {
+        tano:{ status:'unasked', quote:'' },
+        shigeru:{ status:'unasked', quote:'' }
+      },
+      deliveryFollowUps: []
+    };
+  }
 
   function freshState() {
     return {
@@ -78,12 +123,18 @@
       resetHistory: [],
       anchoredFacts: [],
       sceneClues: {},
+      sceneClockProgress: {},
+      sceneSideObjectives: {},
+      sceneAssignments: {},
       revealedHandouts: [],
       activeHandoutId: null,
+      playerProjection: 'curtain',
+      publicMap: { visible:false, activeLocationId:null, locationIds:[], sceneIds:[], updatedAt:'' },
       knownTruthSources: {},
       visitedLocations: [],
       npcLocations: {},
       conflictClocks: { goal:0, threat:0, goalLabel:'玩家目标', threatLabel:'敌方／环境威胁' },
+      sessionAudit: freshSessionAudit(),
       roster: [],
       combatScenes: [],
       activeCombatId: null,
@@ -109,6 +160,98 @@
   function safeText(value, maximum) {
     var text = typeof value === 'string' ? value : '';
     return text.replace(/\u0000/g, '').trim().slice(0, maximum);
+  }
+
+  function auditStatus(value, definitions, fallback) {
+    return definitions.some(function (item) { return item.id === value; }) ? value : fallback;
+  }
+
+  function normalizeSessionAudit(raw) {
+    var source = raw && typeof raw === 'object' ? raw : {};
+    var base = freshSessionAudit();
+    var factionSource = Array.isArray(source.factionClocks) ? source.factionClocks : [];
+    var allianceSource = Array.isArray(source.alliancePromises) ? source.alliancePromises : [];
+    var fragmentSource = Array.isArray(source.fragments) ? source.fragments : [];
+    var consentSource = source.finaleConsent && typeof source.finaleConsent === 'object' ? source.finaleConsent : {};
+
+    var factions = base.factionClocks.map(function (fallback, index) {
+      var item = factionSource[index] && typeof factionSource[index] === 'object' ? factionSource[index] : {};
+      return {
+        id:fallback.id,
+        name:safeText(item.name, 80) || fallback.name,
+        value:clampInteger(item.value, 0, 4, 0)
+      };
+    });
+    var alliances = base.alliancePromises.map(function (fallback, index) {
+      var item = allianceSource[index] && typeof allianceSource[index] === 'object' ? allianceSource[index] : {};
+      return {
+        id:fallback.id,
+        target:safeText(item.target, 120),
+        promise:safeText(item.promise, 500),
+        status:auditStatus(item.status, AUDIT_ALLIANCE_STATES, 'unspoken')
+      };
+    });
+    var fragments = base.fragments.map(function (fallback, index) {
+      var item = fragmentSource.find(function (candidate) { return candidate && candidate.id === fallback.id; }) || fragmentSource[index] || {};
+      return {
+        id:fallback.id,
+        label:fallback.label,
+        holder:safeText(item.holder, 120),
+        leaning:safeText(item.leaning, 300),
+        willingness:auditStatus(item.willingness, AUDIT_FRAGMENT_WILLINGNESS, 'unasked')
+      };
+    });
+    function normalizeConsent(person) {
+      var item = consentSource[person] && typeof consentSource[person] === 'object' ? consentSource[person] : {};
+      return {
+        status:auditStatus(item.status, AUDIT_CONSENT_STATES, 'unasked'),
+        quote:safeText(item.quote, 1000)
+      };
+    }
+    var deliveries = (Array.isArray(source.deliveryFollowUps) ? source.deliveryFollowUps : []).map(function (item) {
+      if (!item || typeof item !== 'object') return null;
+      var handout = safeText(item.handout, 120);
+      var target = safeText(item.target, 120);
+      if (!handout || !target) return null;
+      return {
+        id:normalizeId(item.id, 'delivery', true),
+        handout:handout,
+        deliveredAt:safeText(item.deliveredAt, 40),
+        target:target,
+        misread:safeText(item.misread, 600),
+        followUp:safeText(item.followUp, 600)
+      };
+    }).filter(Boolean).slice(0, 120);
+
+    return {
+      factionClocks:factions,
+      alliancePromises:alliances,
+      fragments:fragments,
+      finaleConsent:{ tano:normalizeConsent('tano'), shigeru:normalizeConsent('shigeru') },
+      deliveryFollowUps:deliveries
+    };
+  }
+
+  function normalizeSceneRunbookState(rawClocks, rawObjectives, rawAssignments) {
+    var clocks = {};
+    var objectives = {};
+    var assignments = {};
+    var clockSource = rawClocks && typeof rawClocks === 'object' ? rawClocks : {};
+    var objectiveSource = rawObjectives && typeof rawObjectives === 'object' ? rawObjectives : {};
+    var assignmentSource = rawAssignments && typeof rawAssignments === 'object' ? rawAssignments : {};
+    data.scenes.forEach(function (scene) {
+      var sceneClocks = Array.isArray(scene.clocks) ? scene.clocks : [];
+      if (sceneClocks.length) {
+        var supplied = clockSource[scene.id] && typeof clockSource[scene.id] === 'object' ? clockSource[scene.id] : {};
+        clocks[scene.id] = {};
+        sceneClocks.forEach(function (clock) { clocks[scene.id][clock.id] = clampInteger(supplied[clock.id], 0, Number(clock.max) || 4, 0); });
+      }
+      var validObjectives = (Array.isArray(scene.sideObjectives) ? scene.sideObjectives : []).map(function (item) { return item.id; });
+      if (validObjectives.length) objectives[scene.id] = (Array.isArray(objectiveSource[scene.id]) ? objectiveSource[scene.id] : []).filter(function (id, index, list) { return validObjectives.indexOf(id) !== -1 && list.indexOf(id) === index; });
+      var assignmentCount = Array.isArray(scene.allyAssignments) ? scene.allyAssignments.length : 0;
+      if (assignmentCount) assignments[scene.id] = (Array.isArray(assignmentSource[scene.id]) ? assignmentSource[scene.id] : []).map(Number).filter(function (index, at, list) { return Number.isInteger(index) && index >= 0 && index < assignmentCount && list.indexOf(index) === at; });
+    });
+    return { clocks:clocks, objectives:objectives, assignments:assignments };
   }
 
   function createId(prefix) {
@@ -477,9 +620,24 @@
     migrated.knownTruthSources = Object.assign({}, source.knownTruthSources || {});
     migrated.npcLocations = Object.assign({}, source.npcLocations || {});
     migrated.sceneResults = Object.assign({}, source.sceneResults || {});
+    var runbookState = normalizeSceneRunbookState(source.sceneClockProgress, source.sceneSideObjectives, source.sceneAssignments);
+    migrated.sceneClockProgress = runbookState.clocks;
+    migrated.sceneSideObjectives = runbookState.objectives;
+    migrated.sceneAssignments = runbookState.assignments;
+    var sourcePublicMap = source.publicMap && typeof source.publicMap === 'object' ? source.publicMap : {};
+    migrated.publicMap = {
+      visible:sourcePublicMap.visible === true,
+      activeLocationId:safeText(sourcePublicMap.activeLocationId, 16) || null,
+      locationIds:Array.isArray(sourcePublicMap.locationIds) ? sourcePublicMap.locationIds.map(function (id) { return safeText(id, 16); }).filter(function (id, index, list) { return byId(data.locations, id) && list.indexOf(id) === index; }) : [],
+      sceneIds:Array.isArray(sourcePublicMap.sceneIds) ? sourcePublicMap.sceneIds.map(function (id) { return safeText(id, 16); }).filter(function (id, index, list) { return byId(data.scenes, id) && list.indexOf(id) === index; }) : [],
+      updatedAt:safeText(sourcePublicMap.updatedAt, 40)
+    };
+    if (migrated.publicMap.activeLocationId && migrated.publicMap.locationIds.indexOf(migrated.publicMap.activeLocationId) === -1) migrated.publicMap.activeLocationId = null;
+    migrated.playerProjection = ['curtain','handout','map'].indexOf(source.playerProjection) !== -1 ? source.playerProjection : (source.activeHandoutId ? 'handout' : migrated.publicMap.visible ? 'map' : 'curtain');
     migrated.conflictClocks = Object.assign({}, base.conflictClocks, source.conflictClocks || {});
     migrated.conflictClocks.goal = clampNumber(migrated.conflictClocks.goal, 0, 4, 0);
     migrated.conflictClocks.threat = clampNumber(migrated.conflictClocks.threat, 0, 4, 0);
+    migrated.sessionAudit = normalizeSessionAudit(source.sessionAudit);
     migrated.seals = Array.isArray(source.seals) ? source.seals.slice(0, 3) : base.seals.slice();
     while (migrated.seals.length < 3) migrated.seals.push('blank');
     migrated.seals = migrated.seals.map(function (seal) { return allowedSealStates.indexOf(seal) !== -1 ? seal : 'used'; });
@@ -542,8 +700,123 @@
     };
   }
 
+  function publicMapPayload() {
+    var publishedLocations = state.publicMap && Array.isArray(state.publicMap.locationIds) ? state.publicMap.locationIds : [];
+    var publishedScenes = state.publicMap && Array.isArray(state.publicMap.sceneIds) ? state.publicMap.sceneIds : [];
+    return {
+      version:1,
+      title:'东湖市玩家地图',
+      image:'assets/art/eastlake-map.webp',
+      visible:Boolean(state.publicMap && state.publicMap.visible),
+      activeLocationId:state.publicMap && state.publicMap.activeLocationId || null,
+      updatedAt:state.publicMap && state.publicMap.updatedAt || '',
+      locations:data.locations.filter(function (loc) { return publishedLocations.indexOf(loc.id) !== -1; }).map(function (loc) {
+        var publicLocationName = safeText(loc.publicName, 160) || ('已公开地点 ' + loc.id);
+        var scenes = data.scenes.filter(function (scene) { return scene.location === loc.id && publishedScenes.indexOf(scene.id) !== -1; }).map(function (scene) {
+          var revealed = state.sceneClues[scene.id] || [];
+          var result = state.sceneResults[scene.id] || null;
+          var publicTitle = safeText(scene.publicTitle || scene.playerTitle, 160) || (publicLocationName + ' · 已公开现场');
+          var publicTime = safeText(scene.publicTime || scene.playerTime, 80) || (state.activeSceneId === scene.id ? '进行中' : state.completedScenes.indexOf(scene.id) !== -1 ? '已结束' : '时间待公开');
+          return {
+            id:scene.id,
+            title:publicTitle,
+            time:publicTime,
+            visible:scene.visible,
+            active:state.activeSceneId === scene.id,
+            completed:state.completedScenes.indexOf(scene.id) !== -1,
+            resultNote:result && result.note || '',
+            clues:scene.clues.filter(function (clue, index) { return revealed.indexOf(index) !== -1; }),
+            handouts:scene.handouts.filter(function (id) { return state.revealedHandouts.indexOf(id) !== -1; }).map(function (id) {
+              var item = byId(data.handouts, id);
+              return item ? { id:item.id, title:item.title } : null;
+            }).filter(Boolean)
+          };
+        });
+        return {
+          id:loc.id,
+          name:publicLocationName,
+          shortName:safeText(loc.shortName, 80) || publicLocationName,
+          icon:loc.icon || 'plaza',
+          x:loc.x,
+          y:loc.y,
+          pinX:loc.pinX || 0,
+          pinY:loc.pinY || 0,
+          summary:loc.visible || '',
+          tags:Array.isArray(loc.playerTags) ? loc.playerTags.slice(0, 6) : [],
+          routeNote:loc.routeNote || '',
+          current:Boolean(state.publicMap && state.publicMap.activeLocationId === loc.id),
+          visited:state.visitedLocations.indexOf(loc.id) !== -1,
+          scenes:scenes
+        };
+      })
+    };
+  }
+
+  function sendPlayerMapState(options) {
+    options = options || {};
+    sendPlayerMessage({
+      type:'map-state',
+      map:publicMapPayload(),
+      focusLocationId:options.focusLocationId || state.publicMap && state.publicMap.activeLocationId || null,
+      openMap:options.openMap === true
+    });
+  }
+
+  function publishLocationOnDraft(draft, id) {
+    if (!byId(data.locations, id)) return;
+    if (!draft.publicMap || typeof draft.publicMap !== 'object') draft.publicMap = { visible:false, activeLocationId:null, locationIds:[], sceneIds:[], updatedAt:'' };
+    if (!Array.isArray(draft.publicMap.locationIds)) draft.publicMap.locationIds = [];
+    if (!Array.isArray(draft.publicMap.sceneIds)) draft.publicMap.sceneIds = [];
+    if (draft.publicMap.locationIds.indexOf(id) === -1) draft.publicMap.locationIds.push(id);
+    draft.publicMap.visible = true;
+    draft.publicMap.activeLocationId = id;
+    draft.publicMap.updatedAt = new Date().toISOString();
+  }
+
+  function publishSceneOnDraft(draft, scene) {
+    if (!scene) return;
+    publishLocationOnDraft(draft, scene.location);
+    if (draft.publicMap.sceneIds.indexOf(scene.id) === -1) draft.publicMap.sceneIds.push(scene.id);
+  }
+
+  function publishLocation(id, includeSceneIds, label) {
+    var loc = byId(data.locations, id);
+    if (!loc) return;
+    includeSceneIds = Array.isArray(includeSceneIds) ? includeSceneIds : [];
+    commit(label || '投送玩家地图地点：' + (loc.publicName || loc.name), function (draft) {
+      publishLocationOnDraft(draft, id);
+      includeSceneIds.forEach(function (sceneId) { publishSceneOnDraft(draft, byId(data.scenes, sceneId)); });
+      draft.playerProjection = 'map';
+    });
+    sendPlayerMapState({ focusLocationId:id, openMap:true });
+  }
+
+  function publishScene(scene, label) {
+    if (!scene) return;
+    commit(label || '投送玩家地图场景 ' + scene.id + '：' + scene.title, function (draft) {
+      publishSceneOnDraft(draft, scene);
+      draft.playerProjection = 'map';
+    });
+    sendPlayerMapState({ focusLocationId:scene.location, openMap:true });
+  }
+
+  function retractLocationFromPlayers(id) {
+    var loc = byId(data.locations, id);
+    if (!loc || !state.publicMap || state.publicMap.locationIds.indexOf(id) === -1) { showToast('该地点尚未投送到玩家地图'); return; }
+    commit('从玩家地图撤回地点：' + (loc.publicName || loc.name), function (draft) {
+      draft.publicMap.locationIds = draft.publicMap.locationIds.filter(function (item) { return item !== id; });
+      draft.publicMap.sceneIds = draft.publicMap.sceneIds.filter(function (sceneId) { var scene = byId(data.scenes, sceneId); return scene && scene.location !== id; });
+      if (draft.publicMap.activeLocationId === id) draft.publicMap.activeLocationId = draft.publicMap.locationIds[0] || null;
+      draft.publicMap.visible = draft.publicMap.locationIds.length > 0;
+      draft.publicMap.updatedAt = new Date().toISOString();
+      if (!draft.publicMap.visible) draft.playerProjection = 'curtain';
+    });
+    sendPlayerMapState({ openMap:state.publicMap.visible });
+    if (!state.publicMap.visible) sendPlayerMessage({ type:'curtain' });
+  }
+
   function sendPlayerMessage(message) {
-    message = Object.assign({ protocol:MESSAGE_PROTOCOL }, message || {});
+    message = Object.assign({}, message || {}, { protocol:MESSAGE_PROTOCOL });
     if (channel) channel.postMessage(message);
     playerWindows = playerWindows.filter(function (playerWindow) {
       if (!playerWindow || playerWindow.closed) return false;
@@ -566,6 +839,7 @@
             playerWindow.postMessage(lastPlayerPayload
               ? { protocol:MESSAGE_PROTOCOL, type:'show', handout:lastPlayerPayload }
               : { protocol:MESSAGE_PROTOCOL, type:'curtain' }, messageOrigin);
+            playerWindow.postMessage({ protocol:MESSAGE_PROTOCOL, type:'map-state', map:publicMapPayload(), focusLocationId:state.publicMap.activeLocationId, openMap:state.playerProjection === 'map' }, messageOrigin);
           } catch (error) {}
         }
       }, delay);
@@ -725,6 +999,74 @@
     document.querySelectorAll('#view-current [data-handout]').forEach(function (button) { button.addEventListener('click', function () { openHandout(button.getAttribute('data-handout')); }); });
   }
 
+  function auditSelectOptions(definitions, selected) {
+    return definitions.map(function (item) {
+      return '<option value="' + escapeHtml(item.id) + '"' + (item.id === selected ? ' selected' : '') + '>' + escapeHtml(item.label) + '</option>';
+    }).join('');
+  }
+
+  function auditClockSegments(value) {
+    var segments = '';
+    for (var index = 1; index <= 4; index += 1) segments += '<i' + (index <= value ? ' class="filled"' : '') + '></i>';
+    return segments;
+  }
+
+  function localAuditDateTime() {
+    var now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  }
+
+  function renderSessionAudit() {
+    var audit = state.sessionAudit;
+    document.getElementById('audit-faction-clocks').innerHTML = audit.factionClocks.map(function (clock, index) {
+      return '<div class="audit-clock-row">' +
+        '<label class="audit-clock-name"><span>阵营名称</span><input type="text" maxlength="80" value="' + escapeHtml(clock.name) + '" data-audit-faction-index="' + index + '" data-audit-field="name" aria-label="第 ' + (index + 1) + ' 个阵营名称"></label>' +
+        '<div class="audit-clock-control"><button type="button" data-audit-clock-index="' + index + '" data-audit-clock-delta="-1" aria-label="' + escapeHtml(clock.name) + '时钟减一">−</button><span class="audit-clock-segments" aria-hidden="true">' + auditClockSegments(clock.value) + '</span><button type="button" data-audit-clock-index="' + index + '" data-audit-clock-delta="1" aria-label="' + escapeHtml(clock.name) + '时钟加一">＋</button></div>' +
+        '<strong class="audit-clock-value" aria-label="当前 ' + clock.value + ' 格">' + clock.value + '/4</strong>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('audit-alliance-promises').innerHTML = audit.alliancePromises.map(function (promise, index) {
+      return '<div class="audit-promise-row">' +
+        '<label><span>对象</span><input type="text" maxlength="120" value="' + escapeHtml(promise.target) + '" placeholder="人物／阵营" data-audit-alliance-index="' + index + '" data-audit-field="target"></label>' +
+        '<label><span>承诺</span><input type="text" maxlength="500" value="' + escapeHtml(promise.promise) + '" placeholder="交换条件、责任与撤回方式" data-audit-alliance-index="' + index + '" data-audit-field="promise"></label>' +
+        '<label><span>状态</span><select data-audit-alliance-index="' + index + '" data-audit-field="status">' + auditSelectOptions(AUDIT_ALLIANCE_STATES, promise.status) + '</select></label>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('audit-fragment-list').innerHTML = audit.fragments.map(function (fragment, index) {
+      return '<div class="audit-fragment-row"><strong>' + escapeHtml(fragment.label) + '</strong><div class="audit-fragment-fields">' +
+        '<label><span>持有人</span><input type="text" maxlength="120" value="' + escapeHtml(fragment.holder) + '" placeholder="当前保管者" data-audit-fragment-index="' + index + '" data-audit-field="holder"></label>' +
+        '<label><span>偏向</span><input type="text" maxlength="300" value="' + escapeHtml(fragment.leaning) + '" placeholder="这份证据最可能把方案推向哪里" data-audit-fragment-index="' + index + '" data-audit-field="leaning"></label>' +
+        '<label><span>交付意愿</span><select data-audit-fragment-index="' + index + '" data-audit-field="willingness">' + auditSelectOptions(AUDIT_FRAGMENT_WILLINGNESS, fragment.willingness) + '</select></label>' +
+      '</div></div>';
+    }).join('');
+
+    var consentPeople = [
+      { id:'tano', label:'田乃' },
+      { id:'shigeru', label:'茂' }
+    ];
+    document.getElementById('audit-consent-list').innerHTML = consentPeople.map(function (person) {
+      var consent = audit.finaleConsent[person.id];
+      return '<div class="audit-consent-row"><strong>' + person.label + '</strong>' +
+        '<label><span>当前状态</span><select data-audit-consent-person="' + person.id + '" data-audit-field="status">' + auditSelectOptions(AUDIT_CONSENT_STATES, consent.status) + '</select></label>' +
+        '<label><span>当事人原话／条件</span><textarea rows="3" maxlength="1000" placeholder="逐字记录；不要改写成检定结果。" data-audit-consent-person="' + person.id + '" data-audit-field="quote">' + escapeHtml(consent.quote) + '</textarea></label>' +
+      '</div>';
+    }).join('');
+
+    var deliveries = audit.deliveryFollowUps;
+    document.getElementById('audit-delivery-count').textContent = deliveries.length + ' 条';
+    document.getElementById('audit-delivery-log').innerHTML = deliveries.length ? deliveries.map(function (entry) {
+      return '<article class="audit-delivery-entry">' +
+        '<div class="audit-delivery-meta"><strong>' + escapeHtml(entry.handout) + '</strong><span>' + escapeHtml(entry.deliveredAt ? entry.deliveredAt.replace('T', ' ') : '未记录时间') + ' · ' + escapeHtml(entry.target) + '</span></div>' +
+        '<div class="audit-delivery-notes"><div><b>玩家误读／遗漏</b><p>' + escapeHtml(entry.misread || '已确认理解／尚待观察') + '</p></div><div><b>GM 跟进</b><p>' + escapeHtml(entry.followUp || '尚未填写跟进') + '</p></div></div>' +
+        '<button class="audit-delete-delivery" type="button" data-audit-delete-delivery="' + escapeHtml(entry.id) + '">删除</button>' +
+      '</article>';
+    }).join('') : '<p class="audit-delivery-empty">尚无投送跟进记录。每次关键手卡发放后，补记对象、误读和下一步。</p>';
+    var timeInput = document.getElementById('audit-delivery-time');
+    if (timeInput && !timeInput.value) timeInput.value = localAuditDateTime();
+  }
+
   function renderTimeline() {
     document.getElementById('timeline-list').innerHTML = data.days.map(function (day) {
       var scenes = dayScenes(day);
@@ -788,14 +1130,16 @@
       var isToday = todayLocations.indexOf(loc.id) !== -1;
       var visited = state.visitedLocations.indexOf(loc.id) !== -1;
       var selected = selectedLocationId === loc.id;
+      var published = state.publicMap.locationIds.indexOf(loc.id) !== -1;
       var hidden = (mapFilter === 'today' && !isToday) || (mapFilter === 'danger' && loc.riskLevel < 3);
       var style = 'left:' + loc.x + '%;top:' + loc.y + '%;--pin-x:' + (loc.pinX || 0) + 'px;--pin-y:' + (loc.pinY || 0) + 'px';
-      return '<button class="map-hotspot risk-' + loc.riskLevel + (isToday ? ' today' : '') + (visited ? ' visited' : '') + (selected ? ' active' : '') + '" type="button" style="' + style + '" data-location="' + loc.id + '" data-tooltip="' + escapeHtml(loc.name) + '" aria-label="' + escapeHtml(loc.name) + '，' + riskLabel(loc.riskLevel) + '" aria-pressed="' + String(selected) + '"' + (hidden ? ' hidden' : '') + '>' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.shortName || loc.name) + '</span></button>';
+      return '<button class="map-hotspot risk-' + loc.riskLevel + (isToday ? ' today' : '') + (visited ? ' visited' : '') + (published ? ' player-published' : '') + (selected ? ' active' : '') + '" type="button" style="' + style + '" data-location="' + loc.id + '" data-tooltip="' + escapeHtml(loc.name) + (published ? ' · 已投送玩家' : '') + '" aria-label="' + escapeHtml(loc.name) + '，' + riskLabel(loc.riskLevel) + (published ? '，已投送玩家' : '') + '" aria-pressed="' + String(selected) + '"' + (hidden ? ' hidden' : '') + '>' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.shortName || loc.name) + '</span></button>';
     }).join('');
     document.getElementById('map-hotspots').innerHTML = hotspots;
     document.getElementById('location-list').innerHTML = data.locations.map(function (loc) {
       var selected = selectedLocationId === loc.id;
-      return '<button class="' + (selected ? 'active' : '') + '" type="button" data-location="' + loc.id + '" aria-pressed="' + String(selected) + '">' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.name) + '</span><small>' + riskLabel(loc.riskLevel) + ' · 第' + loc.unlockDay + '日</small></button>';
+      var published = state.publicMap.locationIds.indexOf(loc.id) !== -1;
+      return '<button class="' + (selected ? 'active' : '') + '" type="button" data-location="' + loc.id + '" aria-pressed="' + String(selected) + '">' + mapIconSvg(loc.icon) + '<span>' + escapeHtml(loc.name) + '</span><small>' + (published ? '玩家已见 · ' : '') + riskLabel(loc.riskLevel) + ' · 第' + loc.unlockDay + '日</small></button>';
     }).join('');
     document.querySelectorAll('#map-hotspots [data-location], #location-list [data-location]').forEach(function (button) {
       button.addEventListener('click', function () { showLocation(button.getAttribute('data-location'), { scroll:true }); });
@@ -818,11 +1162,13 @@
     selectedLocationId = id;
     var drawer = document.getElementById('map-drawer');
     var unlocked = currentDay().index >= loc.unlockDay;
+    var locationPublished = state.publicMap.locationIds.indexOf(id) !== -1;
     var sceneCards = loc.sceneIds.map(function (sceneId) {
       var scene = byId(data.scenes, sceneId);
       if (!scene) return '';
       var day = byId(data.days, scene.day);
       var status = sceneStatus(scene);
+      var scenePublished = state.publicMap.sceneIds.indexOf(scene.id) !== -1;
       var revealed = state.sceneClues[scene.id] || [];
       var clues = scene.clues.map(function (clue, index) {
         return '<li class="' + (revealed.indexOf(index) !== -1 ? 'revealed' : '') + '"><i>' + (revealed.indexOf(index) !== -1 ? '✓' : String(index + 1)) + '</i><span>' + escapeHtml(clue) + '</span></li>';
@@ -835,7 +1181,7 @@
         var item = byId(data.handouts, handoutId);
         return item ? '<button type="button" data-handout="' + handoutId + '">' + handoutId + ' · ' + escapeHtml(item.title) + '</button>' : '';
       }).join('');
-      return '<article class="location-scene-card ' + status.className + '"><header><div><span>' + scene.id + '</span><h3>' + escapeHtml(scene.title) + '</h3></div><b>' + status.label + '</b></header>' +
+      return '<article class="location-scene-card ' + status.className + (scenePublished ? ' player-published' : '') + '"><header><div><span>' + scene.id + '</span><h3>' + escapeHtml(scene.title) + '</h3></div><b>' + (scenePublished ? '玩家已见' : status.label) + '</b></header>' +
         '<div class="location-scene-trigger"><span>建议触发</span><strong>' + escapeHtml(day ? day.date : scene.day) + ' · ' + escapeHtml(scene.time) + '</strong></div>' +
         '<section class="location-readaloud"><span>开场朗读</span><p>' + escapeHtml(scene.visible) + '</p></section>' +
         '<section><span>守秘人目标</span><p>' + escapeHtml(scene.objective) + '</p></section>' +
@@ -843,14 +1189,26 @@
         '<section><span>可得线索</span><ul class="location-clues">' + clues + '</ul></section>' +
         '<section><span>在场人物</span><div class="location-link-buttons">' + (npcButtons || '<em>无固定人物</em>') + '</div></section>' +
         '<section><span>关联手卡</span><div class="location-link-buttons">' + (handoutButtons || '<em>无独立手卡</em>') + '</div></section>' +
-        '<button class="location-scene-button" type="button" data-scene="' + scene.id + '">打开完整场景并操作线索 <span>↗</span></button></article>';
+        '<div class="location-scene-actions"><button class="location-scene-button" type="button" data-scene="' + scene.id + '">打开完整场景 <span>↗</span></button><button class="location-scene-publish' + (scenePublished ? ' published' : '') + '" type="button" data-publish-scene="' + scene.id + '">' + (scenePublished ? '重新聚焦玩家地图' : '投送场景到玩家地图') + '</button></div></article>';
     }).join('');
     drawer.innerHTML = '<div class="drawer-location-head"><div><p class="drawer-code">' + escapeHtml(loc.group) + ' · ' + riskLabel(loc.riskLevel) + '</p><h2>' + escapeHtml(loc.name) + '</h2></div><div class="drawer-location-icon">' + mapIconSvg(loc.icon) + '</div></div>' +
       '<p class="drawer-location-copy">' + escapeHtml(loc.visible) + '</p>' +
+      '<div class="location-player-state' + (locationPublished ? ' published' : '') + '"><span>玩家地图状态</span><strong>' + (locationPublished ? '已显示文字热点与公开详情' : '尚未投送') + '</strong></div>' +
+      '<div class="location-player-actions"><button type="button" data-publish-location="' + loc.id + '">' + (locationPublished ? '重新聚焦此地点' : '投送此地点到玩家地图') + '</button>' + (locationPublished ? '<button class="retract" type="button" data-retract-location="' + loc.id + '">撤回地点</button>' : '<button type="button" data-publish-location-scenes="' + loc.id + '">连同当前阶段场景</button>') + '</div>' +
       '<div class="location-stage ' + (unlocked ? 'unlocked' : 'preview') + '"><span>' + (unlocked ? '当前战役已开放' : '阶段预览') + '</span><strong>' + (unlocked ? '可从下方节点直接开始' : '第' + loc.unlockDay + '日开放；守秘人仍可提前备团') + '</strong></div>' +
       '<div class="location-danger risk-' + loc.riskLevel + '"><span>地点风险</span><strong>' + escapeHtml(loc.danger) + '</strong></div>' +
       '<div class="location-scene-list"><div class="location-scene-list-head"><span>关联场景</span><b>' + loc.sceneIds.length + ' 个节点</b></div>' + sceneCards + '</div>';
     drawer.querySelectorAll('[data-scene]').forEach(function (button) { button.addEventListener('click', function () { openScene(button.getAttribute('data-scene')); }); });
+    drawer.querySelectorAll('[data-publish-scene]').forEach(function (button) { button.addEventListener('click', function () { publishScene(byId(data.scenes, button.getAttribute('data-publish-scene'))); }); });
+    var publishLocationButton = drawer.querySelector('[data-publish-location]');
+    if (publishLocationButton) publishLocationButton.addEventListener('click', function () { publishLocation(id, [], locationPublished ? '重新聚焦玩家地图地点：' + (loc.publicName || loc.name) : null); });
+    var publishLocationScenesButton = drawer.querySelector('[data-publish-location-scenes]');
+    if (publishLocationScenesButton) publishLocationScenesButton.addEventListener('click', function () {
+      var currentOrPast = loc.sceneIds.filter(function (sceneId) { var scene = byId(data.scenes, sceneId); var day = scene && byId(data.days, scene.day); return scene && (!day || day.index <= currentDay().index); });
+      publishLocation(id, currentOrPast, '投送地点与当前阶段场景：' + (loc.publicName || loc.name));
+    });
+    var retractLocationButton = drawer.querySelector('[data-retract-location]');
+    if (retractLocationButton) retractLocationButton.addEventListener('click', function () { retractLocationFromPlayers(id); });
     drawer.querySelectorAll('[data-npc]').forEach(function (button) { button.addEventListener('click', function () { openNpc(button.getAttribute('data-npc')); }); });
     drawer.querySelectorAll('[data-handout]').forEach(function (button) { button.addEventListener('click', function () { openHandout(button.getAttribute('data-handout')); }); });
     document.querySelectorAll('#map-hotspots [data-location], #location-list [data-location]').forEach(function (button) {
@@ -872,6 +1230,17 @@
   function renderNpcs() {
     var query = document.getElementById('npc-search').value.trim().toLowerCase();
     var today = todayNpcIds();
+    var servantCount = data.npcs.filter(function (npc) { return npc.crop != null; }).length;
+    var filterLabels = {
+      all:'全部 ' + data.npcs.length,
+      human:'人物／群体 ' + (data.npcs.length - servantCount),
+      servant:'英灵 ' + servantCount,
+      today:'今日在场 ' + today.length
+    };
+    document.querySelectorAll('[data-npc-filter]').forEach(function (button) {
+      var filter = button.getAttribute('data-npc-filter');
+      if (filterLabels[filter]) button.textContent = filterLabels[filter];
+    });
     var filtered = data.npcs.filter(function (npc) {
       var isServant = npc.crop != null;
       if (npcFilter === 'human' && isServant) return false;
@@ -1989,6 +2358,7 @@
 
   function renderAll() {
     renderCurrent();
+    renderSessionAudit();
     renderTimeline();
     renderMap();
     renderNpcs();
@@ -2030,6 +2400,99 @@
     });
   }
 
+  function sceneReadAloudHtml(scene) {
+    if (!Array.isArray(scene.readAloud) || !scene.readAloud.length) return '';
+    return '<section class="dialog-block scene-read-aloud"><span>READ ALOUD · 可直接朗读，不自动投送</span><h3>场景开场朗读</h3><div class="scene-read-aloud-copy">' +
+      scene.readAloud.map(function (paragraph) { return '<p>' + escapeHtml(paragraph) + '</p>'; }).join('') +
+      '</div></section>';
+  }
+
+  function sceneCastGoalsHtml(scene) {
+    if (!Array.isArray(scene.castGoals) || !scene.castGoals.length) return '';
+    return '<section class="dialog-block scene-runbook-block"><span>CAST GOALS · 当场诉求</span><h3>角色此刻要什么</h3><div class="scene-cast-goals">' + scene.castGoals.map(function (item) {
+      return '<article><strong>' + escapeHtml(item.actor || '在场角色') + '</strong><p>' + escapeHtml(item.goal || '') + '</p></article>';
+    }).join('') + '</div></section>';
+  }
+
+  function sceneClueSourcesHtml(scene) {
+    if (!Array.isArray(scene.clueSources) || !scene.clueSources.length) return '';
+    return '<section class="dialog-block scene-runbook-block"><span>CLUE SOURCES · 核心信息不锁死</span><h3>来源与替代来源</h3><div class="scene-clue-source-list">' + scene.clueSources.map(function (item) {
+      return '<article><header><strong>' + escapeHtml(item.clue || '线索') + '</strong>' + (item.truth ? '<b>' + escapeHtml(item.truth) + '</b>' : '') + '</header><dl><div><dt>主要来源</dt><dd>' + escapeHtml(item.source || '由现场行动确认') + '</dd></div><div><dt>替代来源</dt><dd>' + escapeHtml(item.alternate || '换一个人物、地点或投送物重新提供') + '</dd></div></dl></article>';
+    }).join('') + '</div></section>';
+  }
+
+  function sceneClocksHtml(scene) {
+    if (!Array.isArray(scene.clocks) || !scene.clocks.length) return '';
+    var kindLabels = { 'target':'目标', 'threat':'威胁', 'shared-target':'共享目标', 'shared-threat':'共享威胁' };
+    var progress = state.sceneClockProgress[scene.id] || {};
+    var clockCards = scene.clocks.map(function (clock) {
+      var max = Math.max(1, Math.min(12, Number(clock.max) || 4));
+      var value = Math.max(0, Math.min(max, Number(progress[clock.id]) || 0));
+      var cells = Array.from({ length:max }, function (_, index) { return '<i class="' + (index < value ? 'filled' : '') + '" aria-hidden="true">' + (index + 1) + '</i>'; }).join('');
+      return '<article class="scene-clock scene-clock-' + (String(clock.kind || '').indexOf('threat') !== -1 ? 'threat' : 'target') + '"><header><strong>' + escapeHtml(clock.name) + '</strong><b>' + escapeHtml(kindLabels[clock.kind] || clock.kind || '时钟') + ' · ' + value + '/' + max + '</b></header><div class="scene-clock-cells" aria-label="' + escapeHtml(clock.name) + '，已填' + value + '格，共' + max + '格">' + cells + '</div><div class="scene-clock-actions"><button type="button" data-scene-clock-id="' + escapeHtml(clock.id) + '" data-scene-clock-delta="-1" aria-label="' + escapeHtml(clock.name) + '减一格">−</button><button type="button" data-scene-clock-id="' + escapeHtml(clock.id) + '" data-scene-clock-delta="1" aria-label="' + escapeHtml(clock.name) + '加一格">＋</button></div><p>' + escapeHtml(clock.onFull || '') + '</p></article>';
+    }).join('');
+    var rule = scene.clockRule ? '<p class="scene-runbook-note"><strong>独立结算：</strong>' + escapeHtml(scene.clockRule) + '</p>' : '';
+    return '<section class="dialog-block scene-runbook-block"><span>CLOCKS · 现场推进结构</span><h3>场景时钟</h3><div class="scene-clocks">' + clockCards + '</div>' + rule + '</section>';
+  }
+
+  function sceneSideObjectivesHtml(scene) {
+    if (!Array.isArray(scene.sideObjectives) || !scene.sideObjectives.length) return '';
+    var completed = state.sceneSideObjectives[scene.id] || [];
+    return '<section class="dialog-block scene-runbook-block"><span>SIDE OBJECTIVES · 独立勾选</span><h3>侧目标与遗漏后果</h3><div class="scene-side-objectives">' + scene.sideObjectives.map(function (item) {
+      var checked = completed.indexOf(item.id) !== -1;
+      return '<button class="' + (checked ? 'completed' : '') + '" type="button" data-scene-objective-id="' + escapeHtml(item.id) + '" aria-pressed="' + String(checked) + '"><header><i aria-hidden="true"></i><strong>' + escapeHtml(item.name) + '</strong></header><p>' + escapeHtml(item.completion) + '</p><small>' + escapeHtml(item.consequence) + '</small></button>';
+    }).join('') + '</div></section>';
+  }
+
+  function sceneAssignmentsHtml(scene) {
+    if (!Array.isArray(scene.allyAssignments) || !scene.allyAssignments.length) return '';
+    var assigned = state.sceneAssignments[scene.id] || [];
+    return '<section class="dialog-block scene-runbook-block"><span>ALLY ASSIGNMENTS · 每线单独记录</span><h3>建议盟友分工</h3><div class="scene-assignments">' + scene.allyAssignments.map(function (item, index) {
+      var checked = assigned.indexOf(index) !== -1;
+      return '<button class="' + (checked ? 'completed' : '') + '" type="button" data-scene-assignment-index="' + index + '" aria-pressed="' + String(checked) + '"><strong>' + escapeHtml(item.actors) + '</strong><span>' + escapeHtml(item.task) + '</span></button>';
+    }).join('') + '</div>' + (scene.assignmentFallback ? '<p class="scene-runbook-note">' + escapeHtml(scene.assignmentFallback) + '</p>' : '') + '</section>';
+  }
+
+  function sceneStopProtocolHtml(scene) {
+    if (!scene.stopProtocol) return '';
+    var protocol = scene.stopProtocol;
+    return '<section class="dialog-block scene-stop-protocol"><span>STOP PROTOCOL · 中止权不可绕过</span><h3>' + escapeHtml(protocol.holder) + '持有停止按钮</h3><dl><div><dt>触发</dt><dd>' + escapeHtml(protocol.trigger) + '</dd></div><div><dt>执行</dt><dd>' + escapeHtml(protocol.rule) + '</dd></div><div><dt>成立证据</dt><dd>' + escapeHtml(protocol.evidence) + '</dd></div></dl></section>';
+  }
+
+  function sceneInterventionsHtml(scene) {
+    if (!Array.isArray(scene.interventions) || !scene.interventions.length) return '';
+    return '<section class="dialog-block scene-runbook-block"><span>INTERVENTIONS · 行动、条件与代价</span><h3>玩家介入表</h3><div class="scene-intervention-scroll"><table class="scene-interventions"><thead><tr><th>行动</th><th>DC／条件</th><th>成功／代价</th></tr></thead><tbody>' + scene.interventions.map(function (item) {
+      return '<tr><th scope="row">' + escapeHtml(item.action) + '</th><td>' + escapeHtml(item.check) + '</td><td>' + escapeHtml(item.successCost) + '</td></tr>';
+    }).join('') + '</tbody></table></div></section>';
+  }
+
+  function sceneConsentAuditHtml(scene) {
+    var audit = scene.consentAudit;
+    if (!audit) return '';
+    var subjects = Array.isArray(audit.subjects) ? audit.subjects : [];
+    var checks = Array.isArray(audit.checks) ? audit.checks : [];
+    var informedBy = Array.isArray(audit.informedBy) ? audit.informedBy : [];
+    var outcomes = Array.isArray(audit.allowedOutcomes) ? audit.allowedOutcomes : [];
+    return '<section class="dialog-block scene-consent-audit"><span>CONSENT AUDIT · 两个回答，分别记录</span><h3>知情同意审计</h3><p class="scene-consent-rule">' + escapeHtml(audit.rule || '') + '</p>' +
+      (informedBy.length ? '<div class="scene-consent-facts"><strong>两人都必须听懂</strong>' + informedBy.map(function (item) { return '<span>' + escapeHtml(item) + '</span>'; }).join('') + '</div>' : '') +
+      '<div class="scene-consent-subjects">' + subjects.map(function (subject) { return '<article><strong>' + escapeHtml(subject.name) + '</strong><p>' + escapeHtml(subject.answerScope) + '</p><small>' + escapeHtml(subject.evidenceRule) + '</small></article>'; }).join('') + '</div>' +
+      (checks.length ? '<div class="scene-consent-checks">' + checks.map(function (item) { return '<p><i aria-hidden="true"></i>' + escapeHtml(item) + '</p>'; }).join('') + '</div>' : '') +
+      (outcomes.length ? '<div class="scene-consent-outcomes"><strong>有效现场结论</strong>' + outcomes.map(function (item) { return '<span>' + escapeHtml(item) + '</span>'; }).join('') + '</div>' : '') +
+      '</section>';
+  }
+
+  function sceneRunbookHtml(scene) {
+    return sceneReadAloudHtml(scene) + sceneCastGoalsHtml(scene) + sceneClocksHtml(scene) + sceneSideObjectivesHtml(scene) + sceneAssignmentsHtml(scene) + sceneStopProtocolHtml(scene) + sceneInterventionsHtml(scene) + sceneClueSourcesHtml(scene) + sceneConsentAuditHtml(scene);
+  }
+
+  function sceneKeeperConsequencesHtml(scene) {
+    var output = '';
+    if (scene.ifUnattended) output += '<section class="dialog-block"><span>IF UNATTENDED</span><h3>未被干预时</h3><p class="scene-risk">' + escapeHtml(scene.ifUnattended) + '</p></section>';
+    if (scene.loopEcho) output += '<section class="dialog-block scene-loop-echo"><span>LOOP ECHO</span><h3>轮回回声</h3><p>' + escapeHtml(scene.loopEcho) + '</p></section>';
+    if (Array.isArray(scene.exits) && scene.exits.length) output += '<section class="dialog-block scene-exits"><span>EXITS · 不封死后续</span><h3>出口与偏转</h3><dl>' + scene.exits.map(function (item) { return '<div><dt>' + escapeHtml(item.condition) + '</dt><dd>' + escapeHtml(item.result) + '</dd></div>'; }).join('') + '</dl></section>';
+    return output;
+  }
+
   function openScene(id) {
     var scene = byId(data.scenes, id);
     if (!scene) return;
@@ -2038,27 +2501,85 @@
     var revealed = state.sceneClues[id] || [];
     var done = state.completedScenes.indexOf(id) !== -1;
     var active = state.activeSceneId === id;
+    var scenePublished = state.publicMap.sceneIds.indexOf(id) !== -1;
     var npcButtons = scene.npcs.map(function (npcId) { var npc = byId(data.npcs, npcId); return '<button type="button" data-npc="' + npcId + '">' + escapeHtml(npc.name) + '</button>'; }).join('');
     var handoutButtons = scene.handouts.map(function (handoutId) { var item = byId(data.handouts, handoutId); return '<button type="button" data-handout="' + handoutId + '">' + handoutId + ' · ' + escapeHtml(item.title) + '</button>'; }).join('');
-    document.getElementById('scene-dialog-content').innerHTML = '<div class="scene-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="scene-dialog-hero"><img src="' + scene.image + '" alt="' + escapeHtml(scene.title) + '场景插画"><div class="scene-hero-copy"><span>' + scene.id + ' · ' + escapeHtml(loc.name) + '</span><h2>' + escapeHtml(scene.title) + '</h2><p>' + escapeHtml(scene.time) + '</p></div></div><div class="scene-dialog-body"><div><section class="dialog-block"><span>PLAYER VISIBLE · 可直接朗读</span><h3>场景表层</h3><p>' + escapeHtml(scene.visible) + '</p></section><section class="dialog-block"><span>CLUE REVEAL · 点击逐条公开</span><h3>可得线索</h3><div class="scene-clues">' + scene.clues.map(function (clue, index) { return '<button class="scene-clue' + (revealed.indexOf(index) !== -1 ? ' revealed' : '') + '" type="button" data-scene-clue="' + index + '">' + escapeHtml(clue) + '</button>'; }).join('') + '</div></section></div><aside><section class="dialog-block"><span>KEEPER ONLY</span><h3>主持目标</h3><p>' + escapeHtml(scene.objective) + '</p></section><section class="dialog-block"><span>FAIL FORWARD</span><h3>默认余波</h3><p class="scene-risk">' + escapeHtml(scene.risk) + '</p></section><section class="dialog-block"><span>CAST</span><h3>在场人物</h3><div class="dialog-cast-buttons">' + (npcButtons || '<span>按补救来源选择出场人物</span>') + '</div></section><section class="dialog-block"><span>PLAYER SAFE</span><h3>关联手卡</h3><div class="dialog-cast-buttons">' + (handoutButtons || '<span>本场无独立手卡</span>') + '</div></section>' + (done ? '<section class="dialog-block"><span>RECORDED OUTCOME</span><h3>已结算记录</h3><p>' + escapeHtml(state.sceneResults[id] && state.sceneResults[id].note || '该节点已经结算；轨道不会重复叠加。') + '</p></section>' : sceneResolutionControls(scene)) + '<div class="scene-dialog-actions"><button class="primary-action" type="button" data-start-scene="' + id + '">' + (active ? '场景正在运行' : '开始场景') + '</button><button type="button" data-complete-scene="' + id + '">' + (done ? '已结算 · 保留记录' : '按所选结果结算') + '</button></div></aside></div></div>';
+    var runbookHtml = sceneRunbookHtml(scene);
+    var keeperConsequencesHtml = sceneKeeperConsequencesHtml(scene);
+    document.getElementById('scene-dialog-content').innerHTML = '<div class="scene-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="scene-dialog-hero"><img src="' + scene.image + '" alt="' + escapeHtml(scene.title) + '场景插画"><div class="scene-hero-copy"><span>' + scene.id + ' · ' + escapeHtml(loc.name) + '</span><h2>' + escapeHtml(scene.title) + '</h2><p>' + escapeHtml(scene.time) + '</p></div></div><div class="scene-dialog-body"><div><section class="dialog-block"><span>PLAYER VISIBLE · 可直接朗读</span><h3>场景表层</h3><p>' + escapeHtml(scene.visible) + '</p></section>' + runbookHtml + '<section class="dialog-block"><span>CLUE REVEAL · 点击逐条公开并同步地图</span><h3>可得线索</h3><div class="scene-clues">' + scene.clues.map(function (clue, index) { return '<button class="scene-clue' + (revealed.indexOf(index) !== -1 ? ' revealed' : '') + '" type="button" data-scene-clue="' + index + '">' + escapeHtml(clue) + '</button>'; }).join('') + '</div><small>公开线索会自动把本场景与地点加入玩家地图；再次点击收回时，玩家地图也会同步移除该线索。</small></section></div><aside><section class="dialog-block"><span>KEEPER ONLY</span><h3>主持目标</h3><p>' + escapeHtml(scene.objective) + '</p></section>' + keeperConsequencesHtml + '<section class="dialog-block"><span>FAIL FORWARD</span><h3>默认余波</h3><p class="scene-risk">' + escapeHtml(scene.risk) + '</p></section><section class="dialog-block"><span>CAST</span><h3>在场人物</h3><div class="dialog-cast-buttons">' + (npcButtons || '<span>按补救来源选择出场人物</span>') + '</div></section><section class="dialog-block"><span>PLAYER SAFE</span><h3>关联手卡</h3><div class="dialog-cast-buttons">' + (handoutButtons || '<span>本场无独立手卡</span>') + '</div></section>' + (done ? '<section class="dialog-block"><span>RECORDED OUTCOME</span><h3>已结算记录</h3><p>' + escapeHtml(state.sceneResults[id] && state.sceneResults[id].note || '该节点已经结算；轨道不会重复叠加。') + '</p></section>' : sceneResolutionControls(scene)) + '<section class="dialog-block"><span>PLAYER MAP · 安全投送</span><h3>' + (scenePublished ? '玩家地图已显示本场景' : '玩家地图尚未显示本场景') + '</h3><p>只发送地点名称、场景表层、已公开线索与公开结算记录；主持目标和默认余波不会发送。</p></section><div class="scene-dialog-actions"><button type="button" data-publish-scene-dialog="' + id + '">' + (scenePublished ? '重新聚焦玩家地图' : '投送场景到玩家地图') + '</button><button class="primary-action" type="button" data-start-scene="' + id + '">' + (active ? '场景正在运行' : '开始场景并投送地图') + '</button><button type="button" data-complete-scene="' + id + '">' + (done ? '已结算 · 保留记录' : '按所选结果结算') + '</button></div></aside></div></div>';
     dialog.querySelector('[data-close-dialog]').addEventListener('click', function () { dialog.close(); });
     dialog.querySelectorAll('[data-npc]').forEach(function (button) { button.addEventListener('click', function () { dialog.close(); openNpc(button.getAttribute('data-npc')); }); });
     dialog.querySelectorAll('[data-handout]').forEach(function (button) { button.addEventListener('click', function () { dialog.close(); openHandout(button.getAttribute('data-handout')); }); });
+    dialog.querySelector('[data-publish-scene-dialog]').addEventListener('click', function () { dialog.close(); publishScene(scene); });
+    dialog.querySelectorAll('[data-scene-clock-delta]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var clockId = button.getAttribute('data-scene-clock-id');
+        var clock = (scene.clocks || []).find(function (item) { return item.id === clockId; });
+        if (!clock) return;
+        var delta = Number(button.getAttribute('data-scene-clock-delta')) || 0;
+        commit(scene.id + ' · ' + clock.name + (delta > 0 ? '＋1' : '−1'), function (draft) {
+          if (!draft.sceneClockProgress[scene.id]) draft.sceneClockProgress[scene.id] = {};
+          draft.sceneClockProgress[scene.id][clockId] = clampInteger((draft.sceneClockProgress[scene.id][clockId] || 0) + delta, 0, Number(clock.max) || 4, 0);
+        });
+        dialog.close(); openScene(id);
+      });
+    });
+    dialog.querySelectorAll('[data-scene-objective-id]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var objectiveId = button.getAttribute('data-scene-objective-id');
+        var objective = (scene.sideObjectives || []).find(function (item) { return item.id === objectiveId; });
+        if (!objective) return;
+        var completing = !button.classList.contains('completed');
+        commit((completing ? '完成' : '撤销') + scene.id + '侧目标：' + objective.name, function (draft) {
+          var values = (draft.sceneSideObjectives[scene.id] || []).slice();
+          var at = values.indexOf(objectiveId);
+          if (completing && at === -1) values.push(objectiveId);
+          if (!completing && at !== -1) values.splice(at, 1);
+          draft.sceneSideObjectives[scene.id] = values;
+        });
+        dialog.close(); openScene(id);
+      });
+    });
+    dialog.querySelectorAll('[data-scene-assignment-index]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var assignmentIndex = Number(button.getAttribute('data-scene-assignment-index'));
+        var assignment = (scene.allyAssignments || [])[assignmentIndex];
+        if (!assignment) return;
+        var completing = !button.classList.contains('completed');
+        commit((completing ? '确认' : '撤销') + scene.id + '盟友分工：' + assignment.actors + ' → ' + assignment.task, function (draft) {
+          var values = (draft.sceneAssignments[scene.id] || []).slice();
+          var at = values.indexOf(assignmentIndex);
+          if (completing && at === -1) values.push(assignmentIndex);
+          if (!completing && at !== -1) values.splice(at, 1);
+          draft.sceneAssignments[scene.id] = values;
+        });
+        dialog.close(); openScene(id);
+      });
+    });
     dialog.querySelectorAll('[data-scene-clue]').forEach(function (button) {
       button.addEventListener('click', function () {
         var index = Number(button.getAttribute('data-scene-clue'));
-        commit((button.classList.contains('revealed') ? '收回' : '公开') + ' ' + scene.id + ' 线索：' + scene.clues[index], function (draft) {
+        var revealing = !button.classList.contains('revealed');
+        commit((revealing ? '公开' : '收回') + ' ' + scene.id + ' 线索：' + scene.clues[index], function (draft) {
           var list = (draft.sceneClues[id] || []).slice();
           var at = list.indexOf(index);
           if (at === -1) list.push(index); else list.splice(at, 1);
           draft.sceneClues[id] = list;
+          if (revealing) publishSceneOnDraft(draft, scene);
+          if (draft.publicMap.sceneIds.indexOf(scene.id) !== -1) {
+            draft.publicMap.activeLocationId = scene.location;
+            draft.publicMap.updatedAt = new Date().toISOString();
+            draft.playerProjection = 'map';
+          }
         });
+        if (state.publicMap.sceneIds.indexOf(scene.id) !== -1) sendPlayerMapState({ focusLocationId:scene.location, openMap:true });
         dialog.close(); openScene(id);
       });
     });
     dialog.querySelector('[data-start-scene]').addEventListener('click', function () {
       if (state.activeSceneId === id) return;
-      commit('开始场景 ' + id + '：' + scene.title, function (draft) { draft.activeSceneId = id; draft.activeNpcs = scene.npcs.slice(); });
+      commit('开始场景并投送玩家地图 ' + id + '：' + scene.title, function (draft) { draft.activeSceneId = id; draft.activeNpcs = scene.npcs.slice(); publishSceneOnDraft(draft, scene); draft.playerProjection = 'map'; });
+      sendPlayerMapState({ focusLocationId:scene.location, openMap:true });
       dialog.close(); openScene(id);
     });
     var outcomeSelect = dialog.querySelector('[data-scene-outcome]');
@@ -2095,11 +2616,90 @@
       if (draft.visitedLocations.indexOf(scene.location) === -1) draft.visitedLocations.push(scene.location);
       if (draft.activeSceneId === scene.id) draft.activeSceneId = null;
       draft.activeNpcs = [];
+      if (draft.publicMap.sceneIds.indexOf(scene.id) !== -1) draft.publicMap.updatedAt = new Date().toISOString();
       Object.keys(result.effects || {}).forEach(function (key) {
         var max = ['theory','memory','observation'].indexOf(key) !== -1 ? 3 : 6;
         draft.trackers[key] = Math.max(0, Math.min(max, (draft.trackers[key] || 0) + result.effects[key]));
       });
     });
+    if (state.publicMap.sceneIds.indexOf(scene.id) !== -1) sendPlayerMapState({ focusLocationId:scene.location, openMap:state.playerProjection === 'map' });
+  }
+
+  function npcPlayerSafeHtml(npc) {
+    var safe = npc.playerSafe;
+    if (!safe) return '';
+    var questions = Array.isArray(safe.questions) ? safe.questions.filter(Boolean) : [];
+    return '<section class="npc-dossier-section npc-player-safe"><header><span>PLAYER SAFE · 分阶段公开</span><h3>可交给玩家的人物资料</h3></header><div class="npc-player-safe-grid"><article><strong>开场可公开</strong><p>' + escapeHtml(safe.opening || '只公开姓名、外观与当下行动。') + '</p></article><article><strong>接触后可公开</strong><p>' + escapeHtml(safe.afterEncounter || '由人物本人或现场证据逐步确认。') + '</p></article></div>' + (questions.length ? '<div class="npc-question-list"><strong>玩家可以追问</strong><ul>' + questions.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join('') + '</ul></div>' : '') + '</section>';
+  }
+
+  function npcTimelineHtml(npc) {
+    if (!Array.isArray(npc.timeline) || !npc.timeline.length) return '';
+    return '<section class="npc-dossier-section"><header><span>TIMELINE · 守秘人</span><h3>背景与时间线</h3></header><div class="npc-timeline">' + npc.timeline.map(function (item) {
+      return '<article><strong>' + escapeHtml(item.period || item.phase || '时间不明') + '</strong><div><b>' + escapeHtml(item.event || '') + '</b><p>' + escapeHtml(item.impact || item.effect || '') + '</p></div></article>';
+    }).join('') + '</div></section>';
+  }
+
+  function npcKnowledgeHtml(npc) {
+    if (!npc.knowledge) return '';
+    var labels = [
+      ['knows','确实知道'], ['misbelieves','误信'], ['distorts','会扭曲'],
+      ['hides','主动隐瞒'], ['refuses','拒绝承认'], ['loopOnly','仅轮回后可能知道']
+    ];
+    return '<section class="npc-dossier-section"><header><span>KNOWLEDGE · 信息权限</span><h3>知识、偏差与隐瞒</h3></header><div class="npc-knowledge-grid">' + labels.map(function (item) {
+      var value = npc.knowledge[item[0]];
+      if (Array.isArray(value)) value = value.join('；');
+      return '<article><strong>' + item[1] + '</strong><p>' + escapeHtml(value || '无额外记录') + '</p></article>';
+    }).join('') + '</div></section>';
+  }
+
+  function npcRelationsHtml(npc) {
+    if (!Array.isArray(npc.relations) || !npc.relations.length) return '';
+    return '<section class="npc-dossier-section"><header><span>RELATIONS · 可介入关系</span><h3>关系矩阵</h3></header><div class="npc-relations">' + npc.relations.map(function (item) {
+      return '<article><header><strong>' + escapeHtml(item.target || '未命名对象') + '</strong><span>' + escapeHtml(item.surface || item.stance || '') + '</span></header>' + (item.secret ? '<p><b>隐秘：</b>' + escapeHtml(item.secret) + '</p>' : '') + '<p><b>玩家介入：</b>' + escapeHtml(item.intervention || item.change || '通过当场对话与证据改变关系') + '</p></article>';
+    }).join('') + '</div></section>';
+  }
+
+  function npcStagesHtml(npc) {
+    if (!Array.isArray(npc.stages) || !npc.stages.length) return '';
+    return '<section class="npc-dossier-section"><header><span>ARC · 四阶段</span><h3>可见变化与推进条件</h3></header><div class="npc-stages">' + npc.stages.map(function (item, index) {
+      return '<article><i>' + escapeHtml(item.id || String(index + 1)) + '</i><div><strong>' + escapeHtml(item.label || item.stage || '阶段 ' + (index + 1)) + '</strong><p>' + escapeHtml(item.visible || item.behavior || '') + '</p><small>' + escapeHtml(item.advance || item.next || '由场景结果推进') + '</small></div></article>';
+    }).join('') + '</div></section>';
+  }
+
+  function npcHooksHtml(npc) {
+    if (!Array.isArray(npc.sceneHooks) || !npc.sceneHooks.length) return '';
+    return '<section class="npc-dossier-section"><header><span>SCENE TOOLBOX · 临场调用</span><h3>场景钩子</h3></header><div class="npc-hooks">' + npc.sceneHooks.map(function (item) {
+      return '<article><strong>' + escapeHtml(item.type || '场景') + '</strong><p>' + escapeHtml(item.hook || '') + '</p><small>' + escapeHtml(item.payoff || item.stake || '') + '</small></article>';
+    }).join('') + '</div></section>';
+  }
+
+  function npcVoiceTacticsHtml(npc) {
+    if (!npc.voiceLines && !npc.tactics) return '';
+    var voices = npc.voiceLines ? [['平静',npc.voiceLines.neutral],['受压',npc.voiceLines.pressure],['脆弱',npc.voiceLines.vulnerable]] : [];
+    var tactics = npc.tactics ? [['当前目标',npc.tactics.goal],['绝不做',npc.tactics.never],['压力动作',npc.tactics.pressure],['撤退边界',npc.tactics.retreat]] : [];
+    return '<section class="npc-dossier-section"><header><span>VOICE & TACTICS · 演绎工具</span><h3>台词与行动边界</h3></header><div class="npc-voice-tactics">' + (voices.length ? '<article><h4>场景台词</h4>' + voices.map(function (item) { var value = Array.isArray(item[1]) ? item[1].join('／') : item[1]; return '<p><strong>' + item[0] + '</strong><span>' + escapeHtml(value || '') + '</span></p>'; }).join('') + '</article>' : '') + (tactics.length ? '<article><h4>压力行动</h4>' + tactics.map(function (item) { return '<p><strong>' + item[0] + '</strong><span>' + escapeHtml(item[1] || '') + '</span></p>'; }).join('') + '</article>' : '') + '</div></section>';
+  }
+
+  function npcServantToolHtml(npc) {
+    if (!npc.servantTool || typeof npc.servantTool !== 'object') return '';
+    var labels = { trigger:'触发', scale:'规模', check:'检定', success:'成功', failure:'失败', clock:'时钟', counter:'反制', retreat:'撤退', boundary:'权限边界', knowledge:'知识', permission:'权限', cost:'代价', effect:'效果' };
+    var entries = Object.keys(npc.servantTool).filter(function (key) { return npc.servantTool[key] != null && npc.servantTool[key] !== ''; });
+    if (!entries.length) return '';
+    return '<section class="npc-dossier-section npc-servant-tool"><header><span>SERVANT TOOL · 规则 v2.0</span><h3>英灵专项工具</h3></header><dl>' + entries.map(function (key) {
+      var value = npc.servantTool[key];
+      if (Array.isArray(value)) value = value.join('；');
+      else if (typeof value === 'object') value = Object.keys(value).map(function (subkey) { return (labels[subkey] || subkey) + '：' + value[subkey]; }).join('；');
+      return '<div><dt>' + escapeHtml(labels[key] || key) + '</dt><dd>' + escapeHtml(value) + '</dd></div>';
+    }).join('') + '</dl></section>';
+  }
+
+  function npcEndingsHtml(npc) {
+    if (!Array.isArray(npc.endings) || !npc.endings.length) return '';
+    return '<section class="npc-dossier-section"><header><span>ENDINGS · 结局落点</span><h3>可能的收束</h3></header><div class="npc-endings">' + npc.endings.map(function (item) { return '<article><strong>' + escapeHtml(item.label || item.name || '结局') + '</strong><p>' + escapeHtml(item.outcome || '') + '</p></article>'; }).join('') + '</div></section>';
+  }
+
+  function npcRichDossierHtml(npc) {
+    return '<div class="npc-rich-dossier">' + npcPlayerSafeHtml(npc) + npcTimelineHtml(npc) + npcKnowledgeHtml(npc) + npcRelationsHtml(npc) + npcStagesHtml(npc) + npcHooksHtml(npc) + npcVoiceTacticsHtml(npc) + npcServantToolHtml(npc) + npcEndingsHtml(npc) + '</div>';
   }
 
   function openNpc(id) {
@@ -2113,7 +2713,7 @@
     var fields = [
       ['现在想要', npc.wants], ['真正害怕', npc.fears], ['确实知道', npc.knows], ['不会接受', npc.refuses], ['离场行动', npc.action], ['声线', npc.voice], ['轮回残留', npc.loop], ['当前位置', loc ? loc.name : '未知']
     ];
-    document.getElementById('npc-dialog-content').innerHTML = '<div class="npc-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="npc-dialog-hero"><div class="npc-dialog-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" alt="' + escapeHtml(npc.name) + '肖像"></div><div class="npc-dialog-copy"><span>' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span><h2>' + escapeHtml(npc.name) + '</h2><small>' + escapeHtml(npc.role) + '</small><p class="npc-intro">' + escapeHtml(npc.intro) + '</p></div></div><div class="npc-fields">' + fields.map(function (field) { return '<section class="npc-field"><span>' + field[0] + '</span><p>' + escapeHtml(field[1]) + '</p></section>'; }).join('') + '</div><div class="npc-dialog-actions"><button type="button" data-toggle-active="' + id + '">' + (active ? '从当前场景移出' : '加入当前场景') + '</button><button type="button" data-npc-action="' + id + '">执行离场行动</button><button type="button" data-copy-intro="' + id + '">复制玩家可见介绍</button></div></div>';
+    document.getElementById('npc-dialog-content').innerHTML = '<div class="npc-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="npc-dialog-hero"><div class="npc-dialog-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" alt="' + escapeHtml(npc.name) + '肖像"></div><div class="npc-dialog-copy"><span>' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span><h2>' + escapeHtml(npc.name) + '</h2><small>' + escapeHtml(npc.role) + '</small><p class="npc-intro">' + escapeHtml(npc.intro) + '</p></div></div><div class="npc-fields">' + fields.map(function (field) { return '<section class="npc-field"><span>' + field[0] + '</span><p>' + escapeHtml(field[1]) + '</p></section>'; }).join('') + '</div>' + npcRichDossierHtml(npc) + '<div class="npc-dialog-actions"><button type="button" data-toggle-active="' + id + '">' + (active ? '从当前场景移出' : '加入当前场景') + '</button><button type="button" data-npc-action="' + id + '">执行离场行动</button><button type="button" data-copy-intro="' + id + '">复制开场玩家资料</button></div></div>';
     dialog.querySelector('[data-close-dialog]').addEventListener('click', function () { dialog.close(); });
     dialog.querySelector('[data-toggle-active]').addEventListener('click', function () {
       commit((active ? '移出' : '加入') + '当前场景：' + npc.name, function (draft) {
@@ -2126,7 +2726,10 @@
       commit('执行离场行动：' + npc.name + ' — ' + npc.action, function () {});
       dialog.close();
     });
-    dialog.querySelector('[data-copy-intro]').addEventListener('click', function () { copyText(npc.name + '｜' + npc.intro, '已复制 PLAYER SAFE 人物介绍'); });
+    dialog.querySelector('[data-copy-intro]').addEventListener('click', function () {
+      var publicOpening = npc.playerSafe && npc.playerSafe.opening ? npc.playerSafe.opening : npc.intro;
+      copyText(npc.name + '｜' + publicOpening, '已复制开场 PLAYER SAFE 人物介绍');
+    });
     if (!dialog.open) dialog.showModal();
   }
 
@@ -2162,8 +2765,13 @@
     commit('向玩家发放 ' + item.id + '：' + item.title, function (draft) {
       if (draft.revealedHandouts.indexOf(item.id) === -1) draft.revealedHandouts.push(item.id);
       draft.activeHandoutId = item.id;
+      (item.mapLocationIds || []).forEach(function (locationId) { publishLocationOnDraft(draft, locationId); });
+      (item.mapSceneIds || []).forEach(function (sceneId) { publishSceneOnDraft(draft, byId(data.scenes, sceneId)); });
+      if (item.mapFocusId && draft.publicMap.locationIds.indexOf(item.mapFocusId) !== -1) draft.publicMap.activeLocationId = item.mapFocusId;
+      draft.playerProjection = item.mapOpen === true ? 'map' : 'handout';
     });
     sendPlayerMessage({ type:'show', handout:lastPlayerPayload });
+    if (state.publicMap.visible) sendPlayerMapState({ focusLocationId:item.mapFocusId || state.publicMap.activeLocationId, openMap:item.mapOpen === true });
   }
 
   function retractHandout(item) {
@@ -2172,9 +2780,11 @@
       var at = draft.revealedHandouts.indexOf(item.id);
       if (at !== -1) draft.revealedHandouts.splice(at, 1);
       if (draft.activeHandoutId === item.id) draft.activeHandoutId = null;
+      draft.playerProjection = draft.publicMap.visible ? 'map' : 'curtain';
     });
     if (lastPlayerPayload && lastPlayerPayload.id === item.id) lastPlayerPayload = null;
     sendPlayerMessage({ type:'retract', handoutId:item.id });
+    if (state.publicMap.visible) sendPlayerMapState({ openMap:true });
   }
 
   function copyText(text, success) {
@@ -2223,6 +2833,8 @@
         var active = state.activeHandoutId ? byId(data.handouts, state.activeHandoutId) : null;
         lastPlayerPayload = active ? playerPayload(active) : null;
         saveState(); renderAll(); showToast(migratedFrom < STATE_SCHEMA_VERSION ? '旧备份已迁移并导入' : '战役备份已导入');
+        sendPlayerMessage(lastPlayerPayload ? { type:'show', handout:lastPlayerPayload } : { type:'curtain' });
+        sendPlayerMapState({ openMap:state.playerProjection === 'map' });
       } catch (error) {
         var message = error && error.message === 'newer-schema' ? '这份备份来自更新版控制台，当前版本无法安全读取' : '无法读取这份备份：战役、规则版本或数据结构不兼容';
         showToast(message);
@@ -2287,7 +2899,92 @@
     openView('current');
   }
 
+  function bindSessionAuditEvents() {
+    var auditRoot = document.getElementById('session-audit');
+    var deliveryForm = document.getElementById('audit-delivery-form');
+    document.getElementById('audit-handout-options').innerHTML = data.handouts.map(function (item) {
+      return '<option value="' + escapeHtml(item.id + ' · ' + item.title) + '"></option>';
+    }).join('');
+
+    auditRoot.addEventListener('click', function (event) {
+      var clockButton = event.target.closest('[data-audit-clock-index]');
+      if (clockButton) {
+        var clockIndex = Number(clockButton.getAttribute('data-audit-clock-index'));
+        var delta = Number(clockButton.getAttribute('data-audit-clock-delta'));
+        var clock = state.sessionAudit.factionClocks[clockIndex];
+        if (!clock || (delta !== -1 && delta !== 1)) return;
+        commit(clock.name + '阵营钟' + (delta > 0 ? '＋1' : '−1'), function (draft) {
+          draft.sessionAudit.factionClocks[clockIndex].value = clampInteger(draft.sessionAudit.factionClocks[clockIndex].value + delta, 0, 4, 0);
+        });
+        return;
+      }
+      var deleteButton = event.target.closest('[data-audit-delete-delivery]');
+      if (deleteButton) {
+        var deliveryId = deleteButton.getAttribute('data-audit-delete-delivery');
+        var entry = state.sessionAudit.deliveryFollowUps.find(function (item) { return item.id === deliveryId; });
+        if (!entry) return;
+        commit('删除投送跟进：' + entry.handout, function (draft) {
+          draft.sessionAudit.deliveryFollowUps = draft.sessionAudit.deliveryFollowUps.filter(function (item) { return item.id !== deliveryId; });
+        });
+      }
+    });
+
+    auditRoot.addEventListener('change', function (event) {
+      var target = event.target;
+      var field = target.getAttribute('data-audit-field');
+      if (!field) return;
+      var factionIndex = target.getAttribute('data-audit-faction-index');
+      var allianceIndex = target.getAttribute('data-audit-alliance-index');
+      var fragmentIndex = target.getAttribute('data-audit-fragment-index');
+      var consentPerson = target.getAttribute('data-audit-consent-person');
+      if (factionIndex !== null) {
+        var faction = state.sessionAudit.factionClocks[Number(factionIndex)];
+        if (!faction || field !== 'name') return;
+        faction.name = safeText(target.value, 80) || '未命名阵营';
+        target.value = faction.name;
+      } else if (allianceIndex !== null) {
+        var alliance = state.sessionAudit.alliancePromises[Number(allianceIndex)];
+        if (!alliance || ['target','promise','status'].indexOf(field) === -1) return;
+        alliance[field] = field === 'status' ? auditStatus(target.value, AUDIT_ALLIANCE_STATES, 'unspoken') : safeText(target.value, field === 'target' ? 120 : 500);
+        target.value = alliance[field];
+      } else if (fragmentIndex !== null) {
+        var fragment = state.sessionAudit.fragments[Number(fragmentIndex)];
+        if (!fragment || ['holder','leaning','willingness'].indexOf(field) === -1) return;
+        fragment[field] = field === 'willingness' ? auditStatus(target.value, AUDIT_FRAGMENT_WILLINGNESS, 'unasked') : safeText(target.value, field === 'holder' ? 120 : 300);
+        target.value = fragment[field];
+      } else if (consentPerson) {
+        var consent = state.sessionAudit.finaleConsent[consentPerson];
+        if (!consent || ['status','quote'].indexOf(field) === -1) return;
+        consent[field] = field === 'status' ? auditStatus(target.value, AUDIT_CONSENT_STATES, 'unasked') : safeText(target.value, 1000);
+        target.value = consent[field];
+      } else {
+        return;
+      }
+      saveState();
+    });
+
+    deliveryForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var entry = {
+        id:createId('delivery'),
+        handout:safeText(document.getElementById('audit-delivery-handout').value, 120),
+        deliveredAt:safeText(document.getElementById('audit-delivery-time').value, 40),
+        target:safeText(document.getElementById('audit-delivery-target').value, 120),
+        misread:safeText(document.getElementById('audit-delivery-misread').value, 600),
+        followUp:safeText(document.getElementById('audit-delivery-follow-up').value, 600)
+      };
+      if (!entry.handout || !entry.deliveredAt || !entry.target) { showToast('请填写手卡、投送时间与投送对象'); return; }
+      commit('新增投送跟进：' + entry.handout, function (draft) {
+        draft.sessionAudit.deliveryFollowUps.unshift(entry);
+        draft.sessionAudit.deliveryFollowUps = draft.sessionAudit.deliveryFollowUps.slice(0, 120);
+      });
+      deliveryForm.reset();
+      document.getElementById('audit-delivery-time').value = localAuditDateTime();
+    });
+  }
+
   function bindStaticEvents() {
+    bindSessionAuditEvents();
     document.querySelectorAll('[data-view]').forEach(function (button) { button.addEventListener('click', function () { openView(button.getAttribute('data-view')); }); });
     document.querySelectorAll('[data-go]').forEach(function (button) { button.addEventListener('click', function () { openView(button.getAttribute('data-go')); }); });
     document.getElementById('start-first-scene').addEventListener('click', function () { openScene(currentDay().sceneIds[0]); });
@@ -2298,6 +2995,21 @@
         document.querySelectorAll('[data-map-filter]').forEach(function (item) { item.classList.toggle('active', item === button); });
         renderMap();
       });
+    });
+    document.getElementById('publish-today-map').addEventListener('click', function () {
+      var scenes = dayScenes(currentDay());
+      if (!scenes.length) { showToast('当前日没有可投送场景'); return; }
+      commit('投送第 ' + currentDay().index + ' 日地点与场景到玩家地图', function (draft) {
+        scenes.forEach(function (scene) { publishSceneOnDraft(draft, scene); });
+        draft.publicMap.activeLocationId = scenes[0].location;
+        draft.playerProjection = 'map';
+      });
+      sendPlayerMapState({ focusLocationId:scenes[0].location, openMap:true });
+    });
+    document.getElementById('sync-player-map').addEventListener('click', function () {
+      if (!state.publicMap.visible || !state.publicMap.locationIds.length) { showToast('玩家地图还没有任何已投送地点'); return; }
+      commit('重发当前玩家地图', function (draft) { draft.playerProjection = 'map'; draft.publicMap.updatedAt = new Date().toISOString(); });
+      sendPlayerMapState({ focusLocationId:state.publicMap.activeLocationId, openMap:true });
     });
     document.querySelectorAll('[data-npc-filter]').forEach(function (button) {
       button.addEventListener('click', function () {
@@ -2338,11 +3050,16 @@
 
     document.getElementById('undo-button').addEventListener('click', function () {
       if (!undoStack.length) { showToast('没有可以撤销的操作'); return; }
-      state = undoStack.pop(); addLog('撤销上一步'); saveState(); renderAll(); showToast('已撤销上一步');
+      state = migrateState(undoStack.pop());
+      var activeHandout = state.activeHandoutId ? byId(data.handouts, state.activeHandoutId) : null;
+      lastPlayerPayload = activeHandout ? playerPayload(activeHandout) : null;
+      addLog('撤销上一步'); saveState(); renderAll(); showToast('已撤销上一步');
+      sendPlayerMessage(lastPlayerPayload ? { type:'show', handout:lastPlayerPayload } : { type:'curtain' });
+      sendPlayerMapState({ openMap:state.playerProjection === 'map' });
     });
     document.getElementById('curtain-button').addEventListener('click', function () {
       lastPlayerPayload = null;
-      commit('玩家投屏切回帷幕', function (draft) { draft.activeHandoutId = null; });
+      commit('玩家投屏切回帷幕', function (draft) { draft.activeHandoutId = null; draft.playerProjection = 'curtain'; });
       sendPlayerMessage({ type:'curtain' });
     });
     document.getElementById('player-window-button').addEventListener('click', function () {
@@ -2359,7 +3076,9 @@
     });
     document.getElementById('reset-button').addEventListener('click', function () {
       if (!window.confirm('新建空白战役会清除当前自动保存。建议先导出备份。是否继续？')) return;
-      undoStack.push(clone(state)); state = freshState(); addLog('新建空白战役'); saveState(); renderAll(); openView('current');
+      undoStack.push(clone(state)); state = freshState(); lastPlayerPayload = null; addLog('新建空白战役'); saveState(); renderAll(); openView('current');
+      sendPlayerMessage({ type:'curtain' });
+      sendPlayerMapState({ openMap:false });
     });
     document.getElementById('clear-log').addEventListener('click', function () { commit('清空场记历史', function (draft) { draft.log = []; }); });
     document.querySelectorAll('[data-loop]').forEach(function (button) { button.addEventListener('click', function () { var delta = Number(button.getAttribute('data-loop')); commit('完整重置次数' + (delta > 0 ? '＋1' : '−1'), function (draft) { draft.loop = Math.max(0, Math.min(2, draft.loop + delta)); }); }); });
@@ -2399,7 +3118,12 @@
     });
     window.addEventListener('message', function (event) {
       if (event.origin !== window.location.origin || !event.data) return;
-      if (event.data.protocol && event.data.protocol !== MESSAGE_PROTOCOL) return;
+      if (event.data.protocol !== MESSAGE_PROTOCOL) return;
+      if (event.data.type === 'ready') {
+        sendPlayerMessage(lastPlayerPayload ? { type:'show', handout:lastPlayerPayload } : { type:'curtain' });
+        sendPlayerMapState({ openMap:state.playerProjection === 'map' });
+        return;
+      }
       if (event.data.type === 'character-submit') receiveCharacterSubmission(event.data);
       if (event.data.type === 'check-request') receiveCheckRequest(event.data.request);
     });

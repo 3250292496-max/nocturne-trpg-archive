@@ -4,50 +4,50 @@
     "name": "PBKDF2",
     "hash": "SHA-256",
     "iterations": 310000,
-    "salt": "Brd7Q6LcizfFLY9t7+UpAA4hxyaGnghVkgA8W7VpG/0="
+    "salt": "Q1JgleH9YJSsNJJW5tyf+/DOzTogAjWMR3LGU66o+kU="
   },
   "verifier": {
     "path": "secure/verifier.enc",
-    "iv": "KNIG2cTnzjEW1+Go",
+    "iv": "JlP3EaZu3Xav5Mrx",
     "aad": "ng-archive/v1:verifier"
   },
   "data": {
     "path": "secure/gm-data.enc",
-    "iv": "HhNhPm7OVKo6NidQ",
+    "iv": "hjFFhZN6B7lqjThr",
     "aad": "ng-archive/v1:data"
   },
   "resources": {
     "main-module": {
       "path": "secure/book-1-main-module.docx.enc",
-      "iv": "a6KJBcYcFpsxbynP",
+      "iv": "yLbenDRkjpjHoHbf",
       "aad": "ng-archive/v1:main-module",
       "filename": "《零之圣杯》第一册·主模组（v3.2）.docx",
       "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     },
     "npc-guide": {
       "path": "secure/book-2-npc-servants.docx.enc",
-      "iv": "BshZCLCdbr3CLF0L",
+      "iv": "HNoj3XzcHlYGpBkR",
       "aad": "ng-archive/v1:npc-guide",
       "filename": "《零之圣杯》第二册·NPC与英灵手册（v3.2）.docx",
       "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     },
     "keeper-toolkit": {
       "path": "secure/book-4-keeper-tools.docx.enc",
-      "iv": "9CU6LCHd7kkAA56D",
+      "iv": "Sl3shHpW+MZJC2U4",
       "aad": "ng-archive/v1:keeper-toolkit",
       "filename": "《零之圣杯》第四册·主持人工具书（v3.2）.docx",
       "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     },
     "staged-clues": {
       "path": "secure/staged-clue-pack.docx.enc",
-      "iv": "jMX4KtxzM+VRLcfe",
+      "iv": "zCcCLEcE3DxQlklS",
       "aad": "ng-archive/v1:staged-clues",
       "filename": "《零之圣杯》分阶段线索发放包（v3.2）.docx",
       "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     },
     "player-handouts": {
       "path": "secure/player-handout-print-pack.docx.enc",
-      "iv": "hVIKRZzQc/wt03Q1",
+      "iv": "+RoGxU1krty+feYm",
       "aad": "ng-archive/v1:player-handouts",
       "filename": "《零之圣杯》玩家手卡打印包（v3.2）.docx",
       "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
