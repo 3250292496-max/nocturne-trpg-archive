@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="player.css?v=20260713g">
+  <link rel="stylesheet" href="player.css?v=20260713h">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -53,97 +53,163 @@
     <div class="player-tools-grid">
       <section class="player-tool-card character-editor" aria-labelledby="player-character-title">
         <header><div><span>FOOLPROOF BUILDER</span><h3 id="player-character-title">零门槛傻瓜车卡</h3></div><small id="character-save-status">按步骤完成 · 自动计算</small></header>
-        <form id="player-character-form">
+        <form id="player-character-form" novalidate>
           <nav class="builder-progress" aria-label="车卡步骤">
-            <button class="active" type="button" data-builder-step="0"><span>1</span><b>角色类型</b><i>选择你是谁</i></button>
-            <button type="button" data-builder-step="1"><span>2</span><b>基本身份</b><i>只填必要信息</i></button>
-            <button type="button" data-builder-step="2"><span>3</span><b>人物核心</b><i>点提示就能写</i></button>
-            <button type="button" data-builder-step="3"><span>4</span><b>行动方式</b><i>自动分配数值</i></button>
-            <button type="button" data-builder-step="4"><span>5</span><b>三项专长</b><i>只需点三下</i></button>
-            <button type="button" data-builder-step="5"><span>6</span><b>确认生成</b><i>自动查漏</i></button>
+            <button class="active" type="button" data-builder-step="0"><span>1</span><b>基础身份</b><i>普通人／魔术师／从者</i></button>
+            <button type="button" data-builder-step="1"><span>2</span><b>人物概念</b><i>姓名、愿望与底线</i></button>
+            <button type="button" data-builder-step="2"><span>3</span><b>七项属性</b><i>固定数组或点购</i></button>
+            <button type="button" data-builder-step="3"><span>4</span><b>通用技能</b><i>自动核算训练点</i></button>
+            <button type="button" data-builder-step="4"><span>5</span><b>身份资源</b><i>按身份只显示必要项</i></button>
+            <button type="button" data-builder-step="5"><span>6</span><b>合法性终检</b><i>派生值与预算查漏</i></button>
           </nav>
 
-          <div class="builder-assurance"><span aria-hidden="true">✓</span><p><strong>不需要读规则书也能完成。</strong>数值、初始资源和格式由系统处理；你只负责做人物选择。</p><b id="builder-completion">已完成 0%</b></div>
+          <div class="builder-assurance"><span aria-hidden="true">✓</span><p><strong>已同步《通用圣杯战争规则书》v2.0·车卡增订。</strong>预算、上限、派生值和专属资源由系统核算；御主只作为普通人／魔术师的附加模块。</p><b id="builder-completion">已完成 0%</b></div>
           <p class="builder-error" id="builder-error" role="alert" hidden></p>
 
           <section class="builder-step active" data-builder-panel="0" aria-labelledby="builder-type-title">
-            <div class="builder-step-heading"><p>STEP 01 · CHOOSE A ROLE</p><h4 id="builder-type-title">先选一种最接近你的角色</h4><span>不用纠结职业强度，三种类型都能完整参与故事。</span></div>
+            <div class="builder-step-heading"><p>STEP 01 · BASE IDENTITY</p><h4 id="builder-type-title">先选基础身份</h4><span>御主不是第四种身份；普通人或魔术师可以在完成基础卡后附加契约模块。</span></div>
             <div class="archetype-grid" id="archetype-grid">
-              <button type="button" data-archetype="present"><span>人</span><div><strong>现世者／NULL</strong><small>最简单 · 推荐第一次跑团</small><p>普通人、调查者或被圣杯遗漏的人。没有额外资源，最容易上手。</p></div><i>推荐</i></button>
-              <button type="button" data-archetype="master"><span>主</span><div><strong>NULL 御主</strong><small>关系与指挥型</small><p>与英灵建立契约的人。适合喜欢交涉、计划和保护同伴的玩家。</p></div><i>标准</i></button>
-              <button type="button" data-archetype="servant"><span>灵</span><div><strong>NULL 英灵</strong><small>力量与代价型</small><p>从传说中被召来的存在。系统会自动加入灵核负荷与宝具状态。</p></div><i>进阶</i></button>
+              <button type="button" data-archetype="mortal"><span>人</span><div><strong>普通人</strong><small>14 属性点 · 6 技能点</small><p>以专业、联系人、现实准备和标志才能影响圣杯战争。</p></div><i>推荐</i></button>
+              <button type="button" data-archetype="magus"><span>术</span><div><strong>魔术师</strong><small>15 属性点 · 4 项术式</small><p>选择两种系谱、四项术式、一件礼装与一项明确限制。</p></div><i>标准</i></button>
+              <button type="button" data-archetype="servant"><span>灵</span><div><strong>从者</strong><small>30 属性点 · 职阶／技能／宝具</small><p>拥有英灵尺度，同时受真名、魔力、概念弱点和宝具条件约束。</p></div><i>进阶</i></button>
             </div>
-            <select id="character-existence" aria-label="存在形态" hidden><option value="present">现世者／NULL</option><option value="master">NULL 御主</option><option value="servant">NULL 英灵</option></select>
-            <div class="quickstart-box"><div><strong>完全不想想数值？</strong><p>选择类型后点一下，系统会生成一套规则正确、可以直接修改的完整人物底稿。</p></div><button id="builder-quickstart" type="button">帮我生成可用底稿 ✦</button></div>
+            <select id="character-existence" aria-label="基础身份" hidden><option value="mortal">普通人</option><option value="magus">魔术师</option><option value="servant">从者</option></select>
+            <label class="master-module-choice" id="master-module-toggle"><input id="character-is-master" type="checkbox"><span><strong>附加御主契约模块</strong><small>仅普通人／魔术师可选；不会增加属性点。默认获得独立的 3 画令咒。</small></span></label>
+            <div class="quickstart-box"><div><strong>完全不想自己分配？</strong><p>先选身份，再一键生成合法底稿；之后仍可逐项修改。</p></div><button id="builder-quickstart" type="button">帮我生成 v2.0 合法底稿 ✦</button></div>
           </section>
 
           <section class="builder-step" data-builder-panel="1" aria-labelledby="builder-identity-title">
-            <div class="builder-step-heading"><p>STEP 02 · IDENTITY</p><h4 id="builder-identity-title">告诉我们怎么称呼你</h4><span>带星号的两项必须填写，其余可以留空。</span></div>
+            <div class="builder-step-heading"><p>STEP 02 · CONCEPT</p><h4 id="builder-identity-title">写下姓名、概念、愿望与底线</h4><span>这些字段来自 v2.0 角色卡；不知道怎么写可以直接点建议。</span></div>
             <div class="player-form-grid two-columns builder-fields">
               <label><span>角色名／代称 *</span><input id="character-name" maxlength="80" required placeholder="例如：林雾、Saber、无名旅人"></label>
               <label><span>玩家名</span><input id="character-player-name" maxlength="80" placeholder="桌上怎么称呼你"></label>
               <label><span>年龄／代词</span><input id="character-pronouns" maxlength="80" placeholder="可留空"></label>
-              <label><span>从哪里来 *</span><input id="character-origin" maxlength="120" placeholder="点击下方建议，或自己填写"></label>
+              <label><span id="character-origin-label">现实身份／来历 *</span><input id="character-origin" maxlength="160" placeholder="职业、家系、传说或来历"></label>
             </div>
             <div class="suggestion-row" id="origin-suggestions" aria-label="来源建议"></div>
-            <label class="builder-long-field"><span>用一句话说明你是谁 *</span><textarea id="character-identity" rows="3" maxlength="400" placeholder="例如：我是一名总能看见错误记忆的东湖市急救员。"></textarea></label>
+            <label class="builder-long-field"><span>一句话角色概念 *</span><textarea id="character-identity" rows="3" maxlength="400" placeholder="例如：在神秘灾害中坚持抢救伤者的急诊医师。"></textarea></label>
             <div class="suggestion-row" id="identity-suggestions" aria-label="身份建议"></div>
-          </section>
-
-          <section class="builder-step" data-builder-panel="2" aria-labelledby="builder-core-title">
-            <div class="builder-step-heading"><p>STEP 03 · CHARACTER CORE</p><h4 id="builder-core-title">回答三个故事问题</h4><span>不知道怎么写就点一条提示，它会自动填入，你仍可继续修改。</span></div>
-            <div class="story-question">
-              <label><span>1 · 你最想完成、却一直没有完成的愿望 *</span><textarea id="character-wish" rows="3" maxlength="600" placeholder="我想……"></textarea></label>
+            <div class="story-question compact-story-question">
+              <label><span>愿望／动机 *</span><textarea id="character-wish" rows="3" maxlength="600" placeholder="我希望……"></textarea></label>
               <div class="suggestion-row" data-suggestion-group="wish"></div>
             </div>
-            <div class="story-question">
-              <label><span>2 · 你最害怕被圣杯变成怎样的人 *</span><textarea id="character-feared-identity" rows="3" maxlength="400" placeholder="我害怕自己变成……"></textarea></label>
-              <div class="suggestion-row" data-suggestion-group="fear"></div>
-            </div>
-            <div class="story-question">
-              <label><span>3 · 什么能提醒你“我还是我” *</span><textarea id="character-anchor" rows="3" maxlength="400" placeholder="我的锚点是……"></textarea></label>
-              <div class="suggestion-row" data-suggestion-group="anchor"></div>
+            <div class="story-question compact-story-question">
+              <label><span>底线／恐惧 *</span><textarea id="character-boundary" rows="3" maxlength="500" placeholder="我绝不会……／我最害怕……"></textarea></label>
+              <div class="suggestion-row" data-suggestion-group="boundary"></div>
             </div>
           </section>
 
-          <section class="builder-step" data-builder-panel="3" aria-labelledby="builder-approach-title">
-            <div class="builder-step-heading"><p>STEP 04 · APPROACHES</p><h4 id="builder-approach-title">选一个最像你的行动风格</h4><span>系统会自动得到正确的 ＋3／＋2／＋2／＋1／＋0；这里没有任何算术题。</span></div>
-            <div class="approach-presets" id="approach-presets"></div>
-            <div class="approach-result"><div><strong>自动分配结果</strong><p>也可以依次点击下方五项，从“最擅长”排到“最不擅长”。</p></div><span id="approach-status">已使用推荐模板</span></div>
-            <div id="approach-ranking" class="approach-ranking"></div>
-            <div id="player-approach-inputs" hidden></div>
+          <section class="builder-step" data-builder-panel="2" aria-labelledby="builder-attribute-title">
+            <div class="builder-step-heading"><p>STEP 03 · SEVEN ATTRIBUTES</p><h4 id="builder-attribute-title">选择固定数组，或自己点购</h4><span>每项从 E／0 开始；系统按 0、1、3、6、10 的总成本自动核算。</span></div>
+            <div class="approach-presets attribute-presets" id="attribute-presets"></div>
+            <div class="budget-meter" id="attribute-budget-status" role="status"></div>
+            <div class="attribute-point-grid" id="attribute-grid"></div>
+            <div class="builder-inline-actions"><button type="button" id="reset-attributes">全部归零</button><small>人类常驻上限 B／3；从者上限 A／4。魔术师的魔力必须至少 D／1。</small></div>
           </section>
 
-          <section class="builder-step" data-builder-panel="4" aria-labelledby="builder-specialty-title">
-            <div class="builder-step-heading"><p>STEP 05 · SPECIALTIES</p><h4 id="builder-specialty-title">只点选三项你擅长的事</h4><span>已选专长在适用时自动提供 ＋2；选满三项后，其余选项会锁定。</span></div>
-            <div class="specialty-counter"><span>已选择</span><strong id="specialty-count">0 / 3</strong><button id="clear-specialties" type="button">重新选择</button></div>
-            <div class="specialty-option-grid" id="specialty-option-grid"></div>
-            <div class="custom-specialty"><label><span>列表里没有？写一个具体擅长的事情</span><input id="custom-specialty-input" maxlength="80" placeholder="例如：修理老式收音机"></label><button id="add-custom-specialty" type="button">加入专长</button></div>
-            <div class="selected-specialties" id="selected-specialties" aria-live="polite"></div>
-            <div class="hidden-specialty-inputs" hidden><input class="character-specialty"><input class="character-specialty"><input class="character-specialty"></div>
+          <section class="builder-step" data-builder-panel="3" aria-labelledby="builder-skill-title">
+            <div class="builder-step-heading"><p>STEP 04 · GENERAL SKILLS</p><h4 id="builder-skill-title">给十二项通用技能分配训练等级</h4><span>未受训 +0／0 点，受训 +2／1 点，专家 +4／2 点；每次检定只加入一项技能。</span></div>
+            <div class="budget-meter" id="skill-budget-status" role="status"></div>
+            <div class="skill-training-grid" id="skill-grid"></div>
+            <div class="builder-inline-actions"><button type="button" id="apply-skill-preset">自动分配合法技能</button><button type="button" id="clear-skills">全部设为未受训</button><small id="skill-rule-note"></small></div>
+          </section>
+
+          <section class="builder-step" data-builder-panel="4" aria-labelledby="builder-resource-title">
+            <div class="builder-step-heading"><p>STEP 05 · IDENTITY RESOURCES</p><h4 id="builder-resource-title">选择身份专属资源</h4><span>这里只显示当前身份需要的内容；资源目录来自 v2.0 附录 C／D。</span></div>
+            <div id="identity-resources">
+              <section class="identity-resource-panel" data-resource-panel="mortal">
+                <div class="resource-section-heading"><span>ORDINARY PERSON</span><h5>现实身份资源</h5><p>1 项标志才能、1 项现实优势、2 名联系人、2 件装备和 1 个安全地点。</p></div>
+                <div class="player-form-grid two-columns">
+                  <label><span>快速背景 *</span><select id="character-background"></select></label>
+                  <label><span>现实优势 *</span><select id="character-real-advantage"></select></label>
+                  <label><span>联系人 1 *</span><input id="character-contact-1" maxlength="120" placeholder="姓名／机构与能提供的帮助"></label>
+                  <label><span>联系人 2 *</span><input id="character-contact-2" maxlength="120" placeholder="姓名／机构与能提供的帮助"></label>
+                  <label><span>安全地点 *</span><input id="character-safe-place" maxlength="160" placeholder="可休整、藏匿或取得支援的地点"></label>
+                  <label><span>两件常用装备 *</span><input id="character-equipment" maxlength="220" placeholder="例如：急救包；救护车"></label>
+                </div>
+                <label><span>标志才能完整能力卡 *</span><textarea id="character-signature-talent" rows="5" maxlength="1000" placeholder="动作／成本／检定／目标／成功／失败／持续／反制"></textarea></label>
+              </section>
+
+              <section class="identity-resource-panel" data-resource-panel="magus" hidden>
+                <div class="resource-section-heading"><span>MAGUS</span><h5>系谱、术式与魔术礼装</h5><p>选择 2 个系谱、恰好 4 项术式和 1 件起始礼装；系统自动检查阶位和与功能覆盖。</p></div>
+                <div class="lineage-choice-grid" id="lineage-grid"></div>
+                <div class="budget-meter" id="spell-budget-status"></div>
+                <div class="resource-catalog-toolbar"><label><span>筛选术式</span><select id="spell-lineage-filter"><option value="all">全部系谱</option></select></label><button type="button" id="clear-spells">清空已选术式</button></div>
+                <div class="resource-catalog" id="spell-catalog"></div>
+                <div class="selected-resource-list" id="selected-spells"></div>
+                <div class="player-form-grid two-columns">
+                  <label><span>起始魔术礼装 *</span><select id="character-mystic-code"></select></label>
+                  <label><span>明确限制 *</span><input id="character-magus-limit" maxlength="300" placeholder="媒介／咒文／血统／地点／时间／代价／誓约"></label>
+                </div>
+                <p class="resource-warning" id="mystic-code-warning"></p>
+              </section>
+
+              <section class="identity-resource-panel" data-resource-panel="servant" hidden>
+                <div class="resource-section-heading"><span>SERVANT</span><h5>职阶、保有技能与宝具</h5><p>恰好 3 项保有技能、1 项宝具和至少 2 项概念弱点；宝具阶位会收紧技能预算。</p></div>
+                <div class="player-form-grid two-columns">
+                  <label><span>公开称谓 *</span><input id="character-servant-title" maxlength="120" placeholder="例如：枪兵／赤色弓兵"></label>
+                  <label><span>真名 *</span><input id="character-true-name" maxlength="160" placeholder="导出卡会包含；公开时请自行隐藏"></label>
+                  <label><span>基础职阶 *</span><select id="character-class"></select></label>
+                  <label><span>幸运阶位 *</span><select id="character-luck"><option value="D">D</option><option value="C" selected>C（默认）</option><option value="B">B</option><option value="A">A（需主持人许可）</option></select></label>
+                </div>
+                <aside class="class-trait-card" id="class-trait-card"></aside>
+                <label><span>传说核心／现界理由 *</span><textarea id="character-legend-core" rows="3" maxlength="600"></textarea></label>
+                <div class="player-form-grid two-columns">
+                  <label><span>概念弱点 1 *</span><input id="character-weakness-1" maxlength="180"></label>
+                  <label><span>概念弱点 2 *</span><input id="character-weakness-2" maxlength="180"></label>
+                  <label id="character-weakness-3-field" hidden><span>概念弱点 3（幸运 A 必填）*</span><input id="character-weakness-3" maxlength="180"></label>
+                  <label><span>不会接受的命令 *</span><input id="character-refused-command" maxlength="220"></label>
+                </div>
+                <div class="budget-meter" id="retained-skill-budget-status"></div>
+                <div class="retained-skill-list" id="retained-skill-list"></div>
+                <div class="noble-phantasm-card">
+                  <div class="player-form-grid two-columns">
+                    <label><span>宝具名称／真名解放词 *</span><input id="character-noble-name" maxlength="180"></label>
+                    <label><span>宝具阶位 *</span><select id="character-noble-rank"></select></label>
+                    <label><span>类型 *</span><select id="character-noble-type"><option>对人</option><option>对军</option><option>对城／对堡</option><option>结界／支援</option><option>概念／特殊</option></select></label>
+                    <label><span>基础成本</span><input id="character-noble-cost" readonly></label>
+                  </div>
+                  <label><span>触发／检定／目标／效果／持续 *</span><textarea id="character-noble-effect" rows="4" maxlength="1200"></textarea></label>
+                  <label><span>代价与可执行反制 *</span><textarea id="character-noble-counter" rows="3" maxlength="800"></textarea></label>
+                </div>
+              </section>
+
+              <section class="identity-resource-panel master-contract-panel" id="master-contract-panel" hidden>
+                <div class="resource-section-heading"><span>MASTER MODULE</span><h5>御主契约模块</h5><p>该模块附加在普通人／魔术师卡上，不增加属性点。令咒默认为独立 3 画。</p></div>
+                <div class="player-form-grid two-columns">
+                  <label><span>从者／公开称谓 *</span><input id="character-contract-servant" maxlength="160"></label>
+                  <label><span>供魔等级 *</span><select id="character-supply-level"></select></label>
+                  <label><span>通信距离 *</span><input id="character-contract-distance" maxlength="160" placeholder="同场景／同城／其他"></label>
+                  <label><span>契约来源 *</span><input id="character-contract-source" maxlength="220"></label>
+                  <label><span>解除条件 *</span><input id="character-contract-end" maxlength="220"></label>
+                  <label><span>当前令咒</span><input id="character-command-seals" type="number" min="0" max="3" step="1" value="3"></label>
+                  <label><span>御主不会下达的命令 *</span><input id="character-master-refusal" maxlength="220"></label>
+                  <label><span>从者不会接受的命令 *</span><input id="character-servant-refusal" maxlength="220"></label>
+                </div>
+              </section>
+            </div>
           </section>
 
           <section class="builder-step" data-builder-panel="5" aria-labelledby="builder-review-title">
-            <div class="builder-step-heading"><p>STEP 06 · READY</p><h4 id="builder-review-title">系统已经替你检查完毕</h4><span>绿色项目全部通过后，就能保存、导出或提交给守秘人。</span></div>
+            <div class="builder-step-heading"><p>STEP 06 · LEGALITY CHECK</p><h4 id="builder-review-title">核对预算、派生值与身份资源</h4><span>红色项目必须修正；黄色项目是需要和主持人确认的规则提醒。</span></div>
             <div class="builder-review" id="builder-review"></div>
             <div class="builder-checklist" id="builder-checklist"></div>
             <details class="runtime-state">
-              <summary>跑团开始后的状态记录（车卡时不用改）</summary>
-              <p>初始值已经自动设置。受到压力、伤势或使用宝具后，再回到这里记录。</p>
+              <summary>跑团开始后的资源记录（车卡时可不改）</summary>
+              <p>生命、魔力和固定防御会随属性自动计算；这里只记录当前值、护甲与状态。</p>
               <div class="player-form-grid three-columns resource-fields">
-                <label><span>决意</span><input id="character-resolve" type="number" min="0" max="3" step="1" value="3"></label>
-                <label><span>压力</span><input id="character-stress" type="number" min="0" max="3" step="1" value="0"></label>
-                <label><span>伤势</span><select id="character-injury"><option value="none">无伤</option><option value="light">轻伤</option><option value="serious">重伤</option><option value="critical">濒危</option></select></label>
-                <label id="character-core-load-field"><span>灵核负荷</span><input id="character-core-load" type="number" min="0" max="3" step="1" value="0"><small>仅 NULL 英灵使用；满 3 须离开当前冲突。</small></label>
-                <label id="character-noble-field"><span>宝具状态</span><select id="character-noble-ready"><option value="ready">可用</option><option value="used">已用</option></select><small>每个完整循环一次；重置刷新。</small></label>
+                <label><span>当前生命</span><input id="character-current-hp" type="number" min="0" max="99" step="1"></label>
+                <label id="character-current-mp-field"><span>当前 MP</span><input id="character-current-mp" type="number" min="0" max="99" step="1"></label>
+                <label><span>当前决意</span><input id="character-resolve" type="number" min="0" max="3" step="1" value="3"></label>
+                <label><span>护甲</span><input id="character-armor" type="number" min="0" max="20" step="1" value="0"></label>
               </div>
-              <label><span>创伤状态（每行一项）</span><textarea id="character-trauma" rows="2" maxlength="800"></textarea></label>
+              <label><span>状态（每行一项）</span><textarea id="character-conditions" rows="2" maxlength="800" placeholder="受伤、失衡、束缚、暴露、回路灼伤……"></textarea></label>
               <label><span>其他记录</span><textarea id="character-notes" rows="3" maxlength="1600"></textarea></label>
             </details>
-            <div class="player-character-actions final-actions"><button class="player-primary" type="submit">生成并保存角色卡</button><button id="player-submit-character" type="button">提交给守秘人</button><button id="player-export-character" type="button">导出 JSON</button><button id="player-import-character" type="button">导入旧角色</button></div>
+            <div class="player-character-actions final-actions"><button class="player-primary" type="submit">生成并保存 v2.0 角色卡</button><button id="player-submit-character" type="button">提交给守秘人</button><button id="player-export-character" type="button">导出 JSON</button><button id="player-import-character" type="button">导入角色</button></div>
           </section>
 
-          <div class="builder-navigation"><button id="builder-back" type="button" disabled>← 上一步</button><p><span id="builder-step-label">第 1 步，共 6 步</span><small>系统会自动保存已生成的角色</small></p><button class="player-primary" id="builder-next" type="button">下一步：基本身份 →</button></div>
+          <div class="builder-navigation"><button id="builder-back" type="button" disabled>← 上一步</button><p><span id="builder-step-label">第 1 步，共 6 步</span><small>只有通过终检的角色才会保存和提交</small></p><button class="player-primary" id="builder-next" type="button">下一步：人物概念 →</button></div>
           <input id="player-character-file" type="file" accept="application/json,.json" hidden>
         </form>
       </section>
@@ -152,8 +218,8 @@
         <header><div><span>CHECK REQUEST</span><h3 id="player-check-title">发起判定申请</h3></div><small>守秘人确认 DC 并掷骰</small></header>
         <form id="player-check-request-form">
           <div class="player-form-grid two-columns">
-            <label><span>行动方式</span><select id="player-check-approach"></select></label>
-            <label><span>适用专长</span><select id="player-check-specialty"></select></label>
+              <label><span>使用属性</span><select id="player-check-approach"></select></label>
+              <label><span>一项通用技能</span><select id="player-check-specialty"></select></label>
             <label><span>状态</span><select id="player-check-mode"><option value="normal">正常</option><option value="advantage">优势</option><option value="disadvantage">劣势</option></select></label>
             <label><span>协助数量</span><input id="player-check-assist" type="number" min="0" max="3" step="1" value="0"></label>
             <label><span>已知额外修正</span><input id="player-check-modifier" type="number" min="-20" max="20" step="1" value="0"></label>
@@ -172,7 +238,7 @@
     </div>
   </section>
   <div class="projection-note" id="projection-note">同机投屏模式 · 守秘人发放后会自动更新</div>
-  <script src="player-data.js?v=20260713g"></script>
-  <script src="player.js?v=20260713g"></script>
+  <script src="player-data.js?v=20260713h"></script>
+  <script src="player.js?v=20260713h"></script>
 </body>
 </html>

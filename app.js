@@ -31,7 +31,7 @@
       highlights: ['规则书与自动车卡器已并入同一作品入口', '完整七日节点、人物、线索、手卡与主持控制台', '玩家角色卡可导入、导出并提交给主持人', '判定请求由主持人裁定，结果会回传到玩家面板'],
       spoiler: '完整世界真相、人物秘密、终局条件与坏结局只在通过作品密钥验证后的创作者控制台中提供。',
       resources: [
-        { name: 'Null Grail Core d20 v2.1 · 完整规则书', meta: 'DOCX · PLAYER SAFE · 统一判定、战斗、成长、主持与资源规则', format: 'DOCX', href: '《零之圣杯》Null Grail Core d20 v2.1_完整规则书.docx' },
+        { name: '通用圣杯战争规则书 v2.0 · 车卡与资源库增订版（现行）', meta: 'DOCX · PLAYER SAFE · 本站车卡器当前采用的统一规则', format: 'DOCX', href: '《零之圣杯》通用圣杯战争规则书_v2.0_车卡与资源库增订版.docx' },
         { name: '完整自动车卡器 v1.1', meta: 'XLSX · PLAYER SAFE · 建议使用此最新版', format: 'XLSX', href: '圣杯/零之圣杯_完整套件/自动车卡/《零之圣杯》完整自动车卡表_v1.1.xlsx' },
         { name: '第三册 · 玩家手册 v3.2', meta: 'DOCX · PLAYER SAFE · 无剧透导读与角色创建', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx' },
         { name: '玩家公开资料包 v3.2', meta: 'DOCX · PLAYER SAFE · 可直接发给全团', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' },
@@ -44,6 +44,26 @@
       ]
     }
   ];
+
+  entries.push({
+    id: 'coc7', number: '002', title: '克苏鲁的呼唤 第七版', english: 'CALL OF CTHULHU 7E',
+    systems: ['coc7'], systemLabel: 'Call of Cthulhu · 第七版 · 百分骰',
+    type: 'toolkit', typeLabel: '规则与车卡工具箱', tone: 'green', accent: '#7db79b', icon: 'rules',
+    status: '本站工具', updated: '2026.07.13', author: { name:'夜航模组馆馆主', label:'站长 · 已认证作者' },
+    summary: '从一键调查员车卡，到守秘人自动伤害、重伤、理智与回合结算。',
+    description: 'COC7 职业底稿自动车卡、Excel / JSON 角色导入、可搜索规则速查与守秘人自动战斗台。完整规则书由用户从本机选择后查看，不会上传或公开再分发。',
+    players: '2–6 人', duration: '短团至长篇', era: '1920s / 现代', difficulty: '零门槛',
+    tags: ['COC7','自动车卡','自动战斗','规则速查'],
+    warning: '恐怖、精神创伤、角色死亡与永久疯狂。请在开团前确认安全工具和内容边界。',
+    forWho: '适合希望减少抄数值、把桌面时间留给调查与扮演的 COC7 团队。',
+    highlights: ['职业底稿一键车卡','Excel / JSON 角色导入','HP 与重伤自动结算','本地 PDF 规则查看'],
+    spoiler: '',
+    resources: [
+      { name:'COC7 傻瓜自动车卡', meta:'WEB · PLAYER SAFE · 一键生成与导入', format:'WEB', href:'coc7.html?tab=builder' },
+      { name:'COC7 七版规则速查', meta:'WEB · 可搜索 · 本地 PDF 查看器', format:'WEB', href:'coc7.html?tab=rules' },
+      { name:'COC 七版规则空白卡', meta:'XLSX · 角色卡导入参考模板', format:'XLSX', href:'assets/rules/COC七版规则空白卡.xlsx' }
+    ]
+  });
 
   var state = {
     system: 'all',
