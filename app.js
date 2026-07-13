@@ -31,7 +31,7 @@
       highlights: ['规则书与自动车卡器已并入同一作品入口', '完整七日节点、人物、线索、手卡与主持控制台', '玩家角色卡可导入、导出并提交给主持人', '判定请求由主持人裁定，结果会回传到玩家面板'],
       spoiler: '完整世界真相、人物秘密、终局条件与坏结局只在通过作品密钥验证后的创作者控制台中提供。',
       resources: [
-        { name: '通用圣杯战争规则书 v2.0', meta: 'DOCX · PLAYER SAFE · 规则、车卡与资源库增订版', format: 'DOCX', href: '《零之圣杯》通用圣杯战争规则书_v2.0_车卡与资源库增订版.docx' },
+        { name: 'Null Grail Core d20 v2.1 · 完整规则书', meta: 'DOCX · PLAYER SAFE · 统一判定、战斗、成长、主持与资源规则', format: 'DOCX', href: '《零之圣杯》Null Grail Core d20 v2.1_完整规则书.docx' },
         { name: '完整自动车卡器 v1.1', meta: 'XLSX · PLAYER SAFE · 建议使用此最新版', format: 'XLSX', href: '圣杯/零之圣杯_完整套件/自动车卡/《零之圣杯》完整自动车卡表_v1.1.xlsx' },
         { name: '第三册 · 玩家手册 v3.2', meta: 'DOCX · PLAYER SAFE · 无剧透导读与角色创建', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/四册正文/《零之圣杯》第三册·玩家手册（v3.2）.docx' },
         { name: '玩家公开资料包 v3.2', meta: 'DOCX · PLAYER SAFE · 可直接发给全团', format: 'DOCX', href: 'NullGrail《零之圣杯》v3.2 最终版/配套资料/《零之圣杯》玩家公开资料包（v3.2）.docx' },
@@ -335,10 +335,8 @@
   function openEntry(id, updateUrl) {
     var entry = entries.find(function (item) { return item.id === id; });
     if (!entry) return;
-    if (!currentRole() || (currentRole() === 'keeper' && !isKeeper())) {
-      showAccessDialog(id);
-      return;
-    }
+    window.location.href = 'module.html?id=' + encodeURIComponent(entry.id);
+    return;
     dialogContent.innerHTML = dialogTemplate(entry);
     dialog.showModal();
     document.body.style.overflow = 'hidden';
@@ -582,6 +580,73 @@
   document.getElementById('published-count').textContent = String(entries.length).padStart(2, '0');
   setView(state.view === 'list' ? 'list' : 'grid');
 
+  function publicModuleEntry(module, index) {
+    var fallbackAuthor = module.author || {};
+    return {
+      id: module.id,
+      number: String(module.number || index + 1).padStart(3, '0'),
+      title: module.title || '未命名模组',
+      english: module.english || 'COMMUNITY MODULE',
+      systems: Array.isArray(module.systems) && module.systems.length ? module.systems : ['community'],
+      systemLabel: module.systemLabel || '规则系统待补充',
+      type: module.type || 'campaign',
+      typeLabel: module.typeLabel || '完整战役模组',
+      tone: module.tone || (index % 2 ? 'cyan' : 'gold'),
+      accent: module.accent || '#d1ad6c',
+      icon: module.icon || 'grail',
+      status: module.status === 'draft' ? '草稿' : '已发布',
+      updated: module.updatedAt ? String(module.updatedAt).slice(0, 10).replace(/-/g, '.') : '—',
+      author: {
+        name: fallbackAuthor.account || fallbackAuthor.name || module.authorName || 'night-voyager',
+        label: fallbackAuthor.displayName || fallbackAuthor.label || fallbackAuthor.name || module.authorName || '认证作者'
+      },
+      summary: module.summary || '创作者还没有填写一句话简介。',
+      description: module.description || module.summary || '这份模组的详细介绍正在整理中。',
+      players: module.players || '待定',
+      duration: module.duration || '待定',
+      era: module.era || '待定',
+      difficulty: module.difficulty || '待定',
+      tags: Array.isArray(module.tags) ? module.tags : [],
+      warning: module.warning || '请在开团前由主持人与玩家共同确认内容边界。',
+      forWho: module.forWho || '请阅读作品简介与公开资料后判断是否适合你的团队。',
+      highlights: module.highlights || ['独立模组档案', '创作者公开资料', '按作品隔离的资源库'],
+      spoiler: '',
+      resources: Array.isArray(module.resources) ? module.resources : []
+    };
+  }
+
+  function staticPublishedModules() {
+    var merged = {};
+    (window.NG_STATIC_MODULES || []).forEach(function (module) { if (module && module.id) merged[module.id] = module; });
+    try {
+      var local = JSON.parse(window.localStorage.getItem('nocturne-studio:modules:v1') || '[]');
+      if (Array.isArray(local)) local.forEach(function (module) { if (module && module.id) merged[module.id] = module; });
+    } catch (error) {}
+    return Object.keys(merged).map(function (id) { return merged[id]; }).filter(function (module) { return module.status === 'published'; });
+  }
+
+  function usePublishedModules(published) {
+    if (!published.length) return;
+    entries = published.map(publicModuleEntry);
+    state.system = 'all';
+    document.getElementById('published-count').textContent = String(entries.length).padStart(2, '0');
+    document.getElementById('all-module-count').textContent = String(entries.length).padStart(2, '0');
+    renderEntries();
+  }
+
+  var staticPublished = staticPublishedModules();
+  if (staticPublished.length) usePublishedModules(staticPublished);
+
+  window.fetch('/api/modules', { credentials: 'same-origin', cache: 'no-store' }).then(function (response) {
+    if (!response.ok) throw new Error('module-list-unavailable');
+    return response.json();
+  }).then(function (payload) {
+    var published = payload.modules || [];
+    usePublishedModules(published);
+  }).catch(function () {
+    document.getElementById('all-module-count').textContent = String(entries.length).padStart(2, '0');
+  });
+
   // Resume an authenticated owner/author session without asking for the work
   // key a second time. The server remains the authority for this decision.
   if (access && access.checkServerSession) {
@@ -600,5 +665,5 @@
   });
 
   var entryParam = new URL(window.location.href).searchParams.get('entry');
-  if (entryParam) window.setTimeout(function () { openEntry(entryParam, false); }, 120);
+  if (entryParam) window.setTimeout(function () { window.location.replace('module.html?id=' + encodeURIComponent(entryParam)); }, 120);
 })();

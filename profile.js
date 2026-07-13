@@ -4,9 +4,86 @@
   var auth = window.NG_AUTH;
   var currentProfile = null;
   var toastTimer = null;
+  var pendingAvatar = '';
+  var avatarProcessing = false;
+  var MAX_AVATAR_FILE_BYTES = 5 * 1024 * 1024;
+  var MAX_AVATAR_DATA_LENGTH = 180 * 1024;
+  var AVATAR_SIZE = 256;
 
   function byId(id) { return document.getElementById(id); }
   function isStaticMode() { return auth && auth.getMode && auth.getMode() === 'static'; }
+
+  function displayName(user) {
+    return auth && auth.displayName ? auth.displayName(user) : String(user && user.displayName || '夜航用户');
+  }
+
+  function renderAvatar(element, user, label) {
+    if (!element) return;
+    if (auth && auth.renderAvatar) {
+      auth.renderAvatar(element, user, { label: label || '{name}的头像' });
+      return;
+    }
+    element.textContent = Array.from(displayName(user))[0] || '航';
+  }
+
+  function avatarPreviewUser() {
+    return {
+      displayName: byId('display-name-input').value.trim() || (currentProfile && displayName(currentProfile.user)) || '夜航用户',
+      avatar: pendingAvatar
+    };
+  }
+
+  function updateAvatarPreview() {
+    var user = avatarPreviewUser();
+    renderAvatar(byId('avatar-preview'), user, '{name}的头像预览');
+    byId('avatar-remove').disabled = !pendingAvatar;
+  }
+
+  function loadAvatarImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var image = new Image();
+      image.onload = function () {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('无法读取这张图片，请换一张 JPG、PNG 或 WebP。'));
+      };
+      image.src = url;
+    });
+  }
+
+  function prepareAvatar(file) {
+    if (!file || ['image/jpeg', 'image/png', 'image/webp'].indexOf(file.type) < 0) {
+      return Promise.reject(new Error('头像只支持 JPG、PNG 或 WebP 图片。'));
+    }
+    if (file.size > MAX_AVATAR_FILE_BYTES) {
+      return Promise.reject(new Error('头像原图不能超过 5 MB。'));
+    }
+    return loadAvatarImage(file).then(function (image) {
+      if (!image.naturalWidth || !image.naturalHeight) throw new Error('这张图片没有可用尺寸。');
+      var canvas = document.createElement('canvas');
+      canvas.width = AVATAR_SIZE;
+      canvas.height = AVATAR_SIZE;
+      var context = canvas.getContext('2d');
+      if (!context) throw new Error('浏览器无法处理头像图片。');
+      context.fillStyle = '#15202b';
+      context.fillRect(0, 0, AVATAR_SIZE, AVATAR_SIZE);
+      var crop = Math.min(image.naturalWidth, image.naturalHeight);
+      var sourceX = Math.max(0, (image.naturalWidth - crop) / 2);
+      var sourceY = Math.max(0, (image.naturalHeight - crop) / 2);
+      context.drawImage(image, sourceX, sourceY, crop, crop, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
+      var data = canvas.toDataURL('image/webp', .82);
+      if (data.indexOf('data:image/webp;base64,') !== 0 || data.length > MAX_AVATAR_DATA_LENGTH) {
+        data = canvas.toDataURL('image/jpeg', .76);
+      }
+      if (data.length > MAX_AVATAR_DATA_LENGTH) data = canvas.toDataURL('image/jpeg', .58);
+      if (data.length > MAX_AVATAR_DATA_LENGTH) throw new Error('头像压缩后仍然过大，请选择更简单的图片。');
+      return data;
+    });
+  }
 
   function setBusy(form, active) {
     var button = form && form.querySelector('[type="submit"]');
@@ -58,21 +135,24 @@
     byId('signed-out-card').hidden = false;
     byId('logout-button').hidden = true;
     if (isStaticMode()) {
-      byId('profile-storage-note').textContent = '当前为 GitHub Pages 临时账号：登录与注册只保留在本标签页中，关闭后可能清除。';
+      byId('profile-storage-note').textContent = '当前为 GitHub Pages 本机账号：账号资料和登录状态会长期保存在这个浏览器中。清除网站数据或更换浏览器、设备后不会同步。';
     }
   }
 
   function renderIdentity(user) {
-    byId('identity-name').textContent = user.displayName || user.account;
+    var name = displayName(user);
+    byId('identity-name').textContent = name;
     byId('identity-account').textContent = '账号 · ' + user.account;
-    byId('identity-avatar').textContent = String(user.displayName || user.account || '航').charAt(0);
+    renderAvatar(byId('identity-avatar'), user, '{name}的头像');
     byId('role-badge').textContent = roleLabel(user);
     byId('author-badge').textContent = authorLabel(user.authorStatus);
     byId('locked-badge').hidden = !user.locked;
     byId('joined-date').textContent = formatDate(user.createdAt);
-    byId('display-name-input').value = user.displayName || '';
+    byId('display-name-input').value = name;
     byId('bio-input').value = user.bio || '';
     byId('bio-count').textContent = String((user.bio || '').length);
+    pendingAvatar = user.avatar || '';
+    updateAvatarPreview();
   }
 
   function renderAuthor(user) {
@@ -85,7 +165,7 @@
     form.hidden = user.authorStatus === 'verified' || user.authorStatus === 'pending';
     if (isStaticMode() && user.authorStatus !== 'verified') {
       form.hidden = false;
-      form.querySelector('p').textContent = 'GitHub Pages 临时账号不能真正提交作者认证；作者审核需要网站后端。';
+      form.querySelector('p').textContent = 'GitHub Pages 本机账号不能真正提交作者认证；作者审核需要网站后端。';
       form.querySelector('textarea').disabled = true;
       form.querySelector('[type="submit"]').disabled = true;
     }
@@ -106,13 +186,13 @@
       '<div><p class="profile-eyebrow">WORK · ' + String(index + 1).padStart(2, '0') + '</p>' +
       '<h3>' + escapeHtml(work.title) + ' <small>' + escapeHtml(work.edition || '') + '</small></h3>' +
       '<p>' + escapeHtml(work.relationship || '作品所有者') + ' · ' + escapeHtml(work.status === 'published' ? '已发布' : '草稿') + '</p>' +
-      '<div class="work-actions"><a href="index.html#archive">查看模组</a><a class="manage" href="gm.html">进入创作者面板 →</a></div></div>' +
+      '<div class="work-actions"><a href="module.html?id=' + encodeURIComponent(work.id) + '">查看模组</a><a class="manage" href="studio.html?id=' + encodeURIComponent(work.id) + '">进入创作者工作台 →</a></div></div>' +
       (showKey ? '<div class="work-key"><label for="work-key-' + index + '">作品密钥</label>' +
       '<div class="key-control"><input id="work-key-' + index + '" type="password" readonly value="' + escapeAttribute(value) + '" placeholder="尚未配置">' +
       '<button type="button" data-key-toggle="work-key-' + index + '">显示</button>' +
       '<button type="button" data-key-copy="work-key-' + index + '"' + (value ? '' : ' disabled') + '>复制</button></div>' +
       '<small>' + escapeHtml(hint) + '</small></div>' : staticMode && work.secretUnavailableOnStatic
-        ? '<div class="work-key static-key-note"><label>作品密钥</label><small>公开版不保存作品密钥。进入创作者面板时，请单独输入守秘口令验证。</small></div>'
+        ? '<div class="work-key static-key-note"><label>作品密钥</label><small>公开版不保存作品密钥；创作者工作台的在线展示数据仅保存在当前浏览器。守秘人控制台仍需独立作品密钥。</small></div>'
         : '') + '</article>';
   }
 
@@ -129,7 +209,7 @@
     var list = byId('works-list');
     var canCreate = user && (user.authorStatus === 'verified' || user.role === 'owner');
     panel.hidden = !canCreate && (!works || works.length === 0);
-    byId('new-work-link').hidden = !canCreate || isStaticMode();
+    byId('new-work-link').hidden = !canCreate;
     list.innerHTML = works && works.length ? works.map(workMarkup).join('') : '<div class="works-empty"><span>◇</span><div><strong>还没有创建模组</strong><p>建立第一份作品档案后，就能导入信息、地图、规则与自动车卡器。</p></div><a href="studio.html?new=1">创建第一份模组 →</a></div>';
   }
 

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="player.css?v=20260713f">
+  <link rel="stylesheet" href="player.css?v=20260713g">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -52,33 +52,98 @@
 
     <div class="player-tools-grid">
       <section class="player-tool-card character-editor" aria-labelledby="player-character-title">
-        <header><div><span>NULL CHARACTER</span><h3 id="player-character-title">基础角色卡</h3></div><small id="character-save-status">本地自动保存</small></header>
+        <header><div><span>FOOLPROOF BUILDER</span><h3 id="player-character-title">零门槛傻瓜车卡</h3></div><small id="character-save-status">按步骤完成 · 自动计算</small></header>
         <form id="player-character-form">
-          <div class="player-form-grid two-columns">
-            <label><span>角色名／代称</span><input id="character-name" maxlength="80" required></label>
-            <label><span>玩家名</span><input id="character-player-name" maxlength="80"></label>
-            <label><span>年龄／代词</span><input id="character-pronouns" maxlength="80"></label>
-            <label><span>来源</span><input id="character-origin" maxlength="120" placeholder="例：本地遗漏者"></label>
-            <label><span>存在形态</span><select id="character-existence"><option value="present">现世者／NULL</option><option value="master">NULL 御主</option><option value="servant">NULL 英灵</option></select></label>
-          </div>
-          <label><span>一句身份</span><textarea id="character-identity" rows="2" maxlength="400"></textarea></label>
-          <label><span>未竟愿望</span><textarea id="character-wish" rows="2" maxlength="600"></textarea></label>
-          <label><span>害怕被赋予的身份</span><textarea id="character-feared-identity" rows="2" maxlength="400"></textarea></label>
-          <label><span>个人锚点</span><textarea id="character-anchor" rows="2" maxlength="400"></textarea></label>
+          <nav class="builder-progress" aria-label="车卡步骤">
+            <button class="active" type="button" data-builder-step="0"><span>1</span><b>角色类型</b><i>选择你是谁</i></button>
+            <button type="button" data-builder-step="1"><span>2</span><b>基本身份</b><i>只填必要信息</i></button>
+            <button type="button" data-builder-step="2"><span>3</span><b>人物核心</b><i>点提示就能写</i></button>
+            <button type="button" data-builder-step="3"><span>4</span><b>行动方式</b><i>自动分配数值</i></button>
+            <button type="button" data-builder-step="4"><span>5</span><b>三项专长</b><i>只需点三下</i></button>
+            <button type="button" data-builder-step="5"><span>6</span><b>确认生成</b><i>自动查漏</i></button>
+          </nav>
 
-          <fieldset class="approach-editor"><legend>五项行动方式</legend><p>推荐分配：＋3、＋2、＋2、＋1、＋0。</p><div id="player-approach-inputs" class="approach-inputs"></div></fieldset>
-          <fieldset class="specialty-editor"><legend>三项专长</legend><p>每项适用时＋2。</p><div class="player-form-grid three-columns"><input class="character-specialty" maxlength="80" placeholder="专长 1"><input class="character-specialty" maxlength="80" placeholder="专长 2"><input class="character-specialty" maxlength="80" placeholder="专长 3"></div></fieldset>
+          <div class="builder-assurance"><span aria-hidden="true">✓</span><p><strong>不需要读规则书也能完成。</strong>数值、初始资源和格式由系统处理；你只负责做人物选择。</p><b id="builder-completion">已完成 0%</b></div>
+          <p class="builder-error" id="builder-error" role="alert" hidden></p>
 
-          <div class="player-form-grid three-columns resource-fields">
-            <label><span>决意</span><input id="character-resolve" type="number" min="0" max="3" step="1" value="3"></label>
-            <label><span>压力</span><input id="character-stress" type="number" min="0" max="3" step="1" value="0"></label>
-            <label><span>伤势</span><select id="character-injury"><option value="none">无伤</option><option value="light">轻伤</option><option value="serious">重伤</option><option value="critical">濒危</option></select></label>
-            <label id="character-core-load-field"><span>灵核负荷</span><input id="character-core-load" type="number" min="0" max="3" step="1" value="0"><small>仅 NULL 英灵使用；满 3 须离开当前冲突。</small></label>
-            <label id="character-noble-field"><span>宝具状态</span><select id="character-noble-ready"><option value="ready">可用</option><option value="used">已用</option></select><small>每个完整循环一次；重置刷新。</small></label>
-          </div>
-          <label><span>创伤状态（每行一项）</span><textarea id="character-trauma" rows="2" maxlength="800"></textarea></label>
-          <label><span>其他记录</span><textarea id="character-notes" rows="3" maxlength="1600"></textarea></label>
-          <div class="player-character-actions"><button class="player-primary" type="submit">保存角色卡</button><button id="player-import-character" type="button">导入 JSON</button><button id="player-export-character" type="button">导出 JSON</button><button id="player-submit-character" type="button">提交给守秘人</button></div>
+          <section class="builder-step active" data-builder-panel="0" aria-labelledby="builder-type-title">
+            <div class="builder-step-heading"><p>STEP 01 · CHOOSE A ROLE</p><h4 id="builder-type-title">先选一种最接近你的角色</h4><span>不用纠结职业强度，三种类型都能完整参与故事。</span></div>
+            <div class="archetype-grid" id="archetype-grid">
+              <button type="button" data-archetype="present"><span>人</span><div><strong>现世者／NULL</strong><small>最简单 · 推荐第一次跑团</small><p>普通人、调查者或被圣杯遗漏的人。没有额外资源，最容易上手。</p></div><i>推荐</i></button>
+              <button type="button" data-archetype="master"><span>主</span><div><strong>NULL 御主</strong><small>关系与指挥型</small><p>与英灵建立契约的人。适合喜欢交涉、计划和保护同伴的玩家。</p></div><i>标准</i></button>
+              <button type="button" data-archetype="servant"><span>灵</span><div><strong>NULL 英灵</strong><small>力量与代价型</small><p>从传说中被召来的存在。系统会自动加入灵核负荷与宝具状态。</p></div><i>进阶</i></button>
+            </div>
+            <select id="character-existence" aria-label="存在形态" hidden><option value="present">现世者／NULL</option><option value="master">NULL 御主</option><option value="servant">NULL 英灵</option></select>
+            <div class="quickstart-box"><div><strong>完全不想想数值？</strong><p>选择类型后点一下，系统会生成一套规则正确、可以直接修改的完整人物底稿。</p></div><button id="builder-quickstart" type="button">帮我生成可用底稿 ✦</button></div>
+          </section>
+
+          <section class="builder-step" data-builder-panel="1" aria-labelledby="builder-identity-title">
+            <div class="builder-step-heading"><p>STEP 02 · IDENTITY</p><h4 id="builder-identity-title">告诉我们怎么称呼你</h4><span>带星号的两项必须填写，其余可以留空。</span></div>
+            <div class="player-form-grid two-columns builder-fields">
+              <label><span>角色名／代称 *</span><input id="character-name" maxlength="80" required placeholder="例如：林雾、Saber、无名旅人"></label>
+              <label><span>玩家名</span><input id="character-player-name" maxlength="80" placeholder="桌上怎么称呼你"></label>
+              <label><span>年龄／代词</span><input id="character-pronouns" maxlength="80" placeholder="可留空"></label>
+              <label><span>从哪里来 *</span><input id="character-origin" maxlength="120" placeholder="点击下方建议，或自己填写"></label>
+            </div>
+            <div class="suggestion-row" id="origin-suggestions" aria-label="来源建议"></div>
+            <label class="builder-long-field"><span>用一句话说明你是谁 *</span><textarea id="character-identity" rows="3" maxlength="400" placeholder="例如：我是一名总能看见错误记忆的东湖市急救员。"></textarea></label>
+            <div class="suggestion-row" id="identity-suggestions" aria-label="身份建议"></div>
+          </section>
+
+          <section class="builder-step" data-builder-panel="2" aria-labelledby="builder-core-title">
+            <div class="builder-step-heading"><p>STEP 03 · CHARACTER CORE</p><h4 id="builder-core-title">回答三个故事问题</h4><span>不知道怎么写就点一条提示，它会自动填入，你仍可继续修改。</span></div>
+            <div class="story-question">
+              <label><span>1 · 你最想完成、却一直没有完成的愿望 *</span><textarea id="character-wish" rows="3" maxlength="600" placeholder="我想……"></textarea></label>
+              <div class="suggestion-row" data-suggestion-group="wish"></div>
+            </div>
+            <div class="story-question">
+              <label><span>2 · 你最害怕被圣杯变成怎样的人 *</span><textarea id="character-feared-identity" rows="3" maxlength="400" placeholder="我害怕自己变成……"></textarea></label>
+              <div class="suggestion-row" data-suggestion-group="fear"></div>
+            </div>
+            <div class="story-question">
+              <label><span>3 · 什么能提醒你“我还是我” *</span><textarea id="character-anchor" rows="3" maxlength="400" placeholder="我的锚点是……"></textarea></label>
+              <div class="suggestion-row" data-suggestion-group="anchor"></div>
+            </div>
+          </section>
+
+          <section class="builder-step" data-builder-panel="3" aria-labelledby="builder-approach-title">
+            <div class="builder-step-heading"><p>STEP 04 · APPROACHES</p><h4 id="builder-approach-title">选一个最像你的行动风格</h4><span>系统会自动得到正确的 ＋3／＋2／＋2／＋1／＋0；这里没有任何算术题。</span></div>
+            <div class="approach-presets" id="approach-presets"></div>
+            <div class="approach-result"><div><strong>自动分配结果</strong><p>也可以依次点击下方五项，从“最擅长”排到“最不擅长”。</p></div><span id="approach-status">已使用推荐模板</span></div>
+            <div id="approach-ranking" class="approach-ranking"></div>
+            <div id="player-approach-inputs" hidden></div>
+          </section>
+
+          <section class="builder-step" data-builder-panel="4" aria-labelledby="builder-specialty-title">
+            <div class="builder-step-heading"><p>STEP 05 · SPECIALTIES</p><h4 id="builder-specialty-title">只点选三项你擅长的事</h4><span>已选专长在适用时自动提供 ＋2；选满三项后，其余选项会锁定。</span></div>
+            <div class="specialty-counter"><span>已选择</span><strong id="specialty-count">0 / 3</strong><button id="clear-specialties" type="button">重新选择</button></div>
+            <div class="specialty-option-grid" id="specialty-option-grid"></div>
+            <div class="custom-specialty"><label><span>列表里没有？写一个具体擅长的事情</span><input id="custom-specialty-input" maxlength="80" placeholder="例如：修理老式收音机"></label><button id="add-custom-specialty" type="button">加入专长</button></div>
+            <div class="selected-specialties" id="selected-specialties" aria-live="polite"></div>
+            <div class="hidden-specialty-inputs" hidden><input class="character-specialty"><input class="character-specialty"><input class="character-specialty"></div>
+          </section>
+
+          <section class="builder-step" data-builder-panel="5" aria-labelledby="builder-review-title">
+            <div class="builder-step-heading"><p>STEP 06 · READY</p><h4 id="builder-review-title">系统已经替你检查完毕</h4><span>绿色项目全部通过后，就能保存、导出或提交给守秘人。</span></div>
+            <div class="builder-review" id="builder-review"></div>
+            <div class="builder-checklist" id="builder-checklist"></div>
+            <details class="runtime-state">
+              <summary>跑团开始后的状态记录（车卡时不用改）</summary>
+              <p>初始值已经自动设置。受到压力、伤势或使用宝具后，再回到这里记录。</p>
+              <div class="player-form-grid three-columns resource-fields">
+                <label><span>决意</span><input id="character-resolve" type="number" min="0" max="3" step="1" value="3"></label>
+                <label><span>压力</span><input id="character-stress" type="number" min="0" max="3" step="1" value="0"></label>
+                <label><span>伤势</span><select id="character-injury"><option value="none">无伤</option><option value="light">轻伤</option><option value="serious">重伤</option><option value="critical">濒危</option></select></label>
+                <label id="character-core-load-field"><span>灵核负荷</span><input id="character-core-load" type="number" min="0" max="3" step="1" value="0"><small>仅 NULL 英灵使用；满 3 须离开当前冲突。</small></label>
+                <label id="character-noble-field"><span>宝具状态</span><select id="character-noble-ready"><option value="ready">可用</option><option value="used">已用</option></select><small>每个完整循环一次；重置刷新。</small></label>
+              </div>
+              <label><span>创伤状态（每行一项）</span><textarea id="character-trauma" rows="2" maxlength="800"></textarea></label>
+              <label><span>其他记录</span><textarea id="character-notes" rows="3" maxlength="1600"></textarea></label>
+            </details>
+            <div class="player-character-actions final-actions"><button class="player-primary" type="submit">生成并保存角色卡</button><button id="player-submit-character" type="button">提交给守秘人</button><button id="player-export-character" type="button">导出 JSON</button><button id="player-import-character" type="button">导入旧角色</button></div>
+          </section>
+
+          <div class="builder-navigation"><button id="builder-back" type="button" disabled>← 上一步</button><p><span id="builder-step-label">第 1 步，共 6 步</span><small>系统会自动保存已生成的角色</small></p><button class="player-primary" id="builder-next" type="button">下一步：基本身份 →</button></div>
           <input id="player-character-file" type="file" accept="application/json,.json" hidden>
         </form>
       </section>
@@ -107,7 +172,7 @@
     </div>
   </section>
   <div class="projection-note" id="projection-note">同机投屏模式 · 守秘人发放后会自动更新</div>
-  <script src="player-data.js?v=20260713f"></script>
-  <script src="player.js?v=20260713f"></script>
+  <script src="player-data.js?v=20260713g"></script>
+  <script src="player.js?v=20260713g"></script>
 </body>
 </html>

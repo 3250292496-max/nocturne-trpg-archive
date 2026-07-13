@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="night">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="夜航模组馆作品档案：阅读模组介绍、地图、规则与配套资源。">
+  <meta name="theme-color" content="#0b1019">
+  <title>模组档案 · 夜航模组馆</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="module.css?v=20260713a">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
+</head>
+<body class="module-page">
+  <a class="skip-link" href="#module-main">跳到模组内容</a>
+  <div class="module-ambient ambient-one" aria-hidden="true"></div>
+  <div class="module-ambient ambient-two" aria-hidden="true"></div>
+
+  <header class="module-header">
+    <a class="module-brand" href="index.html#archive" aria-label="返回夜航模组馆">
+      <span class="brand-sigil" aria-hidden="true">✦</span>
+      <span><strong>夜航模组馆</strong><small>NOCTURNE ARCHIVE</small></span>
+    </a>
+    <nav aria-label="模组导航">
+      <a href="index.html#archive">所有模组</a>
+      <a href="profile.html" id="profile-link">个人中心</a>
+      <a class="creator-nav" id="creator-nav" href="studio.html" hidden>创作者工作台</a>
+    </nav>
+  </header>
+
+  <main id="module-main" class="module-main">
+    <section class="module-loading" id="module-loading" aria-live="polite">
+      <span class="loading-orbit" aria-hidden="true"></span>
+      <p>正在调取模组档案…</p>
+    </section>
+
+    <section class="module-error" id="module-error" hidden>
+      <span aria-hidden="true">◇</span>
+      <h1>这份档案暂时无法抵达</h1>
+      <p id="module-error-message">模组可能尚未公开，或链接已经失效。</p>
+      <a href="index.html#archive">返回模组馆</a>
+    </section>
+
+    <div id="module-content" hidden>
+      <section class="module-hero" aria-labelledby="module-title">
+        <div class="module-hero-copy">
+          <div class="module-flags"><span id="module-number">ARCHIVE</span><span id="module-type">战役模组</span><span id="module-status">已发布</span></div>
+          <p class="module-eyebrow" id="module-english">COMMUNITY MODULE</p>
+          <h1 id="module-title">模组名称</h1>
+          <p class="module-summary" id="module-summary"></p>
+          <div class="module-author"><span id="author-avatar" aria-hidden="true">航</span><p><small>CREATED BY</small><strong id="module-author">夜航者</strong></p></div>
+        </div>
+        <aside class="module-actions" aria-label="模组入口">
+          <p>MODULE ENTRANCES</p>
+          <a class="primary-action" id="workspace-action" href="studio.html" hidden><span>进入创作者工作台</span><small>编辑信息、地图、规则与车卡器 →</small></a>
+          <a id="keeper-action" href="gm.html" hidden><span>打开守秘人控制台</span><small>开团、人物、线索与判定 →</small></a>
+          <a id="player-action" href="player.html" hidden><span>进入玩家面板</span><small>角色卡与判定请求 →</small></a>
+          <a href="#resources"><span>浏览模组资源</span><small>按资料类型查看与下载 ↓</small></a>
+        </aside>
+      </section>
+
+      <dl class="module-meta" aria-label="模组基本信息">
+        <div><dt>规则系统</dt><dd id="module-system">—</dd></div>
+        <div><dt>适合人数</dt><dd id="module-players">—</dd></div>
+        <div><dt>预计时长</dt><dd id="module-duration">—</dd></div>
+        <div><dt>时代 / 舞台</dt><dd id="module-era">—</dd></div>
+        <div><dt>主持难度</dt><dd id="module-difficulty">—</dd></div>
+      </dl>
+
+      <div class="module-layout">
+        <article class="module-story">
+          <section aria-labelledby="about-module-title">
+            <p class="module-eyebrow">ABOUT THIS MODULE</p>
+            <h2 id="about-module-title">模组简介</h2>
+            <div class="module-description" id="module-description"></div>
+            <div class="module-tags" id="module-tags" aria-label="模组标签"></div>
+          </section>
+
+          <section class="map-section" id="maps" aria-labelledby="maps-title" hidden>
+            <div class="section-title"><div><p class="module-eyebrow">MAP ARCHIVE</p><h2 id="maps-title">地图与场景</h2></div><span id="maps-count"></span></div>
+            <div class="map-gallery" id="map-gallery"></div>
+          </section>
+        </article>
+
+        <aside class="module-index" aria-label="模组资料索引">
+          <p class="module-eyebrow">DOSSIER INDEX</p>
+          <h2>这份模组包含</h2>
+          <div id="resource-index"></div>
+        </aside>
+      </div>
+
+      <section class="resources-section" id="resources" aria-labelledby="resources-title">
+        <header class="section-title">
+          <div><p class="module-eyebrow">MODULE LIBRARY</p><h2 id="resources-title">模组资料库</h2></div>
+          <p>创作者公开的正文、地图、规则、自动车卡器和玩家材料。</p>
+        </header>
+        <div class="resource-sections" id="resource-sections"></div>
+        <div class="resource-empty" id="resource-empty" hidden><span>◇</span><p>创作者还没有公开可下载的资料。</p></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="module-footer"><a href="index.html#archive">← 返回所有模组</a><span>NOCTURNE ARCHIVE · COMMUNITY WORKS</span></footer>
+  <div class="module-toast" id="module-toast" role="status" aria-live="polite"></div>
+  <script src="modules-data.js?v=20260713a"></script>
+  <script src="site-auth.js?v=20260713d"></script>
+  <script src="module.js?v=20260713b"></script>
+</body>
+</html>

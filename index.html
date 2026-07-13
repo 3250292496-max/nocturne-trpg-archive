@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="夜航模组馆——《零之圣杯》规则书、自动车卡器、玩家资料与创作者工具的一体化模组入口。">
+  <meta name="description" content="夜航模组馆——发现社区模组，并从每份模组的独立档案进入玩家资料、开团控制台或创作者工作台。">
   <meta name="theme-color" content="#0b1019">
   <meta property="og:title" content="夜航模组馆 · Nocturne Archive">
   <meta property="og:description" content="把尚未发生的冒险，先收进一盏灯里。">
@@ -43,9 +43,9 @@
       </button>
 
       <nav class="site-nav" id="site-nav" aria-label="主导航">
-        <a href="#archive">门面模组</a>
+        <a href="#archive">全部模组</a>
         <a href="#world">世界索引</a>
-        <a href="#console">守秘人控制台</a>
+        <a href="studio.html">创作者工作台</a>
         <a href="#notes">创作手记</a>
         <a href="#about">关于馆主</a>
       </nav>
@@ -79,7 +79,7 @@
         <p class="hero-lead">这里完整收纳《零之圣杯》：一部关于轮回、抉择与未知的原创跑团模组。愿每一位夜航者，都能在故事落幕前找到自己的航标。</p>
         <div class="hero-actions">
           <button class="button button-primary" id="player-entry-button" type="button">玩家安全入口 <span aria-hidden="true">↗</span></button>
-          <a class="button button-keeper" href="gm.html"><span aria-hidden="true">◇</span> 守秘人控制台 · 需密钥</a>
+      <a class="button button-keeper" href="studio.html"><span aria-hidden="true">◇</span> 管理我的模组</a>
           <button class="button button-ghost" id="random-entry" type="button"><span class="spark" aria-hidden="true">✦</span> 进入《零之圣杯》</button>
         </div>
         <dl class="hero-stats" aria-label="档案馆概览">
@@ -157,9 +157,9 @@
         <span><small>PLAYER DESK</small><strong>玩家面板</strong></span>
         <i aria-hidden="true">进入 ↗</i>
       </a>
-      <a class="system-gate" href="gm.html">
+      <a class="system-gate" href="studio.html">
         <span class="gate-icon gate-author" aria-hidden="true">作</span>
-        <span><small>CREATOR DESK</small><strong>创作者面板</strong></span>
+        <span><small>CREATOR STUDIO</small><strong>创作者工作台</strong></span>
         <i aria-hidden="true">进入 ↗</i>
       </a>
     </section>
@@ -171,16 +171,16 @@
             <p class="eyebrow"><span></span> OPEN SHELVES</p>
             <h2 id="archive-title">门面模组</h2>
           </div>
-          <p>馆内目前只展示一部完整模组：《零之圣杯》。规则书、车卡器、玩家资料与创作者工具都收纳在同一个入口中。</p>
+          <p>先选择一份模组，再进入它的独立档案。不同作者的规则、地图、车卡器与开团入口都会留在各自作品中。</p>
         </header>
 
-        <div class="archive-toolbar single-module-toolbar reveal">
+        <div class="archive-toolbar reveal">
           <label class="search-box" for="archive-search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
-            <input id="archive-search" type="search" aria-label="搜索零之圣杯模组内容" placeholder="搜索《零之圣杯》的规则、舞台或标签…" autocomplete="off">
+            <input id="archive-search" type="search" aria-label="搜索模组" placeholder="搜索模组、规则、舞台、标签或作者…" autocomplete="off">
             <kbd>/</kbd>
           </label>
-          <label class="select-box" hidden>
+          <label class="select-box">
             <span class="sr-only">按资料类型筛选</span>
             <select id="type-filter">
               <option value="all">全部类型</option>
@@ -191,26 +191,23 @@
             </select>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
           </label>
-          <div class="view-switch" role="group" aria-label="切换档案视图" hidden>
+          <div class="view-switch" role="group" aria-label="切换档案视图">
             <button class="active" id="grid-view" type="button" aria-label="网格视图" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6"></rect><rect x="14" y="4" width="6" height="6"></rect><rect x="4" y="14" width="6" height="6"></rect><rect x="14" y="14" width="6" height="6"></rect></svg></button>
             <button id="list-view" type="button" aria-label="列表视图" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
           </div>
         </div>
 
         <div class="filter-row reveal" aria-label="模组筛选">
-          <div class="filter-chips" id="system-filters">
-            <button class="active" type="button" data-filter="all" aria-pressed="true">完整模组 <span>01</span></button>
-            <button type="button" data-filter="fate" aria-pressed="false">圣杯战争 <span>01</span></button>
-          </div>
+          <div class="filter-chips" id="system-filters"><button class="active" type="button" data-filter="all" aria-pressed="true">全部模组 <span id="all-module-count">01</span></button></div>
           <p class="result-count" aria-live="polite">当前收录 <strong id="result-count">1</strong> 个完整模组</p>
         </div>
 
-        <div class="archive-grid single-module-grid" id="archive-grid" aria-live="polite"></div>
+        <div class="archive-grid" id="archive-grid" aria-live="polite"></div>
 
         <div class="empty-state" id="empty-state" hidden>
           <div class="empty-sigil" aria-hidden="true">✦</div>
           <h3>这一段航线尚未点亮</h3>
-          <p>当前搜索没有命中《零之圣杯》的公开内容，可以清除筛选后重新查看完整模组。</p>
+          <p>当前搜索没有命中任何已发布模组，可以清除筛选后重新查看全部作品。</p>
           <button class="button button-ghost" id="clear-filters" type="button">清除筛选</button>
         </div>
       </div>
@@ -392,7 +389,8 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="access.js?v=20260713e"></script>
-  <script src="site-auth.js?v=20260713c"></script>
-  <script src="app.js?v=20260713d"></script>
+  <script src="modules-data.js?v=20260713a"></script>
+  <script src="site-auth.js?v=20260713d"></script>
+  <script src="app.js?v=20260713e"></script>
 </body>
 </html>

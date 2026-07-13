@@ -6,8 +6,8 @@
   <meta name="description" content="夜航模组馆个人中心：管理账号资料、作者认证与作品权限。">
   <meta name="theme-color" content="#0b1019">
   <title>个人中心 · 夜航模组馆</title>
-  <link rel="stylesheet" href="styles.css?v=20260713b">
-  <link rel="stylesheet" href="profile.css?v=20260713c">
+  <link rel="stylesheet" href="styles.css?v=20260713f">
+  <link rel="stylesheet" href="profile.css?v=20260713f">
   <link rel="stylesheet" href="font-size.css?v=20260713a">
   <script src="font-size.js?v=20260713a" defer></script>
 </head>
@@ -37,7 +37,7 @@
     <section class="signed-out-card" id="signed-out-card" hidden aria-labelledby="signed-out-title">
       <p class="profile-eyebrow">MEMBER SIGN IN</p>
       <h1 id="signed-out-title">登录后继续航行</h1>
-      <p id="profile-storage-note">服务器版会保存个人资料与作者认证状态；GitHub Pages 使用当前标签页的临时账号。</p>
+      <p id="profile-storage-note">账号资料会长期保存在当前浏览器中；清除网站数据或更换浏览器、设备后不会自动同步。</p>
       <form id="profile-login-form" class="compact-form">
         <label><span>账号</span><input name="account" type="text" autocomplete="username" required></label>
         <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -48,9 +48,9 @@
     </section>
 
     <div id="profile-content" hidden>
-      <p class="static-session-note" id="static-session-note" hidden><strong>GitHub Pages 临时账号</strong>登录、注册和资料修改只保留在当前标签页中；关闭标签页后可能清除。作品密钥与守秘口令不会保存到公开网页，进入创作者面板时仍需单独验证。</p>
+      <p class="static-session-note" id="static-session-note" hidden><strong>GitHub Pages 本机账号</strong>账号、登录状态、昵称和头像会长期保存在当前浏览器中；密码只保存不可逆校验值。清除网站数据或更换浏览器、设备后不会同步。作品密钥与守秘口令仍需单独验证。</p>
       <section class="identity-hero" aria-labelledby="identity-name">
-        <div class="identity-avatar" id="identity-avatar" aria-hidden="true">航</div>
+        <div class="identity-avatar" id="identity-avatar" role="img" aria-label="当前用户头像">航</div>
         <div class="identity-copy">
           <p class="profile-eyebrow">MEMBER DOSSIER</p>
           <h1 id="identity-name">夜航者</h1>
@@ -74,9 +74,21 @@
             <span>你可以随时更新</span>
           </header>
           <form id="profile-form" class="profile-form">
-            <label><span>显示名称</span><input id="display-name-input" name="displayName" type="text" maxlength="40" required></label>
+            <div class="avatar-editor">
+              <div class="avatar-preview" id="avatar-preview" role="img" aria-label="头像预览">航</div>
+              <div class="avatar-editor-copy">
+                <strong>用户头像</strong>
+                <p>支持 JPG、PNG、WebP，原图不超过 5 MB；保存前会自动居中裁剪和压缩。</p>
+                <div class="avatar-actions">
+                  <label class="avatar-upload" for="avatar-input">选择头像<input id="avatar-input" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></label>
+                  <button class="avatar-remove" id="avatar-remove" type="button">移除头像</button>
+                </div>
+                <p class="avatar-message" id="avatar-message" role="status" aria-live="polite"></p>
+              </div>
+            </div>
+            <label><span>用户昵称</span><input id="display-name-input" name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="大家将如何称呼你" required></label>
             <label><span>个人介绍</span><textarea id="bio-input" name="bio" maxlength="500" rows="6" placeholder="写下你的创作方向、喜欢的规则或正在准备的故事。"></textarea><small><b id="bio-count">0</b> / 500</small></label>
-            <button class="profile-primary" type="submit">保存个人资料</button>
+            <button class="profile-primary" type="submit">保存昵称、头像和资料</button>
             <p class="form-message" id="profile-message" role="status" hidden></p>
           </form>
         </section>
@@ -123,7 +135,7 @@
   </main>
 
   <div class="profile-toast" id="profile-toast" role="status" aria-live="polite"></div>
-  <script src="site-auth.js?v=20260713c"></script>
-  <script src="profile.js?v=20260713c"></script>
+  <script src="site-auth.js?v=20260713f"></script>
+  <script src="profile.js?v=20260713f"></script>
 </body>
 </html>

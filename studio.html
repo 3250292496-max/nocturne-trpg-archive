@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="night">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="夜航模组馆创作者工作台：编辑模组信息，导入地图、规则、自动车卡器与配套资料。">
+  <meta name="theme-color" content="#081019">
+  <title>创作者工作台 · 夜航模组馆</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="studio.css?v=20260713a">
+  <link rel="stylesheet" href="font-size.css?v=20260713a">
+  <script src="font-size.js?v=20260713a" defer></script>
+</head>
+<body class="studio-page">
+  <a class="skip-link" href="#studio-main">跳到工作区</a>
+  <header class="studio-topbar">
+    <a class="studio-brand" href="index.html#archive"><span aria-hidden="true">✦</span><span><strong>夜航模组馆</strong><small>CREATOR STUDIO</small></span></a>
+    <div class="studio-breadcrumb"><a href="index.html#archive">模组馆</a><i>/</i><a href="profile.html">我的作品</a><i>/</i><strong id="breadcrumb-title">创作者工作台</strong></div>
+    <div class="topbar-actions">
+      <span class="save-state" id="save-state"><i></i> 所有更改已保存</span>
+      <a id="preview-link" href="module.html" target="_blank" rel="noreferrer" hidden>玩家视角预览 ↗</a>
+      <a href="profile.html" aria-label="个人中心" class="studio-avatar" id="studio-avatar">航</a>
+    </div>
+  </header>
+
+  <main id="studio-main">
+    <aside class="static-studio-note" id="static-studio-note" hidden>
+      <span aria-hidden="true">◇</span>
+      <div><strong>GitHub Pages · 浏览器草稿模式</strong><p>基本信息、新模组与发布设置只保存在当前浏览器。公开附件必须通过网站仓库或后端同步后，其他访客才能下载。</p></div>
+    </aside>
+    <section class="studio-loading" id="studio-loading" aria-live="polite"><span></span><p>正在打开创作桌面…</p></section>
+
+    <section class="studio-gate" id="studio-gate" hidden>
+      <p class="studio-eyebrow">CREATOR ACCESS</p>
+      <h1 id="gate-title">请先登录创作者账号</h1>
+      <p id="gate-copy">创作者工作台只对已认证作者和作品所有者开放。</p>
+      <div><a class="studio-primary" href="profile.html">前往登录 / 作者认证</a><a href="index.html#archive">返回模组馆</a></div>
+    </section>
+
+    <section class="create-module" id="create-module" hidden aria-labelledby="create-title">
+      <div class="create-intro">
+        <p class="studio-eyebrow">NEW MODULE</p>
+        <h1 id="create-title">点亮一份新模组</h1>
+        <p>先建立作品档案，再进入工作台补齐简介、地图、规则、自动车卡器和玩家资料。新作品默认保存为草稿。</p>
+      </div>
+      <form id="create-form" class="create-form">
+        <label><span>模组名称 *</span><input name="title" type="text" maxlength="80" required placeholder="例如：雾港来信"></label>
+        <label><span>规则系统</span><input name="systemLabel" type="text" maxlength="100" placeholder="例如：COC 7th / 自制轻量 d20"></label>
+        <label class="wide"><span>一句话简介</span><textarea name="summary" maxlength="240" rows="3" placeholder="用一两句话告诉读者，这是一段怎样的冒险。"></textarea></label>
+        <div class="wide create-actions"><button class="studio-primary" type="submit">创建并进入工作台 →</button><a href="profile.html">暂不创建</a></div>
+        <p class="form-message wide" id="create-message" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <div class="studio-shell" id="studio-shell" hidden>
+      <aside class="studio-sidebar">
+        <div class="module-switcher">
+          <label for="module-switch">当前模组</label>
+          <select id="module-switch" aria-label="切换正在编辑的模组"></select>
+          <a href="studio.html?new=1">＋ 新建模组</a>
+        </div>
+        <nav aria-label="工作台功能">
+          <button class="active" type="button" data-section="overview"><span>◈</span><b>总览</b><small id="nav-progress">0%</small></button>
+          <button type="button" data-section="information"><span>文</span><b>基本信息</b><small id="nav-info">待完善</small></button>
+          <button type="button" data-section="imports"><span>⇧</span><b>内容导入</b><small id="nav-imports">0 / 4</small></button>
+          <button type="button" data-section="resources"><span>库</span><b>资源库</b><small id="nav-resources">0</small></button>
+          <button type="button" data-section="publish"><span>✦</span><b>版本与发布</b><small id="nav-status">草稿</small></button>
+        </nav>
+        <div class="sidebar-note"><strong>创作与开团已分离</strong><p>这里管理作品内容；发布后，再从模组页进入对应的开团控制台。</p></div>
+      </aside>
+
+      <div class="studio-workspace">
+        <section class="studio-section active" data-section-panel="overview" aria-labelledby="overview-title">
+          <header class="workspace-heading"><div><p class="studio-eyebrow">MODULE OVERVIEW</p><h1 id="overview-title">作品总览</h1><p>确认这份模组从“资料附件”逐步成为完整、可阅读、可开团的作品档案。</p></div><span class="status-pill" id="overview-status">草稿</span></header>
+          <div class="overview-hero">
+            <div class="progress-ring" id="progress-ring" style="--progress:0"><strong id="completion-percent">0%</strong><span>资料完整度</span></div>
+            <div><p class="studio-eyebrow" id="overview-english">COMMUNITY MODULE</p><h2 id="overview-module-title">未命名模组</h2><p id="overview-summary">尚未填写一句话简介。</p><div class="overview-tags" id="overview-tags"></div></div>
+          </div>
+          <div class="overview-grid">
+            <article><span class="overview-icon">文</span><div><strong>基本信息</strong><p>名称、简介、系统、人数与标签</p></div><b id="check-information">待完善</b><button type="button" data-go-section="information">编辑 →</button></article>
+            <article><span class="overview-icon">图</span><div><strong>地图与场景</strong><p>地图原图、场景图与玩家版本</p></div><b id="check-map">未导入</b><button type="button" data-go-section="imports">导入 →</button></article>
+            <article><span class="overview-icon">则</span><div><strong>规则资料</strong><p>PDF、DOCX、Markdown 或结构化 JSON</p></div><b id="check-rules">未导入</b><button type="button" data-go-section="imports">导入 →</button></article>
+            <article><span class="overview-icon">卡</span><div><strong>自动车卡器</strong><p>XLSX 附件或受限 Builder JSON</p></div><b id="check-builder">未导入</b><button type="button" data-go-section="imports">导入 →</button></article>
+          </div>
+          <section class="next-steps"><p class="studio-eyebrow">NEXT STEPS</p><h2>建议接下来</h2><ol id="next-steps-list"></ol></section>
+        </section>
+
+        <section class="studio-section" data-section-panel="information" aria-labelledby="information-title">
+          <header class="workspace-heading"><div><p class="studio-eyebrow">MODULE DOSSIER</p><h1 id="information-title">基本信息</h1><p>这些内容会组成模组馆卡片和独立模组详情页。</p></div><label class="json-import"><input id="info-json-input" type="file" accept=".json,application/json"><span>从 JSON 导入信息</span></label></header>
+          <form id="module-form" class="module-form">
+            <div class="form-section">
+              <div class="form-section-title"><span>01</span><div><h2>作品身份</h2><p>标题与一句话简介是公开档案的第一印象。</p></div></div>
+              <div class="form-grid">
+                <label><span>中文名称 *</span><input name="title" type="text" maxlength="80" required></label>
+                <label><span>英文 / 副标题</span><input name="english" type="text" maxlength="100" placeholder="THE LETTERS FROM MISTHARBOR"></label>
+                <label><span>作品类型</span><input name="typeLabel" type="text" maxlength="60" placeholder="完整长篇战役模组"></label>
+                <label><span>规则系统</span><input name="systemLabel" type="text" maxlength="120" placeholder="COC 7th / 自制规则"></label>
+                <label class="wide"><span>一句话简介</span><textarea name="summary" maxlength="240" rows="3"></textarea><small><b data-count-for="summary">0</b> / 240</small></label>
+                <label class="wide"><span>详细介绍</span><textarea name="description" maxlength="5000" rows="9" placeholder="无剧透地介绍故事舞台、核心冲突和适合怎样的玩家。"></textarea><small><b data-count-for="description">0</b> / 5000</small></label>
+              </div>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title"><span>02</span><div><h2>开团参数</h2><p>帮助主持人与玩家判断这份模组是否适合他们。</p></div></div>
+              <div class="form-grid compact">
+                <label><span>适合人数</span><input name="players" type="text" maxlength="40" placeholder="3–5 人"></label>
+                <label><span>预计时长</span><input name="duration" type="text" maxlength="40" placeholder="6–10 次团"></label>
+                <label><span>时代 / 舞台</span><input name="era" type="text" maxlength="60" placeholder="现代都市"></label>
+                <label><span>主持难度</span><select name="difficulty"><option value="">请选择</option><option>入门</option><option>标准</option><option>进阶</option><option>高难</option></select></label>
+                <label class="wide"><span>标签</span><input name="tags" type="text" maxlength="240" placeholder="调查, 都市异闻, 角色抉择（用逗号分隔）"><small>最多建议 8 个标签。</small></label>
+              </div>
+            </div>
+            <div class="form-actions"><p class="form-message" id="module-form-message" role="status" hidden></p><button class="studio-primary" type="submit">保存基本信息</button></div>
+          </form>
+        </section>
+
+        <section class="studio-section" data-section-panel="imports" aria-labelledby="imports-title">
+          <header class="workspace-heading"><div><p class="studio-eyebrow">IMPORT CENTER</p><h1 id="imports-title">内容导入</h1><p>每份文件都按作品和可见范围隔离保存。不会执行宏、脚本或作者上传的代码。</p></div></header>
+          <div class="import-notice"><span>◇</span><div><strong>当前是安全附件接入阶段</strong><p>PDF、DOCX 与 XLSX 会作为可下载资料归档；结构化解析、字段映射与网页车卡转换需要后续校验流程，不会在上传时冒充“已转换”。</p></div></div>
+          <div class="import-grid">
+            <article class="import-card" data-import-category="module"><div class="import-card-head"><span>文</span><div><p>MODULE CONTENT</p><h2>模组正文</h2></div><b>DOCX · PDF · MD · TXT</b></div><p>上传正文、章节、场景或结构化模组 JSON。</p><form class="upload-form"><label><input name="file" type="file" accept=".docx,.pdf,.md,.txt,.json" required><span>选择正文文件</span></label><select name="audience" aria-label="正文可见范围"><option value="creator">仅创作团队</option><option value="keeper">守秘人可见</option><option value="player">玩家公开</option></select><button type="submit">开始导入</button><small class="upload-state"></small></form></article>
+            <article class="import-card" data-import-category="map"><div class="import-card-head"><span>图</span><div><p>MAP ARCHIVE</p><h2>地图与场景</h2></div><b>PNG · JPG · WEBP · PDF</b></div><p>导入地图原图、玩家版地图或场景视觉稿。</p><form class="upload-form"><label><input name="file" type="file" accept=".png,.jpg,.jpeg,.webp,.pdf" required><span>选择地图文件</span></label><select name="audience" aria-label="地图可见范围"><option value="player">玩家公开</option><option value="keeper">守秘人可见</option><option value="creator">仅创作团队</option></select><button type="submit">开始导入</button><small class="upload-state"></small></form></article>
+            <article class="import-card" data-import-category="rules"><div class="import-card-head"><span>则</span><div><p>RULE SYSTEM</p><h2>规则资料</h2></div><b>PDF · DOCX · MD · JSON</b></div><p>上传规则手册；JSON 可作为未来的站内规则映射源。</p><form class="upload-form"><label><input name="file" type="file" accept=".pdf,.docx,.md,.txt,.json" required><span>选择规则文件</span></label><select name="audience" aria-label="规则可见范围"><option value="player">玩家公开</option><option value="keeper">守秘人可见</option><option value="creator">仅创作团队</option></select><button type="submit">开始导入</button><small class="upload-state"></small></form></article>
+            <article class="import-card" data-import-category="builder"><div class="import-card-head"><span>卡</span><div><p>CHARACTER BUILDER</p><h2>自动车卡器</h2></div><b>XLSX · XLS · JSON</b></div><p>保留原始车卡表，或上传受限 JSON Schema 供后续接入。</p><form class="upload-form"><label><input name="file" type="file" accept=".xlsx,.xls,.json" required><span>选择车卡器文件</span></label><select name="audience" aria-label="车卡器可见范围"><option value="player">玩家公开</option><option value="creator">仅创作团队</option><option value="keeper">守秘人可见</option></select><button type="submit">开始导入</button><small class="upload-state"></small></form></article>
+            <article class="import-card" data-import-category="handouts"><div class="import-card-head"><span>手</span><div><p>PLAYER HANDOUTS</p><h2>线索与玩家手卡</h2></div><b>PDF · DOCX · PNG · JPG</b></div><p>归档可直接发给玩家的手卡、线索与打印资料。</p><form class="upload-form"><label><input name="file" type="file" accept=".pdf,.docx,.png,.jpg,.jpeg,.webp" required><span>选择玩家资料</span></label><select name="audience" aria-label="玩家资料可见范围"><option value="player">玩家公开</option><option value="keeper">守秘人可见</option><option value="creator">仅创作团队</option></select><button type="submit">开始导入</button><small class="upload-state"></small></form></article>
+            <article class="import-card" data-import-category="other"><div class="import-card-head"><span>＋</span><div><p>OTHER ASSETS</p><h2>其他附件</h2></div><b>安全白名单格式</b></div><p>补充人物表、参考资料或其他不执行的作品附件。</p><form class="upload-form"><label><input name="file" type="file" accept=".pdf,.docx,.xlsx,.xls,.json,.md,.txt,.png,.jpg,.jpeg,.webp" required><span>选择附件</span></label><select name="audience" aria-label="附件可见范围"><option value="creator">仅创作团队</option><option value="keeper">守秘人可见</option><option value="player">玩家公开</option></select><button type="submit">开始导入</button><small class="upload-state"></small></form></article>
+          </div>
+        </section>
+
+        <section class="studio-section" data-section-panel="resources" aria-labelledby="resources-title">
+          <header class="workspace-heading"><div><p class="studio-eyebrow">ASSET LIBRARY</p><h1 id="resources-title">资源库</h1><p>检查已经归档的资料、文件大小与可见范围。</p></div><button class="text-button" type="button" data-go-section="imports">＋ 导入新资源</button></header>
+          <div class="resource-filter" role="group" aria-label="资源筛选"><button class="active" type="button" data-resource-filter="all">全部</button><button type="button" data-resource-filter="player">玩家公开</button><button type="button" data-resource-filter="keeper">守秘人</button><button type="button" data-resource-filter="creator">创作团队</button></div>
+          <div class="studio-resource-list" id="studio-resource-list"></div>
+          <div class="studio-empty" id="studio-resource-empty" hidden><span>◇</span><h2>资源库还是空的</h2><p>前往“内容导入”添加模组正文、地图、规则或车卡器。</p><button type="button" data-go-section="imports">开始导入</button></div>
+        </section>
+
+        <section class="studio-section" data-section-panel="publish" aria-labelledby="publish-title">
+          <header class="workspace-heading"><div><p class="studio-eyebrow">VERSION &amp; PUBLISH</p><h1 id="publish-title">版本与发布</h1><p>草稿只对作品所有者可见；发布后才会出现在公共模组馆。</p></div></header>
+          <div class="publish-layout">
+            <div class="publish-checklist"><h2>发布前检查</h2><div id="publish-checks"></div></div>
+            <form id="publish-form" class="publish-card">
+              <p class="studio-eyebrow">VISIBILITY</p><h2>档案状态</h2>
+              <label><span>作品状态</span><select name="status"><option value="draft">草稿 · 仅自己可见</option><option value="published">已发布 · 模组馆公开</option></select></label>
+              <div class="publish-warning" id="publish-warning"><strong>发布前请确认玩家安全边界</strong><p>标为“玩家公开”的文件会直接出现在模组详情页；守秘人与创作团队资料不会公开。</p></div>
+              <button class="studio-primary" type="submit">保存发布设置</button>
+              <p class="form-message" id="publish-message" role="status" hidden></p>
+            </form>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div class="studio-toast" id="studio-toast" role="status" aria-live="polite"></div>
+  <dialog class="confirm-dialog" id="delete-dialog"><form method="dialog"><p class="studio-eyebrow">REMOVE RESOURCE</p><h2>移除这份资源？</h2><p id="delete-copy">文件会从作品资料库中永久移除。</p><div><button value="cancel">取消</button><button class="danger" id="confirm-delete" value="default">确认移除</button></div></form></dialog>
+  <script src="modules-data.js?v=20260713a"></script>
+  <script src="site-auth.js?v=20260713d"></script>
+  <script src="studio.js?v=20260713b"></script>
+</body>
+</html>

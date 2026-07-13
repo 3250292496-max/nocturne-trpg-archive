@@ -1,9 +1,13 @@
 (function () {
   'use strict';
 
-  var STATIC_USERS_KEY = 'nocturne-auth:users:v1';
-  var STATIC_SESSION_KEY = 'nocturne-auth:session:v1';
-  var STATIC_OWNER_PROFILE_KEY = 'nocturne-auth:owner-profile:v1';
+  var STATIC_USERS_KEY = 'nocturne-auth:users:v2';
+  var STATIC_SESSION_KEY = 'nocturne-auth:session:v2';
+  var STATIC_OWNER_PROFILE_KEY = 'nocturne-auth:owner-profile:v2';
+  var LEGACY_STATIC_USERS_KEY = 'nocturne-auth:users:v1';
+  var LEGACY_STATIC_SESSION_KEY = 'nocturne-auth:session:v1';
+  var LEGACY_STATIC_OWNER_PROFILE_KEY = 'nocturne-auth:owner-profile:v1';
+  var MAX_AVATAR_DATA_LENGTH = 180 * 1024;
   var OWNER_ID = 'site-owner-3250292496';
   var OWNER_ACCOUNT = '3250292496';
   var OWNER_CREDENTIAL = {
@@ -15,6 +19,7 @@
   var state = {
     user: null,
     ready: false,
+    storageAvailable: true,
     mode: /\.github\.io$/i.test(window.location.hostname) || window.location.protocol === 'file:' ? 'static' : 'server'
   };
   var listeners = [];
@@ -38,6 +43,50 @@
     return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maximum);
   }
 
+  function displayNameOf(user) {
+    return cleanText(user && user.displayName, 40) || '夜航用户';
+  }
+
+  function firstCharacter(value) {
+    return Array.from(String(value || '航'))[0] || '航';
+  }
+
+  function avatarDataUrl(value) {
+    var text = String(value || '').trim();
+    if (!text) return '';
+    if (text.length > MAX_AVATAR_DATA_LENGTH) return null;
+    return /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(text) ? text : null;
+  }
+
+  function normalizedCredential(value) {
+    if (!value || typeof value !== 'object') return null;
+    var iterations = Number(value.iterations);
+    var salt = String(value.salt || '');
+    var digest = String(value.digest || '');
+    if (!Number.isInteger(iterations) || iterations < 100000 || iterations > 1000000) return null;
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(salt) || !/^[A-Za-z0-9_-]{32,128}$/.test(digest)) return null;
+    return { iterations: iterations, salt: salt, digest: digest };
+  }
+
+  function renderAvatar(element, user, options) {
+    if (!element) return;
+    var settings = options || {};
+    var name = displayNameOf(user);
+    var avatar = avatarDataUrl(user && user.avatar);
+    element.replaceChildren();
+    element.classList.toggle('has-image', Boolean(avatar));
+    if (settings.label) element.setAttribute('aria-label', settings.label.replace('{name}', name));
+    if (avatar) {
+      var image = document.createElement('img');
+      image.src = avatar;
+      image.alt = settings.imageAlt || '';
+      image.decoding = 'async';
+      element.appendChild(image);
+      return;
+    }
+    element.textContent = firstCharacter(name);
+  }
+
   function bytesToBase64Url(bytes) {
     var binary = '';
     for (var index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
@@ -45,7 +94,7 @@
   }
 
   function randomSalt() {
-    if (!window.crypto || !window.crypto.getRandomValues) throw authError('当前浏览器不支持临时账号加密。', 501, 'crypto_unavailable');
+    if (!window.crypto || !window.crypto.getRandomValues) throw authError('当前浏览器不支持本机账号加密。', 501, 'crypto_unavailable');
     var bytes = new Uint8Array(16);
     window.crypto.getRandomValues(bytes);
     return bytesToBase64Url(bytes);
@@ -62,7 +111,7 @@
 
   function passwordDigest(password, credential) {
     if (!window.crypto || !window.crypto.subtle || !window.TextEncoder) {
-      return Promise.reject(authError('当前浏览器不支持临时账号加密。', 501, 'crypto_unavailable'));
+      return Promise.reject(authError('当前浏览器不支持本机账号加密。', 501, 'crypto_unavailable'));
     }
     return window.crypto.subtle.importKey(
       'raw',
@@ -84,24 +133,96 @@
 
   function storageRead(key, fallback) {
     try {
-      var value = window.sessionStorage.getItem(key);
+      var value = window.localStorage.getItem(key);
       return value ? JSON.parse(value) : fallback;
     } catch (error) {
+      state.storageAvailable = false;
       return fallback;
     }
   }
 
   function storageWrite(key, value) {
     try {
-      window.sessionStorage.setItem(key, JSON.stringify(value));
+      window.localStorage.setItem(key, JSON.stringify(value));
+      state.storageAvailable = true;
     } catch (error) {
-      throw authError('浏览器禁止使用临时会话存储，请允许站点存储后重试。', 503, 'storage_unavailable');
+      state.storageAvailable = false;
+      throw authError('浏览器无法长期保存账号资料。请允许站点存储或清理浏览器空间后重试。', 503, 'storage_unavailable');
     }
   }
 
+  function migrateStaticStorage() {
+    if (state.mode !== 'static') return;
+    var pairs = [
+      [STATIC_USERS_KEY, LEGACY_STATIC_USERS_KEY],
+      [STATIC_SESSION_KEY, LEGACY_STATIC_SESSION_KEY],
+      [STATIC_OWNER_PROFILE_KEY, LEGACY_STATIC_OWNER_PROFILE_KEY]
+    ];
+    try {
+      pairs.forEach(function (pair) {
+        var destination = pair[0];
+        var legacy = pair[1];
+        var current = window.localStorage.getItem(destination);
+        if (current === null) {
+          var legacyValue = window.localStorage.getItem(legacy);
+          if (legacyValue === null) legacyValue = window.sessionStorage.getItem(legacy);
+          if (legacyValue !== null) window.localStorage.setItem(destination, legacyValue);
+        }
+        if (window.localStorage.getItem(destination) !== null) {
+          window.localStorage.removeItem(legacy);
+          window.sessionStorage.removeItem(legacy);
+        }
+      });
+      state.storageAvailable = true;
+    } catch (error) {
+      state.storageAvailable = false;
+    }
+  }
+
+  function normalizedTimestamp(value, fallback) {
+    var timestamp = cleanText(value, 40);
+    return timestamp && !Number.isNaN(Date.parse(timestamp)) ? new Date(timestamp).toISOString() : fallback;
+  }
+
+  function normalizeStoredUser(source) {
+    if (!source || typeof source !== 'object') return null;
+    var account = String(source.account || '');
+    if (account.normalize) account = account.normalize('NFKC');
+    account = account.trim();
+    var id = cleanText(source.id, 100);
+    var credential = normalizedCredential(source.credential);
+    if (!/^[A-Za-z0-9_.-]{4,32}$/.test(account) || accountKey(account) === OWNER_ACCOUNT) return null;
+    if (!/^[A-Za-z0-9._:-]{1,100}$/.test(id) || !credential) return null;
+    var createdAt = normalizedTimestamp(source.createdAt, new Date().toISOString());
+    var avatar = avatarDataUrl(source.avatar);
+    return {
+      id: id,
+      account: account,
+      accountKey: accountKey(account),
+      displayName: cleanText(source.displayName, 40) || '夜航用户',
+      bio: cleanText(source.bio, 500),
+      avatar: avatar || '',
+      role: 'member',
+      authorStatus: 'none',
+      authorApplication: null,
+      locked: false,
+      createdAt: createdAt,
+      updatedAt: normalizedTimestamp(source.updatedAt, createdAt),
+      credential: credential
+    };
+  }
+
   function staticUsers() {
-    var users = storageRead(STATIC_USERS_KEY, []);
-    return Array.isArray(users) ? users : [];
+    var stored = storageRead(STATIC_USERS_KEY, []);
+    if (!Array.isArray(stored)) return [];
+    var ids = {};
+    var accounts = {};
+    return stored.map(normalizeStoredUser).filter(function (user) {
+      if (!user || ids[user.id] || accounts[user.accountKey]) return false;
+      ids[user.id] = true;
+      accounts[user.accountKey] = true;
+      return true;
+    });
   }
 
   function saveStaticUsers(users) {
@@ -110,12 +231,14 @@
 
   function ownerUser() {
     var override = storageRead(STATIC_OWNER_PROFILE_KEY, {});
+    var avatar = avatarDataUrl(override.avatar);
     return {
       id: OWNER_ID,
       account: OWNER_ACCOUNT,
       accountKey: OWNER_ACCOUNT,
       displayName: cleanText(override.displayName, 40) || '夜航模组馆馆主',
       bio: cleanText(override.bio, 500) || '愿这座档案馆既方便自己的创作，也让每一位跑团同好都能更轻松地找到、阅读并使用好故事。',
+      avatar: avatar || '',
       role: 'owner',
       authorStatus: 'verified',
       authorApplication: null,
@@ -130,8 +253,9 @@
     return {
       id: user.id,
       account: user.account,
-      displayName: user.displayName,
+      displayName: displayNameOf(user),
       bio: user.bio || '',
+      avatar: avatarDataUrl(user.avatar) || '',
       role: user.role || 'member',
       authorStatus: user.authorStatus || 'none',
       authorApplication: user.authorApplication || null,
@@ -154,18 +278,21 @@
 
   function staticSessionUser() {
     try {
-      return staticUserById(window.sessionStorage.getItem(STATIC_SESSION_KEY));
+      return staticUserById(window.localStorage.getItem(STATIC_SESSION_KEY));
     } catch (error) {
+      state.storageAvailable = false;
       return null;
     }
   }
 
   function setStaticSession(user) {
     try {
-      if (user) window.sessionStorage.setItem(STATIC_SESSION_KEY, user.id);
-      else window.sessionStorage.removeItem(STATIC_SESSION_KEY);
+      if (user) window.localStorage.setItem(STATIC_SESSION_KEY, user.id);
+      else window.localStorage.removeItem(STATIC_SESSION_KEY);
+      state.storageAvailable = true;
     } catch (error) {
-      throw authError('浏览器禁止使用临时会话存储，请允许站点存储后重试。', 503, 'storage_unavailable');
+      state.storageAvailable = false;
+      throw authError('浏览器无法长期保存登录状态。请允许站点存储后重试。', 503, 'storage_unavailable');
     }
   }
 
@@ -174,13 +301,14 @@
       storageWrite(STATIC_OWNER_PROFILE_KEY, {
         displayName: user.displayName,
         bio: user.bio || '',
+        avatar: avatarDataUrl(user.avatar) || '',
         updatedAt: user.updatedAt
       });
       return ownerUser();
     }
     var users = staticUsers();
     var index = users.findIndex(function (candidate) { return candidate && candidate.id === user.id; });
-    if (index < 0) throw authError('临时账号已经失效，请重新注册。', 401, 'authentication_required');
+    if (index < 0) throw authError('本机账号已经失效，请重新注册。', 401, 'authentication_required');
     users[index] = user;
     saveStaticUsers(users);
     return user;
@@ -201,7 +329,7 @@
         secretUnavailableOnStatic: true
       });
     }
-    return { ok: true, user: publicStaticUser(user), works: works, temporary: true };
+    return { ok: true, user: publicStaticUser(user), works: works, persistent: true, deviceLocal: true };
   }
 
   function requireStaticUser() {
@@ -242,7 +370,7 @@
       return Promise.reject(authError('这个账号已经存在。', 409, 'account_exists'));
     }
 
-    var credential = { iterations: 210000, salt: randomSalt(), digest: '' };
+    var credential = { iterations: 310000, salt: randomSalt(), digest: '' };
     return passwordDigest(secret, credential).then(function (digest) {
       credential.digest = digest;
       var createdAt = new Date().toISOString();
@@ -252,6 +380,7 @@
         accountKey: accountKey(normalizedAccount),
         displayName: name,
         bio: '',
+        avatar: '',
         role: 'member',
         authorStatus: 'none',
         authorApplication: null,
@@ -279,13 +408,16 @@
     catch (error) { return Promise.reject(error); }
   }
 
-  function staticUpdateProfile(displayName, bio) {
+  function staticUpdateProfile(displayName, bio, avatar) {
     try {
       var user = requireStaticUser();
       var name = cleanText(displayName, 40);
       if (!name) throw authError('显示名称不能为空。', 400, 'invalid_profile');
+      var normalizedAvatar = avatarDataUrl(avatar);
+      if (normalizedAvatar === null) throw authError('头像格式无效或压缩后仍然过大。', 400, 'invalid_avatar');
       user.displayName = name;
       user.bio = cleanText(bio, 500);
+      user.avatar = normalizedAvatar;
       user.updatedAt = new Date().toISOString();
       user = saveStaticUser(user);
       setUser(publicStaticUser(user));
@@ -296,7 +428,7 @@
   }
 
   function backendRequired() {
-    return Promise.reject(authError('GitHub Pages 临时账号不能提交或审核作者认证；此功能需要网站后端。', 501, 'backend_required'));
+    return Promise.reject(authError('GitHub Pages 本机账号不能提交或审核作者认证；此功能需要网站后端。', 501, 'backend_required'));
   }
 
   function request(path, options) {
@@ -398,11 +530,11 @@
     return request('/api/profile');
   }
 
-  function updateProfile(displayName, bio) {
-    if (state.mode === 'static') return staticUpdateProfile(displayName, bio);
+  function updateProfile(displayName, bio, avatar) {
+    if (state.mode === 'static') return staticUpdateProfile(displayName, bio, avatar);
     return request('/api/profile', {
       method: 'PATCH',
-      body: { displayName: displayName, bio: bio }
+      body: { displayName: displayName, bio: bio, avatar: avatar || '' }
     }).then(function (payload) {
       setUser(payload.user);
       return payload;
@@ -421,7 +553,7 @@
   }
 
   function listAuthorApplications() {
-    if (state.mode === 'static') return Promise.resolve({ ok: true, applications: [], temporary: true });
+    if (state.mode === 'static') return Promise.resolve({ ok: true, applications: [], persistent: true, deviceLocal: true });
     return request('/api/author/applications');
   }
 
@@ -450,22 +582,19 @@
     var profileAvatar = document.getElementById('profile-avatar');
     var footnote = document.getElementById('auth-footnote');
     if (state.user) {
+      var displayName = displayNameOf(state.user);
       if (accountButton) accountButton.hidden = true;
       if (profileLink) profileLink.hidden = false;
-      if (profileName) profileName.textContent = state.user.displayName || state.user.account;
-      if (profileAvatar) profileAvatar.textContent = String(state.user.displayName || state.user.account || '航').charAt(0);
+      if (profileName) profileName.textContent = displayName;
+      if (profileLink) profileLink.setAttribute('aria-label', '进入' + displayName + '的个人中心');
+      renderAvatar(profileAvatar, state.user);
     } else {
       if (accountButton) accountButton.hidden = false;
-      if (accountLabel) accountLabel.textContent = state.mode === 'static' ? '临时登录 / 注册' : '登录 / 注册';
+      if (accountLabel) accountLabel.textContent = '登录 / 注册';
       if (profileLink) profileLink.hidden = true;
     }
     if (footnote && state.mode === 'static') {
-      footnote.textContent = '当前为 GitHub Pages 临时会话：账号和资料只保留在本标签页中。此登录不会替代《零之圣杯》的独立作品密钥。';
-    }
-    if (state.mode === 'static') {
-      Array.prototype.forEach.call(document.querySelectorAll('a[href^="studio.html"]'), function (link) {
-        link.setAttribute('href', 'gm.html');
-      });
+      footnote.textContent = '本机账号会长期保存在当前浏览器中，密码只保存不可逆校验值；清除网站数据或更换浏览器、设备后不会同步。此登录不会替代《零之圣杯》的独立作品密钥。';
     }
   }
 
@@ -557,8 +686,14 @@
   }
 
   function start() {
+    migrateStaticStorage();
     bindDialog();
     updateHeader();
+    if (state.mode === 'static') {
+      window.addEventListener('storage', function (event) {
+        if ([STATIC_USERS_KEY, STATIC_SESSION_KEY, STATIC_OWNER_PROFILE_KEY].indexOf(event.key) >= 0) refresh();
+      });
+    }
     refresh().finally(function () {
       state.ready = true;
       readyResolve(state.user);
@@ -568,10 +703,12 @@
   window.NG_AUTH = {
     ready: function () { return readyPromise; },
     currentUser: function () { return state.user; },
+    displayName: displayNameOf,
+    renderAvatar: renderAvatar,
     getMode: function () { return state.mode; },
     capabilities: function () {
       return state.mode === 'static'
-        ? { persistent: false, authorReview: false, workKeys: false, creatorWrites: false }
+        ? { persistent: state.storageAvailable, deviceLocal: true, authorReview: false, workKeys: false, creatorWrites: false }
         : { persistent: true, authorReview: true, workKeys: true, creatorWrites: true };
     },
     refresh: refresh,
