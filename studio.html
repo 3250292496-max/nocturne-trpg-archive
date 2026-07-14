@@ -1,20 +1,23 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="night">
 <head>
+  <meta name="ng-deployment-mode" content="redirect">
+  <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
+  <link rel="canonical" href="https://43-161-252-149.sslip.io/studio.html">
+  <script src="deployment.js?v=20260714g"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="夜航模组馆创作者工作台：编辑模组信息，导入地图、规则、自动车卡器与配套资料。">
   <meta name="theme-color" content="#081019">
-  <meta name="ng-api-base" content="https://desktop-1e8cufv.tail362686.ts.net">
+  <meta name="ng-api-base" content="">
+  <meta name="robots" content="noindex,nofollow">
   <title>创作者工作台 · 夜航模组馆</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="studio.css?v=20260713g">
-  <link rel="stylesheet" href="font-size.css?v=20260713b">
-  <script src="font-size.js?v=20260713b" defer></script>
+  <link rel="stylesheet" href="studio.css?v=20260714g">
+  <link rel="stylesheet" href="design-system.css?v=20260714g">
+  <link rel="stylesheet" href="font-size.css?v=20260714g">
+  <script src="font-size.js?v=20260714g" defer></script>
 </head>
-<body class="studio-page">
+<body class="ds-page studio-page">
   <a class="skip-link" href="#studio-main">跳到工作区</a>
   <header class="studio-topbar">
     <a class="studio-brand" href="index.html#archive"><span aria-hidden="true">✦</span><span><strong>夜航模组馆</strong><small>CREATOR STUDIO</small></span></a>
@@ -107,7 +110,23 @@
               </div>
             </div>
             <div class="form-section">
-              <div class="form-section-title"><span>02</span><div><h2>开团参数</h2><p>帮助主持人与玩家判断这份模组是否适合他们。</p></div></div>
+              <div class="form-section-title"><span>02</span><div><h2>视觉身份</h2><p>分别预览模组馆卡片、详情横幅与社交分享图；没有图片时会继续使用档案馆纹章。</p></div></div>
+              <div class="form-grid visual-identity-fields">
+                <label class="wide"><span>卡片封面 URL</span><input name="coverImage" type="text" inputmode="url" maxlength="500" placeholder="https://… 或 assets/art/cover.webp"></label>
+                <label class="wide"><span>详情横幅 URL</span><input name="bannerImage" type="text" inputmode="url" maxlength="500" placeholder="留空则沿用卡片封面"></label>
+                <label class="wide"><span>OG 分享图 URL</span><input name="ogImage" type="text" inputmode="url" maxlength="500" placeholder="建议 1200 × 630；留空则沿用横幅或封面"></label>
+                <label class="theme-color-field"><span>主题色</span><input name="themeColor" type="color" value="#d1ad6c"><small data-theme-color-label>#D1AD6C</small></label>
+                <label><span>横向裁切焦点 <b data-focus-x-label>50%</b></span><input name="focusX" type="range" min="0" max="100" step="1" value="50"></label>
+                <label><span>纵向裁切焦点 <b data-focus-y-label>50%</b></span><input name="focusY" type="range" min="0" max="100" step="1" value="50"></label>
+              </div>
+              <div class="visual-preview-grid" aria-label="视觉身份预览">
+                <article class="visual-preview visual-preview-card"><header><span>CARD</span><strong>模组馆卡片</strong></header><div><img data-visual-preview="cover" alt="卡片封面预览" hidden><span data-visual-fallback>纹章后备</span></div></article>
+                <article class="visual-preview visual-preview-banner"><header><span>DETAIL</span><strong>详情横幅</strong></header><div><img data-visual-preview="banner" alt="详情横幅预览" hidden><span data-visual-fallback>纹章后备</span></div></article>
+                <article class="visual-preview visual-preview-og"><header><span>OG · 1200 × 630</span><strong>分享图</strong></header><div><img data-visual-preview="og" alt="OG 分享图预览" hidden><span data-visual-fallback>纹章后备</span></div></article>
+              </div>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title"><span>03</span><div><h2>开团参数</h2><p>帮助主持人与玩家判断这份模组是否适合他们。</p></div></div>
               <div class="form-grid compact">
                 <label><span>适合人数</span><input name="players" type="text" maxlength="40" placeholder="3–5 人"></label>
                 <label><span>预计时长</span><input name="duration" type="text" maxlength="40" placeholder="例：标准 8 次 × 3–4 小时"></label>
@@ -185,8 +204,10 @@
 
   <div class="studio-toast" id="studio-toast" role="status" aria-live="polite"></div>
   <dialog class="confirm-dialog" id="delete-dialog"><form method="dialog"><p class="studio-eyebrow">REMOVE RESOURCE</p><h2>移除这份资源？</h2><p id="delete-copy">文件会从作品资料库中永久移除。</p><div><button value="cancel">取消</button><button class="danger" id="confirm-delete" value="default">确认移除</button></div></form></dialog>
-  <script src="modules-data.js?v=20260713k"></script>
-  <script src="site-auth.js?v=20260713u"></script>
-  <script src="studio.js?v=20260713u"></script>
+  <script src="site-config.js?v=20260714g"></script>
+  <script src="resilience.js?v=20260714g"></script>
+  <script src="modules-data.js?v=20260714g"></script>
+  <script src="site-auth.js?v=20260714g"></script>
+  <script src="studio.js?v=20260714g"></script>
 </body>
 </html>

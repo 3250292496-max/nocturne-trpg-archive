@@ -1,18 +1,24 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="night">
 <head>
+  <meta name="ng-deployment-mode" content="redirect">
+  <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
+  <link rel="canonical" href="https://43-161-252-149.sslip.io/profile.html">
+  <script src="deployment.js?v=20260714g"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="夜航模组馆个人中心：管理账号资料、作者认证与作品权限。">
   <meta name="theme-color" content="#0b1019">
-  <meta name="ng-api-base" content="https://desktop-1e8cufv.tail362686.ts.net">
+  <meta name="ng-api-base" content="">
+  <meta name="robots" content="noindex,nofollow">
   <title>个人中心 · 夜航模组馆</title>
-  <link rel="stylesheet" href="styles.css?v=20260713f">
-  <link rel="stylesheet" href="profile.css?v=20260713u">
-  <link rel="stylesheet" href="font-size.css?v=20260713b">
-  <script src="font-size.js?v=20260713b" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20260714g">
+  <link rel="stylesheet" href="profile.css?v=20260714g">
+  <link rel="stylesheet" href="design-system.css?v=20260714g">
+  <link rel="stylesheet" href="font-size.css?v=20260714g">
+  <script src="font-size.js?v=20260714g" defer></script>
 </head>
-<body class="profile-page">
+<body class="ds-page profile-page">
   <a class="skip-link" href="#profile-main">跳到主要内容</a>
   <div class="profile-ambient profile-ambient-a" aria-hidden="true"></div>
   <div class="profile-ambient profile-ambient-b" aria-hidden="true"></div>
@@ -117,6 +123,48 @@
         </section>
       </div>
 
+      <div class="profile-grid security-grid" id="account-security-grid">
+        <section class="profile-panel security-panel" aria-labelledby="security-title">
+          <header>
+            <div><p class="profile-eyebrow">ACCOUNT SECURITY</p><h2 id="security-title">密码与会话</h2></div>
+            <span id="security-mode-label">正式站账号</span>
+          </header>
+          <p class="security-static-note" id="security-static-note" hidden>当前是本机静态账号。静态镜像不承载站长凭证或跨设备会话；请前往正式站点管理密码与登录设备。</p>
+          <div id="server-security-controls">
+            <form id="password-form" class="profile-form compact-security-form">
+              <label><span>当前密码</span><input name="currentPassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" required></label>
+              <label><span>新密码</span><input name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required aria-describedby="password-guidance"></label>
+              <label><span>确认新密码</span><input name="newPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+              <small id="password-guidance">至少 12 位；建议使用密码管理器生成独立密码。</small>
+              <button class="profile-primary" type="submit">修改密码</button>
+              <p class="form-message" id="password-message" role="status" hidden></p>
+            </form>
+            <div class="session-revoke">
+              <div><strong>撤销全部登录会话</strong><p>让所有浏览器和设备立即退出，包括当前设备；团房访客会话不受影响。</p></div>
+              <button class="profile-danger" id="revoke-sessions" type="button">全部退出</button>
+            </div>
+            <p class="form-message" id="session-message" role="status" hidden></p>
+          </div>
+        </section>
+
+        <section class="profile-panel privacy-panel" aria-labelledby="privacy-title">
+          <header>
+            <div><p class="profile-eyebrow">DATA &amp; PRIVACY</p><h2 id="privacy-title">数据与隐私</h2></div>
+            <span id="storage-mode-label">正在检查</span>
+          </header>
+          <dl class="privacy-facts">
+            <div><dt>账号与在线团房</dt><dd id="online-storage-copy">由正式站点保存，并通过账号或团房访客会话限制访问。</dd></div>
+            <div><dt>本机备团与草稿</dt><dd>只保存在这个浏览器，不会自动上传，也不会与在线团房双写。</dd></div>
+            <div><dt>恢复文件</dt><dd>只包含可恢复的本机业务数据，不导出密码摘要、会话、邀请令牌或作品密钥。</dd></div>
+          </dl>
+          <div class="privacy-actions">
+            <button class="profile-secondary" id="export-local-data" type="button">导出本机数据</button>
+            <button class="profile-danger" id="clear-local-data" type="button">清除此设备数据</button>
+          </div>
+          <p class="form-message" id="privacy-message" role="status" hidden></p>
+        </section>
+      </div>
+
       <section class="profile-panel works-panel" id="works-panel" aria-labelledby="works-title" hidden>
         <header>
           <div><p class="profile-eyebrow">MY WORKS</p><h2 id="works-title">我的模组</h2></div>
@@ -136,8 +184,10 @@
   </main>
 
   <div class="profile-toast" id="profile-toast" role="status" aria-live="polite"></div>
-  <script src="site-auth.js?v=20260713u"></script>
-  <script src="access.js?v=20260713u"></script>
-  <script src="profile.js?v=20260713v"></script>
+  <script src="site-config.js?v=20260714g"></script>
+  <script src="resilience.js?v=20260714g"></script>
+  <script src="site-auth.js?v=20260714g"></script>
+  <script src="access.js?v=20260714g"></script>
+  <script src="profile.js?v=20260714g"></script>
 </body>
 </html>

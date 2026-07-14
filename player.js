@@ -2,15 +2,19 @@
   'use strict';
 
   var config = window.NG_PLAYER_DATA || {};
+  var siteConfig = window.NG_SITE_CONFIG || {};
+  var versionManifest = siteConfig.versions || {};
   var CHANNEL_NAME = config.channelName || 'null-grail-player';
   var MESSAGE_PROTOCOL = config.protocol || 'null-grail-player-v4';
-  var RULESET_ID = config.rulesetId || 'null-grail-general-v2.0';
-  var CHARACTER_PROTOCOL = config.characterProtocol || 'null-grail-character-v3';
-  var SESSION_KEY = 'ng-player-current-handout:v4';
-  var MAP_KEY = 'ng-player-public-map:v1';
-  var VIEW_KEY = 'ng-player-stage-view:v1';
-  var CHARACTER_KEY = 'ng-player-character:v3';
-  var RESULTS_KEY = 'ng-player-check-results:v2';
+  var RULESET_ID = versionManifest.rulesetId || config.rulesetId || 'null-grail-core-d20-v2.1';
+  var CHARACTER_PROTOCOL = versionManifest.characterProtocol || config.characterProtocol || 'null-grail-character-v3';
+  var campaignId = window.NGCampaign && window.NGCampaign.campaignIdFromLocation();
+  var roomStorageScope = campaignId ? ':' + campaignId : '';
+  var SESSION_KEY = 'ng-player-current-handout:v4' + roomStorageScope;
+  var MAP_KEY = 'ng-player-public-map:v1' + roomStorageScope;
+  var VIEW_KEY = 'ng-player-stage-view:v1' + roomStorageScope;
+  var CHARACTER_KEY = 'ng-player-character:v3' + roomStorageScope;
+  var RESULTS_KEY = 'ng-player-check-results:v2' + roomStorageScope;
   var ATTRIBUTE_COSTS = [0, 1, 3, 6, 10];
   var FATE_RANKS = ['E', 'D', 'C', 'B', 'A', 'EX'];
   var DEFAULT_IDENTITY_RULES = {
@@ -45,6 +49,10 @@
   var attributes = Array.isArray(config.attributes) && config.attributes.length ? config.attributes : FALLBACK_ATTRIBUTES;
   var skills = Array.isArray(config.skills) && config.skills.length ? config.skills : FALLBACK_SKILLS;
   var channel = null;
+  var localTransport = null;
+  var roomTransport = null;
+  var nullGrailAdapter = window.NGCampaign && window.NGCampaign.getAdapter('null-grail');
+  var roomChatWidget = null;
   var character = null;
   var results = [];
   var pendingSubmissionId = null;
@@ -58,6 +66,8 @@
   var currentMpDirty = false;
   var currentHandoutId = null;
   var publicMap = null;
+  var liveScene = null;
+  var liveCombat = null;
   var selectedMapLocationId = null;
   var mode = new URLSearchParams(location.search).get('mode');
   var curtain = document.getElementById('curtain');
@@ -109,6 +119,67 @@
     var image = safeText(value.image, 200).replace(/\\/g, '/');
     if (!/^assets\/art\/[a-z0-9._-]+$/i.test(image)) image = 'assets/art/hero-null-grail.webp';
     return { id:id, title:safeText(value.title,160), day:safeText(value.day,40), image:image, source:safeText(value.source,180), factLabel:safeText(value.factLabel,80), body:safeText(value.body,2400), playerFacts:Array.isArray(value.playerFacts) ? value.playerFacts.slice(0,16).map(function (fact) { return safeText(fact,600); }) : [], playerPrompt:safeText(value.playerPrompt,1200) };
+  }
+
+  function normalizeLiveScene(value) {
+    if (!value || typeof value !== 'object') return null;
+    return {
+      id:safeText(value.id, 16).toUpperCase(), title:safeText(value.title, 160),
+      visible:safeText(value.visible || value.description, 2400),
+      time:safeText(value.time, 80), active:value.active === true, completed:value.completed === true
+    };
+  }
+
+  function normalizeLiveCombat(value) {
+    if (!value || typeof value !== 'object') return null;
+    return {
+      status:safeText(value.status, 40), title:safeText(value.title, 160),
+      round:integer(value.round, 0, 999, 0), turn:safeText(value.turn, 80),
+      summary:safeText(value.summary, 1200),
+      participants:Array.isArray(value.participants) ? value.participants.slice(0, 80).map(function (item) {
+        if (!item || typeof item !== 'object') return null;
+        var id = safeText(item.id, 80);
+        if (!id) return null;
+        return {
+          id:id, name:safeText(item.name, 120) || id,
+          hp:integer(item.hp, -9999, 9999, 0), maxHp:integer(item.maxHp, 0, 9999, 0),
+          initiative:integer(item.initiative, -999, 999, 0), active:item.active === true,
+          conditions:Array.isArray(item.conditions) ? item.conditions.slice(0, 20).map(function (condition) { return safeText(condition, 80); }).filter(Boolean) : []
+        };
+      }).filter(Boolean) : []
+    };
+  }
+
+  function renderLiveRoomState() {
+    var panel = document.getElementById('player-live-state');
+    if (!panel || !campaignId) return;
+    panel.hidden = false;
+    var sceneTitle = document.getElementById('player-live-scene-title');
+    var sceneCopy = document.getElementById('player-live-scene-copy');
+    if (liveScene && (liveScene.id || liveScene.title || liveScene.visible)) {
+      sceneTitle.textContent = liveScene.title || '当前公开场景';
+      sceneCopy.textContent = [liveScene.time, liveScene.visible].filter(Boolean).join(' · ') || '守秘人尚未公开场景正文。';
+    } else {
+      sceneTitle.textContent = '等待公开场景';
+      sceneCopy.textContent = '守秘人公开当前场景后会在这里同步。';
+    }
+    var combatTitle = document.getElementById('player-live-combat-title');
+    var combatCopy = document.getElementById('player-live-combat-copy');
+    var combatants = document.getElementById('player-live-combatants');
+    var combatActive = liveCombat && liveCombat.status !== 'inactive' && (liveCombat.participants.length || liveCombat.status === 'active');
+    if (!combatActive) {
+      combatTitle.textContent = '当前没有战斗';
+      combatCopy.textContent = '战斗开始后会显示轮次、当前行动者与参战者状态。';
+      combatants.innerHTML = '';
+      return;
+    }
+    var activeParticipant = liveCombat.participants.find(function (item) { return item.id === liveCombat.turn || item.active; });
+    combatTitle.textContent = liveCombat.title || (liveCombat.status === 'ended' ? '战斗已结束' : '战斗进行中');
+    combatCopy.textContent = liveCombat.summary || '第 ' + liveCombat.round + ' 轮 · 当前行动：' + (activeParticipant ? activeParticipant.name : '等待主持人推进') + ' · ' + liveCombat.participants.length + ' 名参战者';
+    combatants.innerHTML = liveCombat.participants.map(function (item) {
+      var conditions = item.conditions.length ? item.conditions.join('／') : '状态正常';
+      return '<li' + (item.id === liveCombat.turn || item.active ? ' class="active"' : '') + '><strong>' + escapeHtml(item.name) + '</strong><span>先攻 ' + item.initiative + ' · HP ' + item.hp + '/' + item.maxHp + '</span><small>' + escapeHtml(conditions) + '</small></li>';
+    }).join('');
   }
 
   function normalizeMapPayload(value) {
@@ -298,7 +369,7 @@
       return '<article class="player-map-scene' + (scene.active ? ' active' : '') + (scene.completed ? ' completed' : '') + '"><header><h3>' + escapeHtml(scene.id + ' · ' + scene.title) + '</h3><time>' + escapeHtml(scene.time) + '</time></header><p>' + escapeHtml(scene.visible) + '</p>' + handouts + result + '</article>';
     }).join('');
     var characters = locationItem.characters.map(function (character) {
-      return '<article class="player-map-character"><img src="' + character.image + '" alt="' + escapeHtml(character.name) + '肖像"><div><strong>' + escapeHtml(character.name) + '</strong><small>' + escapeHtml(character.kind) + ' · 当前登场</small>' + (character.summary ? '<p>' + escapeHtml(character.summary) + '</p>' : '') + '</div></article>';
+      return '<article class="player-map-character"><img src="' + character.image + '" loading="lazy" decoding="async" alt="' + escapeHtml(character.name) + '肖像"><div><strong>' + escapeHtml(character.name) + '</strong><small>' + escapeHtml(character.kind) + ' · 当前登场</small>' + (character.summary ? '<p>' + escapeHtml(character.summary) + '</p>' : '') + '</div></article>';
     }).join('');
     var presence = characters ? '<section class="player-map-presence-panel"><header><span>当前可见人物</span><b>' + locationItem.characters.length + ' 人</b></header>' + characters + '</section>' : '';
     var intel = intelItems.length ? '<section class="player-map-intel"><header><span>守秘人投放的地图情报</span><b>' + intelItems.length + ' 条</b></header><ul>' + intelItems.map(function (item) { return '<li><strong>' + escapeHtml(item.sceneId) + '</strong> · ' + escapeHtml(item.text) + '</li>'; }).join('') + '</ul></section>' : '';
@@ -393,7 +464,7 @@
     return {
       protocol:CHARACTER_PROTOCOL,
       rulesetId:RULESET_ID,
-      rulesetVersion:'v2.0·车卡增订',
+      rulesetVersion:versionManifest.rulesetShortLabel || 'v2.1',
       id:makeId('character'),
       name:'', playerName:'', pronouns:'', origin:'', identity:'', wish:'', boundary:'',
       identityType:type,
@@ -417,6 +488,7 @@
 
   function normalizeCharacter(raw) {
     if (!raw || typeof raw !== 'object') return blankCharacter('mortal');
+    if (siteConfig && typeof siteConfig.migrateCharacter === 'function') raw = siteConfig.migrateCharacter(raw) || raw;
     if (raw.rulesetId && raw.rulesetId !== RULESET_ID) throw new Error('ruleset');
     var type = ['mortal','magus','servant'].indexOf(raw.identityType) !== -1 ? raw.identityType : 'mortal';
     var output = blankCharacter(type);
@@ -473,7 +545,7 @@
 
   function readStoredCharacter() {
     try {
-      var raw = JSON.parse(localStorage.getItem(CHARACTER_KEY) || 'null');
+      var raw = window.NG_RESILIENCE ? window.NG_RESILIENCE.storage.get(CHARACTER_KEY, null) : JSON.parse(localStorage.getItem(CHARACTER_KEY) || 'null');
       return raw ? normalizeCharacter(raw) : blankCharacter('mortal');
     } catch (error) { return blankCharacter('mortal'); }
   }
@@ -502,9 +574,14 @@
   function saveCharacter(next) {
     character = normalizeCharacter(next);
     character.updatedAt = new Date().toISOString();
-    localStorage.setItem(CHARACTER_KEY, JSON.stringify(character));
-    document.getElementById('character-save-status').textContent = 'v2.0 · 已本地保存 ' + new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' });
+    var saved = window.NG_RESILIENCE
+      ? window.NG_RESILIENCE.storage.set(CHARACTER_KEY, character, { label:'角色卡草稿', filename:'零之圣杯-v2.1-角色恢复.json' })
+      : (function () { try { localStorage.setItem(CHARACTER_KEY, JSON.stringify(character)); return true; } catch (error) { return false; } }());
+    document.getElementById('character-save-status').textContent = saved
+      ? 'v2.1 · 已保存此设备草稿 ' + new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' })
+      : 'v2.1 · 本机保存失败，请立即导出';
     updateCheckOptions();
+    return saved;
   }
 
   function classTemplates() { return objectList(config.classTemplates || {}); }
@@ -590,10 +667,10 @@
     var warnings = [];
     if (lineages.length !== 2) errors.push('必须正好选择 2 个不同系谱');
     if (distinctTextCount(lineages) !== lineages.length) errors.push('两个系谱不能重复');
-    if (lineages.some(function (id) { return !lineageById(id); })) errors.push('所选系谱不在当前 v2.0 资源库中');
+    if (lineages.some(function (id) { return !lineageById(id); })) errors.push('所选系谱不在当前 v2.1 资源库中');
     if (spellIds.length !== 4) errors.push('必须正好选择 4 项不同术式');
     if (distinctTextCount(spellIds) !== spellIds.length) errors.push('四项术式不能重复');
-    if (spellIds.some(function (id) { return !spellById(id); })) errors.push('所选术式不在当前 v2.0 资源库中');
+    if (spellIds.some(function (id) { return !spellById(id); })) errors.push('所选术式不在当前 v2.1 资源库中');
     if (adjusted > 9) errors.push('术式阶位和（含跨系谱）超过 9');
     if (spells.filter(function (spell) { return spellRank(spell) === 4; }).length > 1) errors.push('四阶术式最多 1 项');
     if (spells.length === 4 && !nonCombat) errors.push('至少需要 1 项非战斗术式');
@@ -633,7 +710,7 @@
     if (!value.isMaster) return { errors:errors, valid:true };
     var master = value.master;
     if (!master.servantName || !master.supplyLevel || !master.communicationDistance || !master.source || !master.termination || !master.masterRefusal || !master.servantRefusal) errors.push('御主契约模块仍有必填字段');
-    if (master.supplyLevel && !(config.masterSupplyLevels || []).some(function (item) { return (item.id || item.value) === master.supplyLevel; })) errors.push('供魔等级不在当前 v2.0 的四档规则中');
+    if (master.supplyLevel && !(config.masterSupplyLevels || []).some(function (item) { return (item.id || item.value) === master.supplyLevel; })) errors.push('供魔等级不在当前 v2.1 的四档规则中');
     if (value.identityType === 'servant') errors.push('御主模块不能附加在从者基础卡上');
     return { errors:errors, valid:errors.length === 0 };
   }
@@ -659,7 +736,7 @@
       errors = errors.concat(magic.errors);
       warnings = warnings.concat(magic.warnings);
       if (!value.magus.mysticCodeId) errors.push('请选择一件起始魔术礼装');
-      else if (!byId(config.mysticCodes || [], value.magus.mysticCodeId)) errors.push('所选魔术礼装不在当前 v2.0 资源库中');
+      else if (!byId(config.mysticCodes || [], value.magus.mysticCodeId)) errors.push('所选魔术礼装不在当前 v2.1 资源库中');
       if (!value.magus.limitation) errors.push('请写一项明确限制');
       var code = byId(config.mysticCodes || [], value.magus.mysticCodeId);
       var level = String(code && (code.level || code.grade) || '');
@@ -668,7 +745,7 @@
     }
     if (value.identityType === 'servant') {
       if (!value.servant.classId) errors.push('请选择职阶');
-      else if (!classTemplates().some(function (item) { return item.id === value.servant.classId; })) errors.push('所选职阶不在当前 v2.0 的七个基础职阶中');
+      else if (!classTemplates().some(function (item) { return item.id === value.servant.classId; })) errors.push('所选职阶不在当前 v2.1 的七个基础职阶中');
       if (!value.servant.publicTitle || !value.servant.trueName || !value.servant.legendCore) errors.push('请填写公开称谓、真名与传说核心');
       var weaknessCount = value.servant.weaknesses.filter(Boolean).length;
       if (weaknessCount < (value.servant.luck === 'A' ? 3 : 2)) errors.push('概念弱点数量不足');
@@ -952,7 +1029,7 @@
     var raw = character ? deepClone(character) : blankCharacter(identityType());
     raw.protocol = CHARACTER_PROTOCOL;
     raw.rulesetId = RULESET_ID;
-    raw.rulesetVersion = 'v2.0·车卡增订';
+    raw.rulesetVersion = versionManifest.rulesetShortLabel || 'v2.1';
     raw.identityType = identityType();
     raw.isMaster = raw.identityType !== 'servant' && document.getElementById('character-is-master').checked;
     raw.name = fieldValue('character-name');
@@ -1168,7 +1245,7 @@
     fillCharacterForm(normalizeCharacter(output));
     goBuilderStep(5, true);
     renderBuilderReview();
-    showSync('v2.0 合法底稿已生成；可直接保存，也可以返回任一步修改');
+    showSync('v2.1 合法底稿已生成；可直接保存，也可以返回任一步修改');
   }
 
   function builderStepError(step) {
@@ -1218,7 +1295,7 @@
     var attributeChips = attributes.map(function (item) { var number = value.attributes[item.id]; return '<span><b>' + escapeHtml(item.label) + '</b> ' + FATE_RANKS[number] + '／' + number + '</span>'; }).join('');
     var trained = skills.filter(function (item) { return value.skills[item.id] > 0; }).map(function (item) { return '<span><b>' + escapeHtml(item.label) + '</b> +' + skillBonus(value.skills[item.id]) + '</span>'; }).join('');
     document.getElementById('builder-review').innerHTML = [
-      '<article class="review-identity"><p>RULESET v2.0</p><h5>', escapeHtml(value.name || '未命名角色'), '</h5><strong>', escapeHtml(identityRule(value.identityType).label + (value.isMaster ? '／御主' : '')), '</strong><small>', escapeHtml(value.origin), '</small><blockquote>', escapeHtml(value.identity), '</blockquote></article>',
+      '<article class="review-identity"><p>RULESET v2.1</p><h5>', escapeHtml(value.name || '未命名角色'), '</h5><strong>', escapeHtml(identityRule(value.identityType).label + (value.isMaster ? '／御主' : '')), '</strong><small>', escapeHtml(value.origin), '</small><blockquote>', escapeHtml(value.identity), '</blockquote></article>',
       '<article><h5>属性与派生</h5><div class="review-chips">', attributeChips, '</div><div class="review-stat-table"><span>生命 <b>', derived.maxHp, '</b></span><span>MP <b>', derived.maxMp || '—', '</b></span><span>回避 <b>', derived.evasion, '</b></span><span>坚韧 <b>', derived.fortitude, '</b></span><span>精神 <b>', derived.spirit, '</b></span><span>察觉 <b>', derived.awareness, '</b></span></div><h5>通用技能</h5><div class="review-chips specialties">', trained || '<span>暂无训练技能</span>', '</div></article>',
       '<article>', resourceSummary(value), '</article>'
     ].join('');
@@ -1307,9 +1384,33 @@
 
   function sendToKeeper(message) {
     message.protocol = MESSAGE_PROTOCOL;
+    if (campaignId && roomTransport) {
+      if (!roomTransport.isWritable()) return false;
+      if (message.type === 'character-submit') {
+        roomTransport.command('character.submit', {
+          submissionId:message.submissionId,
+          sentAt:message.sentAt,
+          character:message.character,
+          data:message.character
+        }).then(function () { showSync('v2.1 角色已保存到团房；等待主持人确认'); }).catch(reportRoomCommandFailure);
+      } else if (message.type === 'check-request') {
+        roomTransport.command('check.request', message.request).then(function () { showSync('判定申请已保存到团房；等待主持人处理'); }).catch(reportRoomCommandFailure);
+      }
+      return true;
+    }
+    if (localTransport) return localTransport.send(message);
     if (channel) { channel.postMessage(message); return true; }
     if (window.opener && !window.opener.closed) { window.opener.postMessage(message, window.location.origin); return true; }
     return false;
+  }
+
+  function reportRoomCommandFailure(error) {
+    var message = error && error.message || '团房命令没有保存，请恢复连接后重试。';
+    showSync(message);
+    if (window.NG_RESILIENCE) window.NG_RESILIENCE.showPersistenceError(message, {
+      filename:'零之圣杯-玩家恢复-' + new Date().toISOString().slice(0,10) + '.json',
+      value:{ campaignId:campaignId, character:character, capturedAt:new Date().toISOString() }
+    });
   }
 
   function sendReadyToKeeper() {
@@ -1339,7 +1440,10 @@
     }).join('') : '<li class="player-result-empty">尚未收到守秘人的判定结果。</li>';
   }
 
-  function rememberResults() { try { localStorage.setItem(RESULTS_KEY, JSON.stringify(results)); } catch (error) {} }
+  function rememberResults() {
+    if (window.NG_RESILIENCE) return window.NG_RESILIENCE.storage.set(RESULTS_KEY, results, { label:'判定结果', filename:'零之圣杯-判定结果恢复.json' });
+    try { localStorage.setItem(RESULTS_KEY, JSON.stringify(results)); return true; } catch (error) { return false; }
+  }
 
   function handleMessage(message) {
     if (!message || typeof message !== 'object') return;
@@ -1348,15 +1452,90 @@
     if (message.type === 'show' && message.handout) showHandout(message.handout);
     if (message.type === 'map-state' && message.map) renderPlayerMap(mergePlayerMapPayload(message.map), safeText(message.focusLocationId,16).toUpperCase(), message.openMap === true);
     if (message.type === 'curtain') showCurtain();
-    if (message.type === 'retract' && String(message.handoutId || '').toUpperCase() === currentHandoutId) {
+    if (message.type === 'retract' && (message.all === true || String(message.handoutId || '').toUpperCase() === currentHandoutId)) {
       currentHandoutId = null;
       forgetHandout();
       handoutTab.disabled = true;
       requestPlayerView(publicMap && publicMap.visible ? 'map' : 'curtain');
     }
-    if (message.type === 'character-ack' && character && message.characterId === character.id && (!pendingSubmissionId || message.submissionId === pendingSubmissionId)) { showSync(message.accepted ? '守秘人已确认 v2.0 角色卡' : '守秘人未接收这份角色卡'); if (message.submissionId === pendingSubmissionId) pendingSubmissionId = null; }
+    if (message.type === 'scene-state') { liveScene = normalizeLiveScene(message.scene); renderLiveRoomState(); }
+    if (message.type === 'combat-state') { liveCombat = normalizeLiveCombat(message.combat); renderLiveRoomState(); }
+    if (message.type === 'character-ack' && character && message.characterId === character.id && (!pendingSubmissionId || message.submissionId === pendingSubmissionId)) { showSync(message.accepted ? '守秘人已确认 v2.1 角色卡' : '守秘人未接收这份角色卡'); if (message.submissionId === pendingSubmissionId) pendingSubmissionId = null; }
     if (message.type === 'check-ack' && character && message.characterId === character.id) showSync('守秘人已收到判定申请');
     if (message.type === 'check-result') { var result = normalizeResult(message.result); if (result && (result.targetCharacterId === 'all' || character && result.targetCharacterId === character.id) && !results.some(function (item) { return item.id === result.id; })) { results.unshift(result); results = results.slice(0,50); rememberResults(); renderResults(); showSync('已收到判定结果：' + result.tierLabel); } }
+  }
+
+  function applyPlayerRoomSnapshot(payload) {
+    if (nullGrailAdapter) nullGrailAdapter.messagesFromSnapshot(payload).forEach(function (message) {
+      message.protocol = MESSAGE_PROTOCOL;
+      handleMessage(message);
+    });
+    var member = payload && (payload.member || payload.currentMember) || {};
+    var characters = payload && (payload.characters || payload.snapshot && payload.snapshot.characters) || [];
+    var own = characters.find(function (item) {
+      return item && (!item.memberId || item.memberId === member.id) && (item.character || item.data || item.name);
+    });
+    var rawCharacter = own && (own.character || own.data || own);
+    if (rawCharacter) {
+      try {
+        var migrated = siteConfig && typeof siteConfig.migrateCharacter === 'function' ? siteConfig.migrateCharacter(rawCharacter) : rawCharacter;
+        var remoteCharacter = normalizeCharacter(migrated || rawCharacter);
+        var localTime = new Date(character && character.updatedAt || 0).getTime();
+        var remoteTime = new Date(remoteCharacter.updatedAt || 0).getTime();
+        if (!character || !character.name || remoteTime >= localTime) {
+          character = remoteCharacter;
+          fillCharacterForm(character);
+          renderBuilderReview();
+        }
+      } catch (error) {}
+    }
+  }
+
+  function handlePlayerRoomEvent(event) {
+    var kind = safeText(event && (event.kind || event.type), 80);
+    var eventPayload = event && event.payload || {};
+    if (kind === 'character.review' || kind === 'character.reviewed') {
+      pendingSubmissionId = null;
+      showSync(eventPayload.status === 'approved' ? '守秘人已确认 v2.1 角色卡' : '守秘人退回了这份角色卡');
+      roomTransport.requestResync();
+      return;
+    }
+    if (!nullGrailAdapter) return;
+    var message = nullGrailAdapter.messageFromEvent(event, 'player');
+    if (!message) return;
+    if (message.type === 'snapshot-update') {
+      var snapshot = message.snapshot && (message.snapshot.state ? message.snapshot : { state:message.snapshot, version:roomTransport.version });
+      applyPlayerRoomSnapshot({ snapshot:snapshot });
+      return;
+    }
+    message.protocol = MESSAGE_PROTOCOL;
+    handleMessage(message);
+  }
+
+  function setupCampaignRoom() {
+    if (!campaignId || !window.NGCampaign) return;
+    var connection = document.getElementById('player-room-connection');
+    var note = document.getElementById('player-transport-note');
+    connection.hidden = false;
+    note.textContent = '在线团房模式 · 服务器是唯一权威来源；离线期间不能提交角色、判定或聊天。角色草稿仍可导出恢复。';
+    document.body.classList.add('online-room-mode', 'room-offline');
+    renderLiveRoomState();
+    roomTransport = window.NGCampaign.createRoomTransport({ campaignId:campaignId, role:'player' });
+    roomTransport.on('status', function (status) {
+      connection.textContent = '团房 · ' + status.label;
+      connection.className = 'room-connection-status state-' + status.state;
+      document.body.classList.toggle('room-offline', !status.writable);
+      if (status.writable) showSync('在线团房已连接 · 状态 v' + roomTransport.version);
+      else if (status.state === 'offline' || status.state === 'failed') showSync('团房离线 · 重新连接前不能提交状态命令');
+    });
+    roomTransport.on('snapshot', applyPlayerRoomSnapshot);
+    roomTransport.on('event', handlePlayerRoomEvent);
+    roomTransport.on('presence', function (presence) { connection.title = '当前在线成员：' + String((presence.members || []).filter(function (member) { return member.online !== false; }).length); });
+    roomTransport.on('error', function (error) { if (error && error.kind !== 'offline') showSync(error.message || '团房同步暂时不可用'); });
+    var chatRoot = document.getElementById('player-campaign-chat');
+    chatRoot.hidden = false;
+    roomChatWidget = window.NGCampaign.mountChat({ element:chatRoot, transport:roomTransport, campaignId:campaignId, canDelete:false });
+    roomTransport.connect().catch(reportRoomCommandFailure);
   }
 
   initializeStaticUi();
@@ -1372,10 +1551,10 @@
     var next = collectCharacter();
     var missing = firstIncompleteStep();
     var report = validation(next);
-    if (missing !== 5 || report.errors.length) { goBuilderStep(missing,true); showBuilderError(builderStepError(missing) || report.errors[0] || '角色卡还有未完成项目。'); showSync('请先修正 v2.0 合法性检查中的红色项目'); return; }
+    if (missing !== 5 || report.errors.length) { goBuilderStep(missing,true); showBuilderError(builderStepError(missing) || report.errors[0] || '角色卡还有未完成项目。'); showSync('请先修正 v2.1 合法性检查中的红色项目'); return; }
     saveCharacter(next);
     renderBuilderReview();
-    showSync('v2.0 角色卡已生成并保存在本机；现在可以提交给守秘人');
+    showSync('v2.1 角色卡已生成并保存在本机；现在可以提交给守秘人');
   });
   document.getElementById('player-submit-character').addEventListener('click', function () {
     var next = collectCharacter();
@@ -1384,7 +1563,7 @@
     if (missing !== 5 || report.errors.length) { goBuilderStep(missing,true); showBuilderError(builderStepError(missing) || report.errors[0] || '角色卡还有未完成项目。'); showSync('提交前请完成全部六步'); return; }
     saveCharacter(next);
     pendingSubmissionId = makeId('submission');
-    showSync(sendToKeeper({ type:'character-submit',submissionId:pendingSubmissionId,sentAt:new Date().toISOString(),character:next }) ? 'v2.0 角色已发送；守秘人页面打开时会收到确认' : '未找到同源本机守秘人标签页；可导出 JSON 交付');
+    showSync(sendToKeeper({ type:'character-submit',submissionId:pendingSubmissionId,sentAt:new Date().toISOString(),character:next }) ? (campaignId ? 'v2.1 角色正在提交到在线团房' : 'v2.1 角色已发送；守秘人页面打开时会收到确认') : (campaignId ? '团房离线；角色没有提交，请恢复连接后重试' : '未找到同源本机守秘人标签页；可导出 JSON 交付'));
   });
   document.getElementById('player-export-character').addEventListener('click', function () {
     var next = collectCharacter();
@@ -1393,11 +1572,11 @@
     if (missing !== 5 || report.errors.length) {
       goBuilderStep(missing === 5 ? 5 : missing,true);
       showBuilderError(builderStepError(missing) || report.errors[0] || '角色卡还有未完成项目。');
-      showSync('导出前请先通过 v2.0 合法性终检；本次没有保存或下载');
+      showSync('导出前请先通过 v2.1 合法性终检；本次没有保存或下载');
       return;
     }
     saveCharacter(next);
-    downloadJson('零之圣杯-v2.0-角色-' + (next.name || '未命名') + '.json', next);
+    downloadJson('零之圣杯-v2.1-角色-' + (next.name || '未命名') + '.json', next);
   });
   document.getElementById('player-import-character').addEventListener('click', function () { document.getElementById('player-character-file').click(); });
   document.getElementById('player-character-file').addEventListener('change', function (event) {
@@ -1408,8 +1587,9 @@
     reader.onload = function () {
       try {
         var parsed = JSON.parse(reader.result);
-        if (parsed.protocol !== CHARACTER_PROTOCOL || parsed.rulesetId !== RULESET_ID) throw new Error('protocol');
-        var imported = normalizeCharacter(parsed);
+        var migratedCharacter = siteConfig && typeof siteConfig.migrateCharacter === 'function' ? siteConfig.migrateCharacter(parsed) : parsed;
+        if (!migratedCharacter || migratedCharacter.protocol !== CHARACTER_PROTOCOL || migratedCharacter.rulesetId !== RULESET_ID) throw new Error('protocol');
+        var imported = normalizeCharacter(migratedCharacter);
         fillCharacterForm(imported);
         goBuilderStep(5,true);
         var reviewed = collectCharacter(false);
@@ -1421,8 +1601,8 @@
         }
         saveCharacter(reviewed);
         renderBuilderReview();
-        showSync('v2.0 角色 JSON 已导入、通过终检并保存在本机');
-      } catch (error) { showSync('角色 JSON 无效，或不是当前 v2.0 车卡协议'); }
+        showSync('v2.1 角色 JSON 已导入、通过终检并保存在本机');
+      } catch (error) { showSync('角色 JSON 无效，或不能安全迁移到当前 v2.1 车卡协议'); }
     };
     reader.readAsText(file);
     event.target.value = '';
@@ -1430,7 +1610,7 @@
   document.getElementById('player-check-request-form').addEventListener('submit', function (event) {
     event.preventDefault();
     var next = collectCharacter();
-    if (!next.name || validation(next).errors.length) { showSync('请先生成并保存合法的 v2.0 角色卡'); return; }
+    if (!next.name || validation(next).errors.length) { showSync('请先生成并保存合法的 v2.1 角色卡'); return; }
     saveCharacter(next);
     var attributeId = fieldValue('player-check-approach');
     var skillId = fieldValue('player-check-specialty');
@@ -1447,9 +1627,12 @@
   });
   document.getElementById('player-clear-results').addEventListener('click', function () { results = []; rememberResults(); renderResults(); });
 
-  try { channel = new BroadcastChannel(CHANNEL_NAME); channel.onmessage = function (event) { handleMessage(event.data); }; } catch (error) { channel = null; }
+  if (!campaignId && window.NGCampaign) {
+    localTransport = window.NGCampaign.createLocalTransport({ channelName:CHANNEL_NAME, protocol:MESSAGE_PROTOCOL });
+    localTransport.on('message', handleMessage);
+  } else if (!campaignId) try { channel = new BroadcastChannel(CHANNEL_NAME); channel.onmessage = function (event) { handleMessage(event.data); }; } catch (error) { channel = null; }
   sendReadyToKeeper();
-  window.addEventListener('message', function (event) { if (event.origin === window.location.origin) handleMessage(event.data); });
+  window.addEventListener('message', function (event) { if (!localTransport && event.origin === window.location.origin) handleMessage(event.data); });
   window.addEventListener('ng-player-view-request', function (event) {
     var requestedView = safeText(event && event.detail, 16);
     if (requestedView === 'curtain' || requestedView === 'handout' || requestedView === 'map') showPlayerView(requestedView);
@@ -1464,14 +1647,15 @@
   } catch (error) { publicMap = null; }
   if (!publicMap && config.publicMap) renderPlayerMap(config.publicMap, config.publicMap.activeLocationId, false);
   var restoredHandout = false;
-  try { restoredHandout = showHandout(JSON.parse(sessionStorage.getItem(SESSION_KEY) || sessionStorage.getItem('ng-player-current-handout:v3') || 'null')); } catch (error) { restoredHandout = false; }
+  try { restoredHandout = showHandout(JSON.parse(sessionStorage.getItem(SESSION_KEY) || (!campaignId && sessionStorage.getItem('ng-player-current-handout:v3')) || 'null')); } catch (error) { restoredHandout = false; }
   var restoredView = '';
   try { restoredView = sessionStorage.getItem(VIEW_KEY) || ''; } catch (error) {}
   if (restoredView === 'map' && publicMap && publicMap.visible) showPlayerView('map');
   else if (!restoredHandout) showPlayerView(restoredView === 'curtain' ? 'curtain' : publicMap && publicMap.visible ? 'map' : 'curtain');
   if (mode === 'projection') document.body.classList.add('projection-mode');
-  else if (mode === 'builder') { document.body.classList.add('builder-mode'); document.getElementById('projection-note').hidden = true; document.title = '零之圣杯 v2.0 · 傻瓜车卡'; }
+  else if (mode === 'builder') { document.body.classList.add('builder-mode'); document.getElementById('projection-note').hidden = true; document.title = '零之圣杯 v2.1 · 傻瓜车卡'; }
   else document.getElementById('projection-note').hidden = true;
+  setupCampaignRoom();
   document.getElementById('fullscreen-button').addEventListener('click', function () { if (!document.fullscreenElement) { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); } else if (document.exitFullscreen) document.exitFullscreen(); });
 }());
 
@@ -1616,8 +1800,14 @@
   }
 
   function saveJournal() {
+    var payload = journalPayload();
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(journalPayload()));
+      var saved = window.NG_RESILIENCE && window.NG_RESILIENCE.storage
+        ? window.NG_RESILIENCE.storage.set(STORAGE_KEY, payload, {
+          scope:'local-clue-journal', label:'玩家线索日志', filename:'零之圣杯-线索日志恢复.json'
+        })
+        : (function () { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); return true; } catch (error) { return false; } }());
+      if (!saved) throw new Error('storage unavailable');
       storageWarning = '';
       return true;
     } catch (error) {

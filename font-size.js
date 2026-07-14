@@ -63,16 +63,9 @@
     root.dataset.readingScale = String(scale.effective);
     root.style.setProperty('--reading-scale', String(scale.effective));
 
-    if (document.body) {
-      // An explicit value avoids delayed repaint bugs seen when zoom only reads a
-      // custom property. The stylesheet remains the no-JS fallback.
-      document.body.style.zoom = String(scale.effective);
-    }
-
     if (scale.effective === lastScale) return false;
     lastScale = scale.effective;
 
-    if (document.body) void document.body.offsetWidth;
     if (shouldNotify) {
       notifyLayout({
         preference: current,
@@ -99,11 +92,12 @@
       '.header-tools',
       '.module-header nav',
       '.command-actions',
-      '.player-view-tabs',
+      '.player-header-tools',
       '.topbar-actions',
       '.desk-actions',
       '.coc-topbar nav',
       '.profile-header nav',
+      '.campaign-header-tools',
       '.top-actions'
     ];
 

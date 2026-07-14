@@ -109,6 +109,10 @@
       settings.headers = Object.assign({}, settings.headers || {}, { 'Content-Type':'application/json' });
       settings.body = JSON.stringify(settings.body);
     }
+    if (window.NG_RESILIENCE && window.NG_RESILIENCE.request) {
+      settings.retry = String(settings.method || 'GET').toUpperCase() === 'GET';
+      return window.NG_RESILIENCE.request(apiUrl(path), settings);
+    }
     return window.fetch(apiUrl(path), settings).then(function (response) {
       return response.text().then(function (raw) {
         var payload = {};
@@ -160,6 +164,68 @@
     return (currentModule.resources || []).filter(function (resource) { return resource.category === category; });
   }
   function formValue(name) { return byId('module-form').elements[name].value.trim(); }
+  function clampPercent(value, fallback) {
+    var number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : fallback;
+  }
+  function visualIdentityOf(module) {
+    var source = module && module.visualIdentity && typeof module.visualIdentity === 'object' ? module.visualIdentity : {};
+    var focus = source.focus && typeof source.focus === 'object' ? source.focus : {};
+    var focusText = String(source.coverFocus || module && (module.coverFocus || module.bannerFocus) || '');
+    var focusMatch = focusText.match(/^(\d{1,3})%\s+(\d{1,3})%$/);
+    return {
+      coverImage:String(source.coverImage || module && (module.coverImage || module.cover) || '').trim(),
+      bannerImage:String(source.bannerImage || module && (module.bannerImage || module.banner) || '').trim(),
+      ogImage:String(source.ogImage || module && module.ogImage || '').trim(),
+      themeColor:/^#[0-9a-f]{6}$/i.test(String(source.themeColor || module && module.themeColor || '')) ? String(source.themeColor || module.themeColor).toLowerCase() : '#d1ad6c',
+      focus:{
+        x:clampPercent(focus.x !== undefined ? focus.x : focusMatch && focusMatch[1], 50),
+        y:clampPercent(focus.y !== undefined ? focus.y : focusMatch && focusMatch[2], 50)
+      }
+    };
+  }
+  function collectVisualIdentity() {
+    var form = byId('module-form');
+    return {
+      coverImage:form.elements.coverImage.value.trim(),
+      bannerImage:form.elements.bannerImage.value.trim(),
+      ogImage:form.elements.ogImage.value.trim(),
+      themeColor:/^#[0-9a-f]{6}$/i.test(form.elements.themeColor.value) ? form.elements.themeColor.value.toLowerCase() : '#d1ad6c',
+      focus:{ x:clampPercent(form.elements.focusX.value, 50), y:clampPercent(form.elements.focusY.value, 50) }
+    };
+  }
+  function previewImageUrl(value) {
+    var textValue = String(value || '').trim();
+    if (!textValue) return '';
+    try {
+      var parsed = new URL(textValue, document.baseURI);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : '';
+    } catch (error) { return ''; }
+  }
+  function updateVisualPreviews() {
+    var identity = collectVisualIdentity();
+    var focus = identity.focus.x + '% ' + identity.focus.y + '%';
+    var sources = {
+      cover:identity.coverImage,
+      banner:identity.bannerImage || identity.coverImage,
+      og:identity.ogImage || identity.bannerImage || identity.coverImage
+    };
+    byId('module-form').querySelector('[data-theme-color-label]').textContent = identity.themeColor.toUpperCase();
+    byId('module-form').querySelector('[data-focus-x-label]').textContent = identity.focus.x + '%';
+    byId('module-form').querySelector('[data-focus-y-label]').textContent = identity.focus.y + '%';
+    Array.prototype.forEach.call(document.querySelectorAll('.visual-preview'), function (preview) {
+      preview.style.setProperty('--preview-theme', identity.themeColor);
+      var image = preview.querySelector('[data-visual-preview]');
+      var fallback = preview.querySelector('[data-visual-fallback]');
+      var source = previewImageUrl(sources[image.getAttribute('data-visual-preview')]);
+      image.hidden = !source;
+      fallback.hidden = Boolean(source);
+      image.style.objectPosition = focus;
+      image.onerror = function () { image.hidden = true; fallback.hidden = false; };
+      if (source) image.src = source;
+      else image.removeAttribute('src');
+    });
+  }
   function rulesetById(id) {
     return rulesets.find(function (ruleset) { return ruleset.id === id; }) || null;
   }
@@ -251,14 +317,24 @@
       if (form.elements[name]) form.elements[name].value = currentModule[name] || '';
     });
     if (form.elements.rulesetId) {
-      var selected = currentModule.rulesetId === 'null-grail-core-d20-v2' ? 'null-grail-core-d20-v2.0' : currentModule.rulesetId || '';
+      var selected = ['null-grail-core-d20-v2', 'null-grail-core-d20-v2.0', 'null-grail-general-v2.0'].indexOf(currentModule.rulesetId) >= 0
+        ? (window.NG_SITE_CONFIG && window.NG_SITE_CONFIG.versions && window.NG_SITE_CONFIG.versions.rulesetId || 'null-grail-core-d20-v2.1')
+        : currentModule.rulesetId || '';
       if (!selected && currentModule.systemLabel) selected = rulesets.some(function (ruleset) { return ruleset.systemLabel === currentModule.systemLabel; })
         ? rulesets.find(function (ruleset) { return ruleset.systemLabel === currentModule.systemLabel; }).id
         : 'custom';
       form.elements.rulesetId.value = selected;
     }
+    var visual = visualIdentityOf(currentModule);
+    form.elements.coverImage.value = visual.coverImage;
+    form.elements.bannerImage.value = visual.bannerImage;
+    form.elements.ogImage.value = visual.ogImage;
+    form.elements.themeColor.value = visual.themeColor;
+    form.elements.focusX.value = String(visual.focus.x);
+    form.elements.focusY.value = String(visual.focus.y);
     form.elements.tags.value = (currentModule.tags || []).join(', ');
     updateCounts();
+    updateVisualPreviews();
     byId('publish-form').elements.status.value = currentModule.status || 'draft';
   }
   function updateCounts() {
@@ -442,12 +518,19 @@
     event.preventDefault();
     var form = event.currentTarget;
     var button = form.querySelector('[type="submit"]');
+    var visualIdentity = collectVisualIdentity();
     var payload = {
       title:formValue('title'), english:formValue('english'), typeLabel:formValue('typeLabel'),
       rulesetId:formValue('rulesetId'), systemLabel:rulesetLabel(formValue('rulesetId'), formValue('systemLabel')),
       summary:formValue('summary'), description:formValue('description'), players:formValue('players'), duration:formValue('duration'),
       era:formValue('era'), difficulty:formValue('difficulty'),
-      tags:formValue('tags').split(/[,，]/).map(function (tag) { return tag.trim(); }).filter(Boolean).slice(0, 12)
+      tags:formValue('tags').split(/[,，]/).map(function (tag) { return tag.trim(); }).filter(Boolean).slice(0, 12),
+      visualIdentity:visualIdentity,
+      coverImage:visualIdentity.coverImage,
+      bannerImage:visualIdentity.bannerImage,
+      ogImage:visualIdentity.ogImage,
+      themeColor:visualIdentity.themeColor,
+      coverFocus:visualIdentity.focus.x + '% ' + visualIdentity.focus.y + '%'
     };
     button.disabled = true;
     setSaveState('saving', '正在保存…');
@@ -590,7 +673,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-go-section]'), function (button) { button.addEventListener('click', function () { switchSection(button.getAttribute('data-go-section')); }); });
     byId('create-form').addEventListener('submit', createModule);
     byId('module-form').addEventListener('submit', saveMetadata);
-    byId('module-form').addEventListener('input', updateCounts);
+    byId('module-form').addEventListener('input', function () { updateCounts(); updateVisualPreviews(); });
     Array.prototype.forEach.call(document.querySelectorAll('select[name="rulesetId"]'), function (select) {
       select.addEventListener('change', function () {
         var form = select.form;

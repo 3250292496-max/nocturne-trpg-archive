@@ -1,23 +1,25 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="keeper">
 <head>
+  <meta name="ng-deployment-mode" content="redirect">
+  <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
+  <link rel="canonical" href="https://43-161-252-149.sslip.io/gm.html">
+  <script src="deployment.js?v=20260714g"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#090d14">
   <meta name="description" content="《零之圣杯》守秘人互动控制台：七日流程、东湖市地图、人物、线索、手卡与状态追踪。">
   <title>零之圣杯 · 守秘人控制台</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="gm.css?v=20260713u">
-  <link rel="stylesheet" href="font-size.css?v=20260713b">
-  <script src="font-size.js?v=20260713b" defer></script>
+  <link rel="stylesheet" href="gm.css?v=20260714g">
+  <link rel="stylesheet" href="design-system.css?v=20260714g">
+  <link rel="stylesheet" href="font-size.css?v=20260714g">
+  <script src="font-size.js?v=20260714g" defer></script>
 </head>
-<body>
+<body class="ds-page gm-page">
   <a class="skip-link" href="#workspace">跳到控制台内容</a>
   <div class="keeper-watermark" aria-hidden="true">KEEPER · 全剧透</div>
 
-  <header class="command-bar">
+  <header class="command-bar" inert aria-hidden="true">
     <a class="command-brand" href="index.html" aria-label="返回夜航模组馆">
       <span class="brand-sigil" aria-hidden="true">◇</span>
       <span><strong>零之圣杯</strong><small>KEEPER CONSOLE</small></span>
@@ -26,12 +28,13 @@
       <span id="top-day">第一日</span>
       <strong id="top-title">错误召唤之夜</strong>
       <small id="save-status">已自动保存</small>
+      <small class="room-connection-status" id="gm-room-connection" hidden>团房 · 正在连接</small>
     </div>
     <div class="command-actions">
-      <button class="command-button" id="undo-button" type="button" title="撤销上一步">↶ <span>撤销</span></button>
-      <button class="command-button" id="curtain-button" type="button" title="立即遮住玩家投屏">◉ <span>投屏帷幕</span></button>
-      <button class="command-button" id="player-window-button" type="button">↗ <span>玩家视图</span></button>
-      <button class="command-button" id="session-menu-button" type="button" aria-expanded="false" aria-controls="session-menu">••• <span>战役</span></button>
+      <button class="command-button" id="undo-button" type="button" aria-label="撤销上一步" title="撤销上一步">↶ <span>撤销</span></button>
+      <button class="command-button" id="curtain-button" type="button" aria-label="立即遮住玩家投屏" title="立即遮住玩家投屏">◉ <span>投屏帷幕</span></button>
+      <button class="command-button" id="player-window-button" type="button" aria-label="打开玩家视图">↗ <span>玩家视图</span></button>
+      <button class="command-button" id="session-menu-button" type="button" aria-label="打开战役菜单" aria-expanded="false" aria-controls="session-menu">••• <span>战役</span></button>
     </div>
     <div class="session-menu" id="session-menu" hidden>
       <button id="export-button" type="button">导出战役备份</button>
@@ -43,7 +46,7 @@
     </div>
   </header>
 
-  <aside class="side-nav" aria-label="守秘人控制台导航">
+  <aside class="side-nav" aria-label="守秘人控制台导航" inert aria-hidden="true">
     <button class="side-nav-button active" type="button" data-view="current" aria-current="page"><span>✦</span><b>当前</b></button>
     <button class="side-nav-button" type="button" data-view="timeline"><span>Ⅶ</span><b>七日</b></button>
     <button class="side-nav-button" type="button" data-view="map"><span>⌖</span><b>地图</b></button>
@@ -56,10 +59,10 @@
     <button class="side-nav-button" type="button" data-view="log"><span>≡</span><b>场记</b></button>
   </aside>
 
-  <main class="workspace" id="workspace">
+  <main class="workspace" id="workspace" inert aria-hidden="true">
     <section class="view-panel active" id="view-current" data-panel="current" aria-labelledby="current-heading">
       <article class="day-stage" id="day-stage">
-        <img id="day-image" src="assets/art/night-01.webp" alt="第一夜雨中的东湖市与错误召唤信号">
+          <img id="day-image" src="assets/art/night-01.webp?v=20260714g" width="1672" height="941" loading="lazy" decoding="async" alt="第一夜雨中的东湖市与错误召唤信号">
         <div class="day-stage-shade"></div>
         <div class="day-stage-copy">
           <p class="section-kicker" id="day-kicker">DAY 01 · 12月29日</p>
@@ -170,7 +173,7 @@
       </header>
       <div class="map-layout">
         <div class="atlas" id="atlas">
-          <img src="assets/art/eastlake-map.webp" alt="雨夜东湖市俯视地图：河流纵贯东部，主路、学园、旧图书馆、洋宅、教堂、神社、维修店、工地与中央广场可辨">
+              <img src="assets/art/eastlake-map.webp?v=20260714g" width="1586" height="992" loading="lazy" decoding="async" alt="雨夜东湖市俯视地图：河流纵贯东部，主路、学园、旧图书馆、洋宅、教堂、神社、维修店、工地与中央广场可辨">
           <div id="map-hotspots" class="map-hotspots"></div>
           <div class="atlas-legend"><span><i class="known"></i>可访问</span><span><i class="current"></i>当前日</span><span><i class="visited"></i>已访问</span></div>
         </div>
@@ -252,10 +255,10 @@
 
     <section class="view-panel" id="view-tabletop" data-panel="tabletop" aria-labelledby="tabletop-heading">
       <header class="view-heading tabletop-heading">
-        <div><p class="section-kicker">LOCAL TABLETOP DESK</p><h1 id="tabletop-heading">角色与判定</h1></div>
-        <p>当前版通过同源 BroadcastChannel 连接，适用于本机同一浏览器的玩家标签页。</p>
+        <div><p class="section-kicker">TABLETOP DESK</p><h1 id="tabletop-heading">角色与判定</h1></div>
+        <p>本机模式使用同源 BroadcastChannel；在线团房使用服务器权威同步。当前传输方式会在页头显示，两者不会同时写入。</p>
       </header>
-      <div class="local-channel-note"><strong>同源本机通讯</strong><span>不是跨设备房间；判定中只会发送可公开给玩家的字段。</span></div>
+      <div class="local-channel-note"><strong>当前传输</strong><span>本机模式仅限本设备；在线模式由服务器同步。两种模式都只向玩家发送白名单字段。</span></div>
 
       <div class="tabletop-grid">
         <section class="console-card tabletop-card roster-card" aria-labelledby="roster-title">
@@ -384,7 +387,7 @@
     </section>
   </main>
 
-  <aside class="tracker-rail" aria-label="战役状态轨道">
+  <aside class="tracker-rail" aria-label="战役状态轨道" inert aria-hidden="true">
     <div class="tracker-rail-head">
       <span>CAMPAIGN STATE</span>
       <strong>战役轨道</strong>
@@ -409,16 +412,15 @@
     </div>
   </aside>
 
-  <nav class="mobile-nav" aria-label="移动端控制台导航">
+  <nav class="mobile-nav" aria-label="移动端控制台导航" inert aria-hidden="true">
     <button class="active" type="button" data-view="current"><span>✦</span>当前</button>
     <button type="button" data-view="map"><span>⌖</span>地图</button>
     <button type="button" data-view="npcs"><span>◫</span>人物</button>
-    <button type="button" data-view="clues"><span>⌁</span>线索</button>
-    <button type="button" data-view="handouts"><span>▱</span>发放</button>
-    <button type="button" data-view="library"><span>册</span>正文</button>
-    <button type="button" data-view="tabletop"><span>⚄</span>战团</button>
-    <button type="button" data-view="combat"><span>⚔</span>战斗</button>
+    <button id="mobile-more-button" type="button" aria-expanded="false" aria-controls="mobile-more-menu"><span>•••</span>更多 <b id="gm-room-unread" hidden></b></button>
   </nav>
+  <div class="mobile-more-menu" id="mobile-more-menu" hidden>
+    <button type="button" data-view="timeline">七日</button><button type="button" data-view="clues">线索</button><button type="button" data-view="handouts">手卡</button><button type="button" data-view="library">正文</button><button type="button" data-view="tabletop">战团</button><button type="button" data-view="combat">战斗</button><button type="button" data-view="log">场记</button><button type="button" data-open-tracker>团态</button><button type="button" data-open-room-chat>聊天</button>
+  </div>
 
   <dialog class="archive-dialog scene-dialog" id="scene-dialog">
     <div id="scene-dialog-content"></div>
@@ -448,7 +450,7 @@
 
   <div class="keeper-gate" id="keeper-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
     <div class="gate-card">
-      <div class="gate-art"><img src="assets/art/hero-null-grail.webp" alt="雨夜东湖市中的零之圣杯人物群像"></div>
+      <div class="gate-art"><img src="assets/art/hero-null-grail.webp?v=20260714g" width="1915" height="821" sizes="(max-width: 760px) 100vw, 50vw" fetchpriority="high" decoding="async" alt="雨夜东湖市中的零之圣杯人物群像"></div>
       <div class="gate-copy">
         <p class="section-kicker">AUTHOR EDITION · FULL SPOILERS</p>
         <h1 id="gate-title">守秘人控制台</h1>
@@ -465,12 +467,16 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <aside id="gm-campaign-chat" class="campaign-chat-shell" hidden></aside>
 
-  <script src="player-data.js?v=20260713h"></script>
-  <script src="coc7-data.js?v=20260713d"></script>
-  <script src="coc7-core.js?v=20260713d"></script>
-  <script src="coc7-xlsx.js?v=20260713d"></script>
-  <script src="access.js?v=20260713e"></script>
-  <script src="gm-gate.js?v=20260713u"></script>
+<script src="site-config.js?v=20260714g"></script>
+<script src="resilience.js?v=20260714g"></script>
+<script src="campaign-client.js?v=20260714g"></script>
+<script src="player-data.js?v=20260714g"></script>
+<script src="coc7-data.js?v=20260714g"></script>
+<script src="coc7-core.js?v=20260714g"></script>
+<script src="coc7-xlsx.js?v=20260714g"></script>
+<script src="access.js?v=20260714g"></script>
+<script src="gm-gate.js?v=20260714g"></script>
 </body>
 </html>

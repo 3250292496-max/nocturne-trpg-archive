@@ -2,22 +2,14 @@
   --reading-scale: 1.15;
 }
 
-/* The script writes an explicit zoom value to guarantee immediate repaint.
-   This declaration is the no-JS / early-render fallback. */
-@supports (zoom: 1) {
-  body {
-    zoom: var(--reading-scale);
-  }
-}
-
 body .reading-size-toggle {
   appearance: none;
   display: inline-grid;
-  width: 40px;
-  min-width: 40px;
-  height: 36px;
-  min-height: 36px;
-  flex: 0 0 40px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
   place-items: center;
   padding: 0;
   border: 1px solid rgba(209, 173, 108, .5);
@@ -25,7 +17,7 @@ body .reading-size-toggle {
   color: #f0d59f;
   background: rgba(10, 16, 25, .88);
   box-shadow: none;
-  font: 700 12px/1 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 700 .75rem/1 var(--ds-font-sans, "Noto Sans SC", "Microsoft YaHei", sans-serif);
   letter-spacing: 0;
   cursor: pointer;
   opacity: .86;
@@ -59,12 +51,12 @@ body .reading-size-toggle.reading-size-toggle--inline {
 }
 
 /* Pages without a stable header mount receive a narrow edge tab. It occupies
-   40 x 36 px instead of the former 92 px floating pill and stays away from
+   a 44 px touch target and stays away from
    mobile bottom navigation and toast/action areas. */
 body .reading-size-toggle.reading-size-toggle--floating {
   position: fixed;
   z-index: 10000;
-  top: max(92px, calc(50vh - 18px));
+  top: max(92px, calc(50vh - 22px));
   right: -7px;
   border-radius: 999px 0 0 999px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .28);
@@ -80,12 +72,12 @@ body .reading-size-toggle.reading-size-toggle--floating:focus-visible {
 
 @media (max-width: 760px) {
   body .reading-size-toggle {
-    width: 36px;
-    min-width: 36px;
-    height: 34px;
-    min-height: 34px;
-    flex-basis: 36px;
-    font-size: 11px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+    font-size: .75rem;
   }
 
   body .reading-size-toggle.reading-size-toggle--inline {
@@ -98,6 +90,5 @@ body .reading-size-toggle.reading-size-toggle--floating:focus-visible {
 }
 
 @media print {
-  body { zoom: 1 !important; }
   .reading-size-toggle { display: none !important; }
 }

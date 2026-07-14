@@ -9,9 +9,70 @@
   var MAX_AVATAR_FILE_BYTES = 5 * 1024 * 1024;
   var MAX_AVATAR_DATA_LENGTH = 180 * 1024;
   var AVATAR_SIZE = 256;
+  var RECOVERY_KEY_PATTERNS = [
+    /^archive-(?:favorites|view|theme)$/,
+    /^nocturne-reading-size$/,
+    /^nocturne-studio:modules:/,
+    /^nocturne-run:/,
+    /^nocturne-combat:/,
+    /^coc7-player-character:/,
+    /^ng-player-/,
+    /^ng-session:null-grail/,
+    /^ng-campaign-local:/
+  ];
 
   function byId(id) { return document.getElementById(id); }
   function isStaticMode() { return auth && auth.getMode && auth.getMode() === 'static'; }
+
+  function isSiteOwnedKey(key) {
+    return /^(?:archive-|nocturne-|ng-|null-grail|coc7-)/.test(String(key || ''));
+  }
+
+  function isRecoveryKey(key) {
+    return RECOVERY_KEY_PATTERNS.some(function (pattern) { return pattern.test(String(key || '')); });
+  }
+
+  function sanitizeRecoveryValue(value) {
+    if (Array.isArray(value)) return value.map(sanitizeRecoveryValue);
+    if (!value || typeof value !== 'object') return value;
+    var blocked = /^(?:password|passwordHash|credential|credentialHash|digest|token|tokenDigest|inviteToken|accessKey|access_key|workKey|session|sessionId|cookie)$/i;
+    return Object.keys(value).reduce(function (result, key) {
+      if (!blocked.test(key)) result[key] = sanitizeRecoveryValue(value[key]);
+      return result;
+    }, {});
+  }
+
+  function localRecoveryPayload() {
+    var records = {};
+    try {
+      for (var index = 0; index < window.localStorage.length; index += 1) {
+        var key = window.localStorage.key(index);
+        if (!isRecoveryKey(key)) continue;
+        var raw = window.localStorage.getItem(key);
+        try { records[key] = sanitizeRecoveryValue(JSON.parse(raw)); }
+        catch (error) { records[key] = raw; }
+      }
+    } catch (error) {
+      throw new Error('浏览器阻止了本机数据读取，无法生成恢复文件。');
+    }
+    return {
+      protocol:'nocturne-local-recovery-v1',
+      exportedAt:new Date().toISOString(),
+      notice:'不含密码、会话、邀请令牌或作品密钥；导入前请核对目标设备。',
+      records:records
+    };
+  }
+
+  function clearSiteStorage(storage) {
+    var keys = [];
+    try {
+      for (var index = 0; index < storage.length; index += 1) {
+        var key = storage.key(index);
+        if (isSiteOwnedKey(key)) keys.push(key);
+      }
+      keys.forEach(function (key) { storage.removeItem(key); });
+    } catch (error) {}
+  }
 
   function displayName(user) {
     return auth && auth.displayName ? auth.displayName(user) : String(user && user.displayName || '夜航用户');
@@ -253,8 +314,20 @@
     renderIdentity(payload.user);
     renderAuthor(payload.user);
     renderWorks(payload.works || [], payload.user);
+    renderSecurityAndPrivacy();
     if (payload.user.role === 'owner' && !isStaticMode()) loadApplications();
     else byId('applications-panel').hidden = true;
+  }
+
+  function renderSecurityAndPrivacy() {
+    var staticMode = isStaticMode();
+    byId('security-mode-label').textContent = staticMode ? '本机静态账号' : '正式站账号';
+    byId('security-static-note').hidden = !staticMode;
+    byId('server-security-controls').hidden = staticMode;
+    byId('storage-mode-label').textContent = staticMode ? '仅此浏览器' : '在线 + 本机分离';
+    byId('online-storage-copy').textContent = staticMode
+      ? '当前静态镜像没有共享账号或团房数据库；本机账号与草稿不会跨设备同步。'
+      : '由正式站点保存，并通过账号或团房访客会话限制访问。';
   }
 
   function loadProfile() {
@@ -300,6 +373,7 @@
     var displayNameInput = byId('display-name-input');
     var avatarInput = byId('avatar-input');
     var avatarMessage = byId('avatar-message');
+    var passwordForm = byId('password-form');
 
     loginForm.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -317,6 +391,71 @@
         showSignedOut();
         toast('已经安全退出账号。');
       }).catch(function (error) { toast(error.message); });
+    });
+
+    passwordForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var currentPassword = passwordForm.elements.currentPassword.value;
+      var newPassword = passwordForm.elements.newPassword.value;
+      var confirmation = passwordForm.elements.newPasswordConfirm.value;
+      message(byId('password-message'), '', false);
+      if (newPassword !== confirmation) {
+        message(byId('password-message'), '两次输入的新密码不一致。', true);
+        return;
+      }
+      if (newPassword.length < 12) {
+        message(byId('password-message'), '新密码至少需要 12 位。', true);
+        return;
+      }
+      setBusy(passwordForm, true);
+      auth.changePassword(currentPassword, newPassword).then(function () {
+        passwordForm.reset();
+        message(byId('password-message'), '密码已修改；其他设备的旧账号会话已经失效。', false);
+      }).catch(function (error) {
+        message(byId('password-message'), error.message, true);
+      }).finally(function () { setBusy(passwordForm, false); });
+    });
+
+    byId('revoke-sessions').addEventListener('click', function () {
+      if (!window.confirm('撤销这个账号的全部登录会话，并让当前设备立即退出？')) return;
+      var button = byId('revoke-sessions');
+      button.disabled = true;
+      message(byId('session-message'), '', false);
+      auth.revokeAllSessions().then(function () {
+        currentProfile = null;
+        showSignedOut();
+        toast('全部账号会话已撤销。');
+      }).catch(function (error) {
+        message(byId('session-message'), error.message, true);
+        button.disabled = false;
+      });
+    });
+
+    byId('export-local-data').addEventListener('click', function () {
+      try {
+        var payload = localRecoveryPayload();
+        var count = Object.keys(payload.records).length;
+        if (!count) {
+          message(byId('privacy-message'), '当前浏览器没有可导出的本机备团或草稿数据。', false);
+          return;
+        }
+        var filename = '夜航模组馆-本机恢复-' + new Date().toISOString().slice(0, 10) + '.json';
+        if (!window.NG_RESILIENCE || !window.NG_RESILIENCE.downloadJson(filename, payload)) throw new Error('浏览器未能创建下载文件。');
+        message(byId('privacy-message'), '已导出 ' + count + ' 组本机数据；文件不含凭证或密钥。', false);
+      } catch (error) {
+        message(byId('privacy-message'), error.message, true);
+      }
+    });
+
+    byId('clear-local-data').addEventListener('click', function () {
+      if (!window.confirm('清除这个浏览器中的账号副本、登录标记、备团、角色、草稿与偏好？此操作不能撤销，建议先导出本机数据。')) return;
+      var button = byId('clear-local-data');
+      button.disabled = true;
+      Promise.resolve(auth.logout()).catch(function () {}).finally(function () {
+        clearSiteStorage(window.localStorage);
+        clearSiteStorage(window.sessionStorage);
+        window.location.reload();
+      });
     });
 
     bioInput.addEventListener('input', function () {

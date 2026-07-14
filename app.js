@@ -1,6 +1,13 @@
 (function () {
   'use strict';
 
+  var versions = window.NG_SITE_CONFIG && window.NG_SITE_CONFIG.versions || {
+    campaignContentVersion:'3.2',
+    rulesetId:'null-grail-core-d20-v2.1',
+    rulesetLabel:'《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
+    rulesetShortLabel:'v2.1'
+  };
+
   // One work, one archive entry. Rulebooks, tools and handouts are parts of the
   // same module rather than separate works.
   var entries = [
@@ -10,13 +17,17 @@
       title: '零之圣杯',
       english: 'NULL GRAIL',
       systems: ['fate', 'agnostic'],
-      rulesetId: 'null-grail-core-d20-v2.1',
-      systemLabel: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
+      rulesetId: versions.rulesetId,
+      systemLabel: versions.rulesetLabel,
       type: 'campaign',
       typeLabel: '完整长篇战役模组',
       tone: 'gold',
       accent: '#d1ad6c',
       icon: 'grail',
+      coverImage: 'assets/art/hero-null-grail.webp',
+      coverWidth: 1915,
+      coverHeight: 821,
+      coverFocus: '70% 50%',
       status: '本站作者作品',
       updated: '2026.07.13',
       author: { name: '夜航模组馆馆主', label: '站长 · 已认证作者' },
@@ -67,6 +78,11 @@
   var directModuleOpen = document.getElementById('direct-module-open');
   var pendingEntryId = null;
   var toastTimer;
+
+  var campaignVersion = document.getElementById('campaign-content-version');
+  var rulesetVersion = document.getElementById('ruleset-version-label');
+  if (campaignVersion) campaignVersion.textContent = 'v' + versions.campaignContentVersion;
+  if (rulesetVersion) rulesetVersion.textContent = '零之圣杯通用规则 ' + versions.rulesetShortLabel;
 
   function currentRole() { return access ? access.getRole() : 'player'; }
   function isKeeper() { return access && access.hasKeeperAccess(); }
@@ -173,10 +189,17 @@
     var tags = entry.tags.slice(0, 2).map(function (tag) {
       return '<span>' + escapeHtml(tag) + '</span>';
     }).join('');
+    var coverWidth = Number(entry.coverWidth);
+    var coverHeight = Number(entry.coverHeight);
+    var hasDimensions = Number.isFinite(coverWidth) && coverWidth > 0 && Number.isFinite(coverHeight) && coverHeight > 0;
+    var cover = entry.coverImage ? '<img class="card-cover-art" src="' + escapeHtml(entry.coverImage) + '"' +
+      (hasDimensions ? ' width="' + Math.min(10000, Math.round(coverWidth)) + '" height="' + Math.min(10000, Math.round(coverHeight)) + '"' : '') +
+      ' alt="" loading="lazy" decoding="async" style="object-position:' + escapeHtml(entry.coverFocus || '50% 50%') + '">' : '';
 
     return [
       '<article class="archive-card" data-id="', escapeHtml(entry.id), '" data-tone="', escapeHtml(entry.tone), '" tabindex="0" aria-label="打开', escapeHtml(entry.title), '档案">',
         '<div class="card-cover">',
+          cover,
           '<div class="cover-grid" aria-hidden="true"></div>',
           '<div class="cover-orbit" aria-hidden="true"></div>',
           '<div class="cover-icon" aria-hidden="true">', archiveIconTemplate(entry.icon), '</div>',
@@ -512,7 +535,8 @@
   });
   accessDialog.addEventListener('click', function (event) { if (event.target === accessDialog) { pendingEntryId = null; accessDialog.close(); } });
 
-  document.getElementById('random-entry').addEventListener('click', function () { openEntry('null-grail'); });
+  var featuredEntryLink = document.getElementById('random-entry');
+  if (featuredEntryLink) featuredEntryLink.addEventListener('click', function () { openEntry('null-grail'); });
   if (directModuleSelect) directModuleSelect.addEventListener('change', function () {
     directModuleOpen.href = consoleHref(directModuleSelect.value);
   });
@@ -605,6 +629,10 @@
 
   function publicModuleEntry(module, index) {
     var fallbackAuthor = module.author || {};
+    var visualIdentity = module.visualIdentity && typeof module.visualIdentity === 'object' ? module.visualIdentity : {};
+    var focus = visualIdentity.focus && typeof visualIdentity.focus === 'object'
+      ? Math.max(0, Math.min(100, Number(visualIdentity.focus.x) || 50)) + '% ' + Math.max(0, Math.min(100, Number(visualIdentity.focus.y) || 50)) + '%'
+      : '';
     return {
       id: module.id,
       number: String(module.number || index + 1).padStart(3, '0'),
@@ -616,8 +644,12 @@
       type: module.type || 'campaign',
       typeLabel: module.typeLabel || '完整战役模组',
       tone: module.tone || (index % 2 ? 'cyan' : 'gold'),
-      accent: module.accent || '#d1ad6c',
+      accent: visualIdentity.themeColor || module.themeColor || module.accent || '#d1ad6c',
       icon: module.icon || 'grail',
+      coverImage: visualIdentity.coverImage || module.coverImage || module.cover || visualIdentity.bannerImage || module.bannerImage || module.banner || (module.id === 'null-grail' ? 'assets/art/hero-null-grail.webp' : ''),
+      coverWidth: Number(module.coverWidth) || (module.id === 'null-grail' ? 1915 : 0),
+      coverHeight: Number(module.coverHeight) || (module.id === 'null-grail' ? 821 : 0),
+      coverFocus: /^\d{1,3}%\s+\d{1,3}%$/.test(String(focus || visualIdentity.coverFocus || module.coverFocus || module.bannerFocus || '')) ? String(focus || visualIdentity.coverFocus || module.coverFocus || module.bannerFocus) : (module.id === 'null-grail' ? '70% 50%' : '50% 50%'),
       status: module.status === 'draft' ? '草稿' : '已发布',
       updated: module.updatedAt ? String(module.updatedAt).slice(0, 10).replace(/-/g, '.') : '—',
       author: {
@@ -672,10 +704,7 @@
   var modulesApiPath = '/api/modules';
   var modulesApiUrl = window.NG_AUTH && window.NG_AUTH.apiUrl ? window.NG_AUTH.apiUrl(modulesApiPath) : modulesApiPath;
   var modulesApiCredentials = window.NG_AUTH && window.NG_AUTH.apiCredentials ? window.NG_AUTH.apiCredentials(modulesApiPath) : 'same-origin';
-  window.fetch(modulesApiUrl, { credentials: modulesApiCredentials, cache: 'no-store' }).then(function (response) {
-    if (!response.ok) throw new Error('module-list-unavailable');
-    return response.json();
-  }).then(function (payload) {
+  window.NG_RESILIENCE.request(modulesApiUrl, { credentials: modulesApiCredentials, cache: 'no-store', timeoutMs:8000 }).then(function (payload) {
     var published = payload.modules || [];
     usePublishedModules(published);
   }).catch(function () {

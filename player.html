@@ -1,31 +1,36 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+  <meta name="ng-deployment-mode" content="redirect">
+  <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
+  <link rel="canonical" href="https://43-161-252-149.sslip.io/player.html">
+  <script src="deployment.js?v=20260714g"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#090d14">
   <meta name="description" content="《零之圣杯》玩家安全视觉手卡。">
   <title>零之圣杯 · PLAYER SAFE</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="player.css?v=20260713u">
-  <link rel="stylesheet" href="font-size.css?v=20260713b">
-  <script src="font-size.js?v=20260713b" defer></script>
+  <link rel="stylesheet" href="player.css?v=20260714g">
+  <link rel="stylesheet" href="design-system.css?v=20260714g">
+  <link rel="stylesheet" href="font-size.css?v=20260714g">
+  <script src="font-size.js?v=20260714g" defer></script>
 </head>
-<body>
+<body class="ds-page player-page">
   <header class="player-header">
-    <a href="index.html"><span>◇</span><strong>零之圣杯</strong></a>
+    <a href="index.html" aria-label="返回夜航模组馆"><span aria-hidden="true">◇</span><strong>零之圣杯</strong></a>
     <nav class="player-view-tabs" aria-label="玩家资料视图">
       <button id="player-handout-tab" type="button" disabled>当前资料</button>
       <button id="player-map-tab" type="button" disabled>互动地图</button>
       <button id="player-clue-journal-tab" type="button">线索日志</button>
     </nav>
-    <button id="fullscreen-button" type="button">全屏展示</button>
+    <span class="room-connection-status" id="player-room-connection" hidden>团房 · 正在连接</span>
+    <div class="player-header-tools">
+      <button id="fullscreen-button" type="button" aria-label="全屏展示"><span aria-hidden="true">⛶</span><b>全屏展示</b></button>
+    </div>
   </header>
   <main class="player-stage" id="player-stage">
     <section class="curtain" id="curtain">
-      <img src="assets/art/hero-null-grail.webp" alt="雨夜东湖市中的零之圣杯人物群像">
+      <img src="assets/art/hero-null-grail.webp?v=20260714g" width="1915" height="821" sizes="100vw" fetchpriority="high" decoding="async" alt="雨夜东湖市中的零之圣杯人物群像">
       <div><span>NULL GRAIL</span><h1>等待守秘人发放资料</h1><p>你可以随时浏览 PLAYER SAFE 公共地图；守秘人投送后，地图会追加剧情地点、公开场景与已取得线索。</p><button class="curtain-map-action" id="player-map-open" type="button"><strong>打开互动地图</strong><small>11 个公共地点 · 点击标记查看路线</small><i>↗</i></button></div>
     </section>
     <article class="player-map-view" id="player-map-view" hidden aria-labelledby="player-map-title">
@@ -35,7 +40,7 @@
       </header>
       <div class="player-map-layout">
         <div class="player-atlas" id="player-atlas">
-          <img id="player-map-image" src="assets/art/eastlake-map.webp" alt="东湖市雨夜地图，已公开地点会显示可点击圆形标记">
+          <img id="player-map-image" src="assets/art/eastlake-map.webp?v=20260714g" width="1586" height="992" loading="lazy" decoding="async" alt="东湖市雨夜地图，已公开地点会显示可点击圆形标记">
           <div class="player-map-hotspots" id="player-map-hotspots" aria-label="已公开地点标记"></div>
           <div class="player-map-legend"><span><i></i>点击地点标记查看详情</span><span><i class="current"></i>当前阶段</span><span><i class="visited"></i>已到访</span><span><i class="presence"></i>人物在场</span></div>
         </div>
@@ -90,7 +95,7 @@
       </div>
     </article>
     <article class="handout-view" id="handout-view" hidden>
-      <figure><img id="handout-image" alt=""></figure>
+      <figure><img id="handout-image" loading="lazy" decoding="async" alt=""></figure>
       <div class="handout-copy">
         <p id="handout-id">PLAYER SAFE</p>
         <h1 id="handout-title"></h1>
@@ -110,10 +115,23 @@
   </main>
   <section class="player-tools" id="player-tools" aria-labelledby="player-tools-title">
     <header class="player-tools-heading">
-      <div><p>LOCAL PLAYER DESK</p><h2 id="player-tools-title">我的角色与判定</h2></div>
+      <div><p>PLAYER DESK</p><h2 id="player-tools-title">我的角色与判定</h2></div>
       <span id="player-sync-status" role="status" aria-live="polite">同源本机通讯 · 尚未提交角色</span>
     </header>
-    <div class="player-local-note">当前版仅连接本机同源标签页，不是跨设备在线房间。角色只在你点击“提交给守秘人”后才会发送。</div>
+    <div class="player-local-note" id="player-transport-note">本机模式 · 仅连接同源标签页，角色只在你点击“提交给守秘人”后才会发送。</div>
+    <section class="player-live-state" id="player-live-state" aria-label="在线团房现场状态" hidden>
+      <article>
+        <span>LIVE SCENE</span>
+        <h3 id="player-live-scene-title">等待公开场景</h3>
+        <p id="player-live-scene-copy">守秘人公开当前场景后会在这里同步。</p>
+      </article>
+      <article>
+        <span>COMBAT STATUS</span>
+        <h3 id="player-live-combat-title">当前没有战斗</h3>
+        <p id="player-live-combat-copy">战斗开始后会显示轮次、当前行动者与参战者状态。</p>
+        <ul id="player-live-combatants"></ul>
+      </article>
+    </section>
 
     <div class="player-tools-grid">
       <section class="player-tool-card character-editor" aria-labelledby="player-character-title">
@@ -128,7 +146,7 @@
             <button type="button" data-builder-step="5"><span>6</span><b>合法性终检</b><i>派生值与预算查漏</i></button>
           </nav>
 
-          <div class="builder-assurance"><span aria-hidden="true">✓</span><p><strong>已同步《通用圣杯战争规则书》v2.0·车卡增订。</strong>预算、上限、派生值和专属资源由系统核算；御主只作为普通人／魔术师的附加模块。</p><b id="builder-completion">已完成 0%</b></div>
+          <div class="builder-assurance"><span aria-hidden="true">✓</span><p><strong>已同步《通用圣杯战争规则书》v2.1。</strong>预算、上限、派生值和专属资源由系统核算；御主只作为普通人／魔术师的附加模块。</p><b id="builder-completion">已完成 0%</b></div>
           <p class="builder-error" id="builder-error" role="alert" hidden></p>
 
           <section class="builder-step active" data-builder-panel="0" aria-labelledby="builder-type-title">
@@ -140,11 +158,11 @@
             </div>
             <select id="character-existence" aria-label="基础身份" hidden><option value="mortal">普通人</option><option value="magus">魔术师</option><option value="servant">从者</option></select>
             <label class="master-module-choice" id="master-module-toggle"><input id="character-is-master" type="checkbox"><span><strong>附加御主契约模块</strong><small>仅普通人／魔术师可选；不会增加属性点。默认获得独立的 3 画令咒。</small></span></label>
-            <div class="quickstart-box"><div><strong>完全不想自己分配？</strong><p>先选身份，再一键生成合法底稿；之后仍可逐项修改。</p></div><button id="builder-quickstart" type="button">帮我生成 v2.0 合法底稿 ✦</button></div>
+            <div class="quickstart-box"><div><strong>完全不想自己分配？</strong><p>先选身份，再一键生成合法底稿；之后仍可逐项修改。</p></div><button id="builder-quickstart" type="button">帮我生成 v2.1 合法底稿 ✦</button></div>
           </section>
 
           <section class="builder-step" data-builder-panel="1" aria-labelledby="builder-identity-title">
-            <div class="builder-step-heading"><p>STEP 02 · CONCEPT</p><h4 id="builder-identity-title">写下姓名、概念、愿望与底线</h4><span>这些字段来自 v2.0 角色卡；不知道怎么写可以直接点建议。</span></div>
+            <div class="builder-step-heading"><p>STEP 02 · CONCEPT</p><h4 id="builder-identity-title">写下姓名、概念、愿望与底线</h4><span>这些字段来自 v2.1 角色卡；不知道怎么写可以直接点建议。</span></div>
             <div class="player-form-grid two-columns builder-fields">
               <label><span>角色名／代称 *</span><input id="character-name" maxlength="80" required placeholder="例如：林雾、Saber、无名旅人"></label>
               <label><span>玩家名</span><input id="character-player-name" maxlength="80" placeholder="桌上怎么称呼你"></label>
@@ -180,7 +198,7 @@
           </section>
 
           <section class="builder-step" data-builder-panel="4" aria-labelledby="builder-resource-title">
-            <div class="builder-step-heading"><p>STEP 05 · IDENTITY RESOURCES</p><h4 id="builder-resource-title">选择身份专属资源</h4><span>这里只显示当前身份需要的内容；资源目录来自 v2.0 附录 C／D。</span></div>
+            <div class="builder-step-heading"><p>STEP 05 · IDENTITY RESOURCES</p><h4 id="builder-resource-title">选择身份专属资源</h4><span>这里只显示当前身份需要的内容；资源目录来自 v2.1 附录 C／D。</span></div>
             <div id="identity-resources">
               <section class="identity-resource-panel" data-resource-panel="mortal">
                 <div class="resource-section-heading"><span>ORDINARY PERSON</span><h5>现实身份资源</h5><p>1 项标志才能、1 项现实优势、2 名联系人、2 件装备和 1 个安全地点。</p></div>
@@ -271,7 +289,7 @@
               <label><span>状态（每行一项）</span><textarea id="character-conditions" rows="2" maxlength="800" placeholder="受伤、失衡、束缚、暴露、回路灼伤……"></textarea></label>
               <label><span>其他记录</span><textarea id="character-notes" rows="3" maxlength="1600"></textarea></label>
             </details>
-            <div class="player-character-actions final-actions"><button class="player-primary" type="submit">生成并保存 v2.0 角色卡</button><button id="player-submit-character" type="button">提交给守秘人</button><button id="player-export-character" type="button">导出 JSON</button><button id="player-import-character" type="button">导入角色</button></div>
+            <div class="player-character-actions final-actions"><button class="player-primary" type="submit">生成并保存 v2.1 角色卡</button><button id="player-submit-character" type="button">提交给守秘人</button><button id="player-export-character" type="button">导出 JSON</button><button id="player-import-character" type="button">导入角色</button></div>
           </section>
 
           <div class="builder-navigation"><button id="builder-back" type="button" disabled>← 上一步</button><p><span id="builder-step-label">第 1 步，共 6 步</span><small>只有通过终检的角色才会保存和提交</small></p><button class="player-primary" id="builder-next" type="button">下一步：人物概念 →</button></div>
@@ -303,7 +321,11 @@
     </div>
   </section>
   <div class="projection-note" id="projection-note">同机投屏模式 · 守秘人发放后会自动更新</div>
-  <script src="player-data.js?v=20260713s"></script>
-  <script src="player.js?v=20260713u"></script>
+  <aside id="player-campaign-chat" class="campaign-chat-shell" hidden></aside>
+<script src="site-config.js?v=20260714g"></script>
+<script src="resilience.js?v=20260714g"></script>
+<script src="campaign-client.js?v=20260714g"></script>
+<script src="player-data.js?v=20260714g"></script>
+<script src="player.js?v=20260714g"></script>
 </body>
 </html>

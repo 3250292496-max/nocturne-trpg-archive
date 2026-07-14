@@ -6,8 +6,10 @@
 
   var STORAGE_KEY = 'ng-session:null-grail-v3.2';
   var STATE_SCHEMA_VERSION = 8;
+  var siteConfig = window.NG_SITE_CONFIG || {};
+  var versionManifest = siteConfig.versions || {};
   var playerData = window.NG_PLAYER_DATA || {};
-  var RULESET_ID = playerData.rulesetId || data.rulesetId || 'null-grail-core-d20-v2.0';
+  var RULESET_ID = versionManifest.rulesetId || playerData.rulesetId || data.rulesetId || 'null-grail-core-d20-v2.1';
   var coc7 = window.COC7_CORE || null;
   var coc7Xlsx = window.COC7_XLSX || null;
   var MESSAGE_PROTOCOL = playerData.protocol || 'null-grail-player-v3';
@@ -23,6 +25,13 @@
   var LEGACY_COLLECTION_PROTOCOLS = ['null-grail-character-collection-v1','null-grail-character-collection-v2'];
   var LEGACY_CHECK_PROTOCOLS = ['null-grail-check-v1'];
   var channel = null;
+  var campaignId = window.NGCampaign && window.NGCampaign.campaignIdFromLocation();
+  var localTransport = null;
+  var roomTransport = null;
+  var nullGrailAdapter = window.NGCampaign && window.NGCampaign.getAdapter('null-grail');
+  var remoteSaveTimer = null;
+  var remoteSaveInFlight = false;
+  var roomStateDirty = false;
   var undoStack = [];
   var requestedView = new URLSearchParams(window.location.search).get('view');
   var currentView = ['current','timeline','map','npcs','truths','handouts','tabletop','combat','log'].indexOf(requestedView) !== -1 ? requestedView : 'current';
@@ -57,28 +66,34 @@
     { id:'withdrawn', label:'已撤回' }
   ];
 
-  try {
+  if (!campaignId && window.NGCampaign) {
+    localTransport = window.NGCampaign.createLocalTransport({ channelName:CHANNEL_NAME, protocol:MESSAGE_PROTOCOL });
+    localTransport.on('message', handleIncomingPlayerMessage);
+  } else if (!campaignId) try {
     channel = new BroadcastChannel(CHANNEL_NAME);
     channel.onmessage = function (event) {
-      var message = event.data;
-      if (!message || typeof message !== 'object') return;
-      if (message.protocol !== MESSAGE_PROTOCOL) return;
-      if (message.type === 'ready') {
-        sendPlayerMessage(lastPlayerPayload
-          ? { type:'show', handout:lastPlayerPayload }
-          : { type:'curtain' });
-        sendPlayerMapState({ openMap:state.playerProjection === 'map' });
-        var readyCharacterId = normalizeId(message.characterId, 'pc', false);
-        var latestResult = state && state.checkHistory.find(function (result) {
-          return result.targetCharacterId === 'all' || (readyCharacterId && result.targetCharacterId === readyCharacterId);
-        });
-        if (latestResult) sendPlayerMessage({ type:'check-result', result:latestResult });
-        return;
-      }
-      if (message.type === 'character-submit') receiveCharacterSubmission(message);
-      if (message.type === 'check-request') receiveCheckRequest(message.request);
+      handleIncomingPlayerMessage(event.data);
     };
   } catch (error) { channel = null; }
+
+  function handleIncomingPlayerMessage(message) {
+    if (!message || typeof message !== 'object') return;
+    if (message.protocol !== MESSAGE_PROTOCOL) return;
+    if (message.type === 'ready') {
+      sendPlayerMessage(lastPlayerPayload
+        ? { type:'show', handout:lastPlayerPayload }
+        : { type:'curtain' });
+      sendPlayerMapState({ openMap:state.playerProjection === 'map' });
+      var readyCharacterId = normalizeId(message.characterId, 'pc', false);
+      var latestResult = state && state.checkHistory.find(function (result) {
+        return result.targetCharacterId === 'all' || (readyCharacterId && result.targetCharacterId === readyCharacterId);
+      });
+      if (latestResult) sendPlayerMessage({ type:'check-result', result:latestResult });
+      return;
+    }
+    if (message.type === 'character-submit') receiveCharacterSubmission(message);
+    if (message.type === 'check-request') receiveCheckRequest(message.request);
+  }
 
   function freshSessionAudit() {
     return {
@@ -354,6 +369,7 @@
         return investigator;
       } catch (error) { return null; }
     }
+    if (siteConfig && typeof siteConfig.migrateCharacter === 'function') raw = siteConfig.migrateCharacter(raw) || raw;
     if (!compatibleCharacterProtocol(raw.protocol) || !compatibleRulesetId(raw.rulesetId)) return null;
 
     var legacyExistence = safeText(raw.existenceType, 24);
@@ -363,7 +379,7 @@
     var output = {
       protocol:CHARACTER_PROTOCOL,
       rulesetId:RULESET_ID,
-      rulesetVersion:safeText(raw.rulesetVersion, 80) || 'v2.0·车卡增订',
+      rulesetVersion:safeText(raw.rulesetVersion, 80) || 'v2.1',
       id:normalizeId(raw.id, 'pc', createWhenMissing !== false),
       name:safeText(raw.name, 80),
       playerName:safeText(raw.playerName, 80),
@@ -665,14 +681,15 @@
 
   function loadState() {
     try {
-      var parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      var parsed = window.NG_RESILIENCE ? window.NG_RESILIENCE.storage.get(STORAGE_KEY, null) : JSON.parse(localStorage.getItem(STORAGE_KEY));
       return migrateState(parsed);
     } catch (error) {
       return freshState();
     }
   }
 
-  var state = loadState();
+  var state = campaignId ? freshState() : loadState();
+  var authoritativeRoomState = campaignId ? clone(state) : null;
   var restoredHandout = state.activeHandoutId ? byId(data.handouts, state.activeHandoutId) : null;
   if (restoredHandout) lastPlayerPayload = playerPayload(restoredHandout);
 
@@ -781,6 +798,49 @@
       focusLocationId:options.focusLocationId || state.publicMap && state.publicMap.activeLocationId || null,
       openMap:options.openMap === true
     });
+  }
+
+  function publicRoomProjection() {
+    var activeScene = byId(data.scenes || [], state.activeSceneId);
+    var combatScene = activeCombatScene();
+    var publicCombat = combatScene ? {
+      status:safeText(combatScene.status, 40) || 'active',
+      title:safeText(combatScene.name, 160),
+      round:clampInteger(combatScene.round, 0, 999, 0),
+      turn:safeText((combatScene.participantIds || [])[clampInteger(combatScene.turnIndex, 0, 999, 0)], 80),
+      participants:(combatScene.participantIds || []).map(function (id) {
+        var character = state.roster.find(function (item) { return item.id === id; });
+        if (!character) return null;
+        var coc7Character = isCoc7Character(character);
+        var derived = coc7Character ? null : derivedCharacterValues(character);
+        var conditions = coc7Character
+          ? coc7StatusLabels(character)
+          : Array.isArray(character.current && character.current.conditions) ? character.current.conditions : [];
+        return {
+          id:safeText(character.id, 80),
+          name:safeText(character.name, 120),
+          initiative:clampInteger(combatInitiative(character, combatScene), -999, 999, 0),
+          hp:clampInteger(coc7Character ? character.hp : character.current && character.current.hp, -9999, 9999, 0),
+          maxHp:clampInteger(coc7Character ? character.maxHp : derived && derived.maxHp, 0, 9999, 0),
+          active:character.id === (combatScene.participantIds || [])[combatScene.turnIndex],
+          conditions:conditions.slice(0, 12).map(function (item) { return safeText(item, 80); }).filter(Boolean)
+        };
+      }).filter(Boolean)
+    } : { status:'inactive', round:0, turn:'', title:'', participants:[] };
+    return {
+      view:state.playerProjection || 'curtain',
+      handout:lastPlayerPayload ? clone(lastPlayerPayload) : null,
+      map:publicMapPayload(),
+      scene:activeScene ? {
+        id:safeText(activeScene.id, 16),
+        title:safeText(activeScene.publicTitle || activeScene.playerTitle || '当前场景', 160),
+        visible:safeText(activeScene.visible, 2400),
+        active:true
+      } : { active:false },
+      combat:publicCombat,
+      current:{ dayId:safeText(state.dayId, 16), view:state.playerProjection || 'curtain' },
+      checks:state.checkHistory && state.checkHistory.length ? { latestResult:clone(state.checkHistory[0]) } : {}
+    };
   }
 
   function publishLocationOnDraft(draft, id) {
@@ -899,6 +959,22 @@
 
   function sendPlayerMessage(message) {
     message = Object.assign({}, message || {}, { protocol:MESSAGE_PROTOCOL });
+    if (campaignId && roomTransport) {
+      if (message.type === 'character-ack') {
+        roomTransport.command('character.review', {
+          submissionId:message.submissionId,
+          characterId:message.characterId,
+          status:message.accepted ? 'approved' : 'rejected'
+        }).catch(reportRoomSaveFailure);
+      } else if (message.type === 'check-result' && message.result) {
+        /* Keep a semantic audit event as well as the authoritative state
+           snapshot. publicRoomProjection carries the same latest result so a
+           later state.replace cannot erase it on refresh/reconnect. */
+        roomTransport.command('check.result', message.result).catch(reportRoomSaveFailure);
+      }
+      return;
+    }
+    if (localTransport) localTransport.send(message);
     if (channel) channel.postMessage(message);
     playerWindows = playerWindows.filter(function (playerWindow) {
       if (!playerWindow || playerWindow.closed) return false;
@@ -929,13 +1005,89 @@
     return playerWindow;
   }
 
-  function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    var saveStatus = document.getElementById('save-status');
-    if (saveStatus) {
-      saveStatus.textContent = '正在保存…';
-      window.setTimeout(function () { saveStatus.textContent = '已自动保存'; }, 260);
+  function restoreProjectedHandout() {
+    var active = state.activeHandoutId ? byId(data.handouts, state.activeHandoutId) : null;
+    lastPlayerPayload = active ? playerPayload(active) : null;
+  }
+
+  function rollbackUnconfirmedRoomState() {
+    if (!campaignId || !roomStateDirty || !authoritativeRoomState) return false;
+    window.clearTimeout(remoteSaveTimer);
+    remoteSaveTimer = null;
+    state = migrateState(clone(authoritativeRoomState));
+    roomStateDirty = false;
+    undoStack = [];
+    restoreProjectedHandout();
+    renderAll();
+    return true;
+  }
+
+  function scheduleRoomSave(delay) {
+    window.clearTimeout(remoteSaveTimer);
+    remoteSaveTimer = window.setTimeout(function () {
+      remoteSaveTimer = null;
+      flushRoomState();
+    }, delay == null ? 100 : delay);
+  }
+
+  function flushRoomState() {
+    if (!campaignId || remoteSaveInFlight || !roomStateDirty) return;
+    if (!roomTransport || !roomTransport.isWritable()) {
+      reportRoomSaveFailure({ kind:'offline', message:'团房连接已中断；未确认的修改已回滚。' });
+      return;
     }
+    var saveStatus = document.getElementById('save-status');
+    var pendingState = clone(state);
+    var pendingProjection = publicRoomProjection();
+    var envelope = nullGrailAdapter && nullGrailAdapter.stateEnvelope
+      ? nullGrailAdapter.stateEnvelope(pendingState, pendingProjection)
+      : { keeper:pendingState, public:pendingProjection };
+    remoteSaveInFlight = true;
+    roomTransport.command('state.replace', { state:envelope }).then(function (ack) {
+      authoritativeRoomState = clone(pendingState);
+      roomStateDirty = JSON.stringify(state) !== JSON.stringify(pendingState);
+      if (saveStatus) saveStatus.textContent = '已保存到团房 · v' + String(ack.version || roomTransport.version);
+      if (window.NG_RESILIENCE) window.NG_RESILIENCE.clearPersistenceError();
+    }).catch(reportRoomSaveFailure).finally(function () {
+      remoteSaveInFlight = false;
+      if (roomStateDirty && roomTransport && roomTransport.isWritable()) scheduleRoomSave(0);
+    });
+  }
+
+  function saveState() {
+    var saveStatus = document.getElementById('save-status');
+    if (campaignId) {
+      roomStateDirty = true;
+      if (!roomTransport || !roomTransport.isWritable()) {
+        if (saveStatus) saveStatus.textContent = '未保存 · 团房离线';
+        reportRoomSaveFailure({ kind:'offline', message:'当前未连接到团房；这次修改没有保存。' });
+        return false;
+      }
+      if (saveStatus) saveStatus.textContent = '正在保存到团房…';
+      scheduleRoomSave(100);
+      return true;
+    }
+    var saved = window.NG_RESILIENCE
+      ? window.NG_RESILIENCE.storage.set(STORAGE_KEY, state, { label:'守秘人战役', filename:'零之圣杯-守秘人恢复-' + new Date().toISOString().slice(0,10) + '.json' })
+      : (function () { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); return true; } catch (error) { return false; } }());
+    if (saveStatus) {
+      saveStatus.textContent = saved ? '正在保存…' : '本机保存失败 · 请导出';
+      if (saved) window.setTimeout(function () { saveStatus.textContent = '已自动保存到此设备'; }, 260);
+    }
+    return saved;
+  }
+
+  function reportRoomSaveFailure(error) {
+    var message = error && error.message || '团房保存失败；请导出恢复文件并等待重新同步。';
+    var failedState = clone(state);
+    var rolledBack = rollbackUnconfirmedRoomState();
+    var saveStatus = document.getElementById('save-status');
+    if (saveStatus) saveStatus.textContent = rolledBack ? '未保存 · 已回滚（可导出失败副本）' : '团房连接不可用';
+    if (window.NG_RESILIENCE) window.NG_RESILIENCE.showPersistenceError(message, {
+      filename:'零之圣杯-在线团房恢复-' + new Date().toISOString().slice(0,10) + '.json',
+      value:{ campaignId:campaignId, state:failedState, capturedAt:new Date().toISOString(), saved:false }
+    });
+    showToast(message);
   }
 
   function addLog(label) {
@@ -944,6 +1096,10 @@
   }
 
   function commit(label, mutate) {
+    if (campaignId && (!roomTransport || !roomTransport.isWritable())) {
+      showToast('团房已离线；重新连接前不能修改状态');
+      return false;
+    }
     undoStack.push(clone(state));
     if (undoStack.length > 40) undoStack.shift();
     mutate(state);
@@ -951,6 +1107,7 @@
     saveState();
     renderAll();
     showToast(label);
+    return true;
   }
 
   function showToast(message) {
@@ -1067,13 +1224,13 @@
     document.getElementById('active-cast').innerHTML = npcIds.map(function (id) {
       var npc = byId(data.npcs, id);
       var servant = npc.crop != null;
-      return '<button class="cast-mini" type="button" data-npc="' + id + '"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" alt="' + escapeHtml(npc.name) + '肖像"><span>' + escapeHtml(npc.name) + '</span></button>';
+      return '<button class="cast-mini" type="button" data-npc="' + id + '"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" loading="lazy" decoding="async" alt="' + escapeHtml(npc.name) + '肖像"><span>' + escapeHtml(npc.name) + '</span></button>';
     }).join('');
 
     var pending = day.handouts.map(function (id) { return byId(data.handouts, id); }).filter(Boolean).slice(0, 4);
     document.getElementById('pending-handouts').innerHTML = pending.map(function (item) {
       var sent = state.revealedHandouts.indexOf(item.id) !== -1;
-      return '<button class="pending-item" type="button" data-handout="' + item.id + '"><img src="' + item.image + '" alt=""><span><strong>' + item.id + ' · ' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.trigger) + '</small></span><i>' + (sent ? '✓' : '↗') + '</i></button>';
+      return '<button class="pending-item" type="button" data-handout="' + item.id + '"><img src="' + item.image + '" loading="lazy" decoding="async" alt=""><span><strong>' + item.id + ' · ' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.trigger) + '</small></span><i>' + (sent ? '✓' : '↗') + '</i></button>';
     }).join('');
 
     document.querySelectorAll('#view-current [data-scene]').forEach(function (button) { button.addEventListener('click', function () { openScene(button.getAttribute('data-scene')); }); });
@@ -1155,7 +1312,7 @@
       var completed = scenes.filter(function (scene) { return state.completedScenes.indexOf(scene.id) !== -1; }).length;
       var current = day.id === state.dayId;
       return '<article class="timeline-day' + (current ? ' current' : '') + '">' +
-        '<div class="timeline-day-image"><img src="' + day.image + '" alt=""><span>DAY ' + String(day.index).padStart(2, '0') + '</span></div>' +
+        '<div class="timeline-day-image"><img src="' + day.image + '" loading="lazy" decoding="async" alt=""><span>DAY ' + String(day.index).padStart(2, '0') + '</span></div>' +
         '<div class="timeline-day-copy"><p>' + escapeHtml(day.date) + ' · ' + scenes.length + ' 个节点</p><h2>' + escapeHtml(day.title) + '</h2><blockquote>' + escapeHtml(day.question) + '</blockquote><small>' + escapeHtml(day.priority) + '</small></div>' +
         '<div class="timeline-day-actions"><button type="button" data-select-day="' + day.id + '">' + (current ? '当前主持桌面' : '切换到这一天') + '</button><button type="button" data-day-first="' + day.id + '">打开首个节点</button><span class="timeline-progress">' + completed + ' / ' + scenes.length + ' 已结算</span></div>' +
       '</article>';
@@ -1370,7 +1527,7 @@
       var loc = byId(data.locations, state.npcLocations[npc.id] || npc.location);
       var servant = npc.crop != null;
       return '<article class="npc-card" tabindex="0" role="button" data-npc="' + npc.id + '">' +
-        '<div class="npc-card-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" alt="' + escapeHtml(npc.name) + '肖像"><span class="npc-card-code">' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span></div>' +
+        '<div class="npc-card-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" loading="lazy" decoding="async" alt="' + escapeHtml(npc.name) + '肖像"><span class="npc-card-code">' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span></div>' +
         '<div class="npc-card-body"><h2>' + escapeHtml(npc.name) + '</h2><span>' + escapeHtml(npc.role) + '</span><p>' + escapeHtml(npc.intro) + '</p><div class="npc-card-foot"><span>⌖ ' + escapeHtml(loc ? loc.name : '位置未知') + '</span><span>打开档案 ↗</span></div></div>' +
       '</article>';
     }).join('');
@@ -1409,7 +1566,7 @@
       var sent = state.revealedHandouts.indexOf(item.id) !== -1;
       var facts = (item.playerFacts || []).slice(0, 2).map(function (fact) { return '<li>' + escapeHtml(fact) + '</li>'; }).join('');
       var remaining = Math.max(0, (item.playerFacts || []).length - 2);
-      return '<article class="handout-card' + (sent ? ' sent' : '') + '"><div class="handout-art"><img src="' + item.image + '" alt="' + escapeHtml(item.title) + '视觉手卡"><span class="handout-id">' + item.id + (sent ? ' · 已发放' : '') + '</span></div><div class="handout-body"><span>' + escapeHtml(item.day) + ' · ' + escapeHtml(item.trigger) + '</span><h2>' + escapeHtml(item.title) + '</h2><small class="handout-card-source">' + escapeHtml(item.source || 'PLAYER SAFE 资料') + '</small><p>' + escapeHtml(item.body) + '</p><ul class="handout-fact-preview">' + facts + '</ul>' + (remaining ? '<small class="handout-more">另有 ' + remaining + ' 条资料要点</small>' : '') + '<div class="handout-actions"><button type="button" data-send-handout="' + item.id + '">' + (sent ? '再次投放' : '预览并发放') + '</button><button type="button" data-handout="' + item.id + '" aria-label="打开' + escapeHtml(item.title) + '完整预览">完整预览</button>' + (sent ? '<button class="danger-action" type="button" data-retract-handout="' + item.id + '">撤回投屏</button>' : '') + '</div></div></article>';
+      return '<article class="handout-card' + (sent ? ' sent' : '') + '"><div class="handout-art"><img src="' + item.image + '" loading="lazy" decoding="async" alt="' + escapeHtml(item.title) + '视觉手卡"><span class="handout-id">' + item.id + (sent ? ' · 已发放' : '') + '</span></div><div class="handout-body"><span>' + escapeHtml(item.day) + ' · ' + escapeHtml(item.trigger) + '</span><h2>' + escapeHtml(item.title) + '</h2><small class="handout-card-source">' + escapeHtml(item.source || 'PLAYER SAFE 资料') + '</small><p>' + escapeHtml(item.body) + '</p><ul class="handout-fact-preview">' + facts + '</ul>' + (remaining ? '<small class="handout-more">另有 ' + remaining + ' 条资料要点</small>' : '') + '<div class="handout-actions"><button type="button" data-send-handout="' + item.id + '">' + (sent ? '再次投放' : '预览并发放') + '</button><button type="button" data-handout="' + item.id + '" aria-label="打开' + escapeHtml(item.title) + '完整预览">完整预览</button>' + (sent ? '<button class="danger-action" type="button" data-retract-handout="' + item.id + '">撤回投屏</button>' : '') + '</div></div></article>';
     }).join('');
     document.querySelectorAll('#handout-grid [data-handout]').forEach(function (button) { button.addEventListener('click', function () { openHandout(button.getAttribute('data-handout')); }); });
     document.querySelectorAll('#handout-grid [data-send-handout]').forEach(function (button) { button.addEventListener('click', function () { openHandout(button.getAttribute('data-send-handout')); }); });
@@ -1464,7 +1621,7 @@
     addLog('接收角色卡：' + character.name);
     saveState();
     renderTabletop();
-    sendPlayerMessage({ type:'character-ack', submissionId:submission.id, characterId:character.id, accepted:true });
+    sendPlayerMessage({ type:'character-ack', submissionId:submission.id, characterId:campaignId ? submission.id : character.id, accepted:true });
     showToast(character.name + ' 已加入角色列表');
   }
 
@@ -1476,7 +1633,7 @@
     addLog('退回角色卡：' + submission.character.name);
     saveState();
     renderTabletop();
-    sendPlayerMessage({ type:'character-ack', submissionId:submission.id, characterId:submission.character.id, accepted:false });
+    sendPlayerMessage({ type:'character-ack', submissionId:submission.id, characterId:campaignId ? submission.id : submission.character.id, accepted:false });
     showToast('已从收件箱移除这份角色卡');
   }
 
@@ -1605,7 +1762,7 @@
     var trainedSkills = skills.filter(function (definition) { return skillLevel(character.skills[definition.id]) > 0; }).map(function (definition) { return '<i>' + escapeHtml(definition.label) + ' +' + skillBonus(character.skills[definition.id]) + '</i>'; }).join('');
     var derived = derivedCharacterValues(character);
     var identityLabel = { mortal:'普通人', magus:'魔术师', servant:'从者' }[character.identityType] || '普通人';
-    return '<article class="roster-row" data-roster-id="' + character.id + '"><div class="roster-row-main"><span class="roster-rule-badge">零之圣杯 v2.0 · ' + identityLabel + (character.isMaster ? '／御主' : '') + '</span><strong>' + escapeHtml(character.name) + '</strong><span>' + escapeHtml(character.playerName || '未填写玩家名') + ' · ' + escapeHtml(character.origin || '来源未填写') + '</span><p>' + escapeHtml(character.identity || '尚未填写一句角色概念') + '</p><div class="character-statline">' + attributeStats + trainedSkills + '</div><div class="roster-resource-editor"><label><span>HP／' + derived.maxHp + '</span><input type="number" min="0" max="99" value="' + character.current.hp + '" data-roster-resource="hp"></label><label><span>MP／' + derived.maxMp + '</span><input type="number" min="0" max="99" value="' + character.current.mp + '" data-roster-resource="mp"></label><label><span>决意</span><input type="number" min="0" max="3" value="' + character.current.resolve + '" data-roster-resource="resolve"></label><label><span>护甲</span><input type="number" min="0" max="20" value="' + character.current.armor + '" data-roster-resource="armor"></label><label class="roster-trauma"><span>状态（每行一项）</span><textarea rows="2" data-roster-resource="conditions">' + escapeHtml(character.current.conditions.join('\n')) + '</textarea></label></div></div><div class="row-actions"><button type="button" data-roster-combat="' + character.id + '">加入战斗</button><button type="button" data-roster-check="' + character.id + '">判定</button><button type="button" data-roster-export="' + character.id + '">导出</button><button class="danger-action" type="button" data-roster-remove="' + character.id + '">移除</button></div></article>';
+    return '<article class="roster-row" data-roster-id="' + character.id + '"><div class="roster-row-main"><span class="roster-rule-badge">零之圣杯 v2.1 · ' + identityLabel + (character.isMaster ? '／御主' : '') + '</span><strong>' + escapeHtml(character.name) + '</strong><span>' + escapeHtml(character.playerName || '未填写玩家名') + ' · ' + escapeHtml(character.origin || '来源未填写') + '</span><p>' + escapeHtml(character.identity || '尚未填写一句角色概念') + '</p><div class="character-statline">' + attributeStats + trainedSkills + '</div><div class="roster-resource-editor"><label><span>HP／' + derived.maxHp + '</span><input type="number" min="0" max="99" value="' + character.current.hp + '" data-roster-resource="hp"></label><label><span>MP／' + derived.maxMp + '</span><input type="number" min="0" max="99" value="' + character.current.mp + '" data-roster-resource="mp"></label><label><span>决意</span><input type="number" min="0" max="3" value="' + character.current.resolve + '" data-roster-resource="resolve"></label><label><span>护甲</span><input type="number" min="0" max="20" value="' + character.current.armor + '" data-roster-resource="armor"></label><label class="roster-trauma"><span>状态（每行一项）</span><textarea rows="2" data-roster-resource="conditions">' + escapeHtml(character.current.conditions.join('\n')) + '</textarea></label></div></div><div class="row-actions"><button type="button" data-roster-combat="' + character.id + '">加入战斗</button><button type="button" data-roster-check="' + character.id + '">判定</button><button type="button" data-roster-export="' + character.id + '">导出</button><button class="danger-action" type="button" data-roster-remove="' + character.id + '">移除</button></div></article>';
   }
 
   function renderTabletop() {
@@ -2623,7 +2780,7 @@
     var handoutButtons = scene.handouts.map(function (handoutId) { var item = byId(data.handouts, handoutId); return '<button type="button" data-handout="' + handoutId + '">' + handoutId + ' · ' + escapeHtml(item.title) + '</button>'; }).join('');
     var runbookHtml = sceneRunbookHtml(scene);
     var keeperConsequencesHtml = sceneKeeperConsequencesHtml(scene);
-    document.getElementById('scene-dialog-content').innerHTML = '<div class="scene-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="scene-dialog-hero"><img src="' + scene.image + '" alt="' + escapeHtml(scene.title) + '场景插画"><div class="scene-hero-copy"><span>' + scene.id + ' · ' + escapeHtml(loc.name) + '</span><h2>' + escapeHtml(scene.title) + '</h2><p>' + escapeHtml(scene.time) + '</p></div></div><div class="scene-dialog-body"><div><section class="dialog-block"><span>PLAYER VISIBLE · 可直接朗读</span><h3>场景表层</h3><p>' + escapeHtml(scene.visible) + '</p></section>' + runbookHtml + '<section class="dialog-block"><span>CLUE REVEAL · 点击逐条公开并同步地图</span><h3>可得线索</h3><div class="scene-clues">' + scene.clues.map(function (clue, index) { return '<button class="scene-clue' + (revealed.indexOf(index) !== -1 ? ' revealed' : '') + '" type="button" data-scene-clue="' + index + '">' + escapeHtml(clue) + '</button>'; }).join('') + '</div><small>公开线索会自动把本场景与地点加入玩家地图；再次点击收回时，玩家地图也会同步移除该线索。</small></section></div><aside><section class="dialog-block"><span>KEEPER ONLY</span><h3>主持目标</h3><p>' + escapeHtml(scene.objective) + '</p></section>' + keeperConsequencesHtml + '<section class="dialog-block"><span>FAIL FORWARD</span><h3>默认余波</h3><p class="scene-risk">' + escapeHtml(scene.risk) + '</p></section><section class="dialog-block"><span>CAST</span><h3>在场人物</h3><div class="dialog-cast-buttons">' + (npcButtons || '<span>按补救来源选择出场人物</span>') + '</div></section><section class="dialog-block"><span>PLAYER SAFE</span><h3>关联手卡</h3><div class="dialog-cast-buttons">' + (handoutButtons || '<span>本场无独立手卡</span>') + '</div></section>' + (done ? '<section class="dialog-block"><span>RECORDED OUTCOME</span><h3>已结算记录</h3><p>' + escapeHtml(state.sceneResults[id] && state.sceneResults[id].note || '该节点已经结算；轨道不会重复叠加。') + '</p></section>' : sceneResolutionControls(scene)) + '<section class="dialog-block"><span>PLAYER MAP · 安全投送</span><h3>' + (scenePublished ? '玩家地图已显示本场景' : '玩家地图尚未显示本场景') + '</h3><p>只发送地点名称、场景表层、已公开线索与公开结算记录；主持目标和默认余波不会发送。</p></section><div class="scene-dialog-actions"><button type="button" data-publish-scene-dialog="' + id + '">' + (scenePublished ? '重新聚焦玩家地图' : '投送场景到玩家地图') + '</button><button class="primary-action" type="button" data-start-scene="' + id + '">' + (active ? '场景正在运行' : '开始场景并投送地图') + '</button><button type="button" data-complete-scene="' + id + '">' + (done ? '已结算 · 保留记录' : '按所选结果结算') + '</button></div></aside></div></div>';
+    document.getElementById('scene-dialog-content').innerHTML = '<div class="scene-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="scene-dialog-hero"><img src="' + scene.image + '" decoding="async" alt="' + escapeHtml(scene.title) + '场景插画"><div class="scene-hero-copy"><span>' + scene.id + ' · ' + escapeHtml(loc.name) + '</span><h2>' + escapeHtml(scene.title) + '</h2><p>' + escapeHtml(scene.time) + '</p></div></div><div class="scene-dialog-body"><div><section class="dialog-block"><span>PLAYER VISIBLE · 可直接朗读</span><h3>场景表层</h3><p>' + escapeHtml(scene.visible) + '</p></section>' + runbookHtml + '<section class="dialog-block"><span>CLUE REVEAL · 点击逐条公开并同步地图</span><h3>可得线索</h3><div class="scene-clues">' + scene.clues.map(function (clue, index) { return '<button class="scene-clue' + (revealed.indexOf(index) !== -1 ? ' revealed' : '') + '" type="button" data-scene-clue="' + index + '">' + escapeHtml(clue) + '</button>'; }).join('') + '</div><small>公开线索会自动把本场景与地点加入玩家地图；再次点击收回时，玩家地图也会同步移除该线索。</small></section></div><aside><section class="dialog-block"><span>KEEPER ONLY</span><h3>主持目标</h3><p>' + escapeHtml(scene.objective) + '</p></section>' + keeperConsequencesHtml + '<section class="dialog-block"><span>FAIL FORWARD</span><h3>默认余波</h3><p class="scene-risk">' + escapeHtml(scene.risk) + '</p></section><section class="dialog-block"><span>CAST</span><h3>在场人物</h3><div class="dialog-cast-buttons">' + (npcButtons || '<span>按补救来源选择出场人物</span>') + '</div></section><section class="dialog-block"><span>PLAYER SAFE</span><h3>关联手卡</h3><div class="dialog-cast-buttons">' + (handoutButtons || '<span>本场无独立手卡</span>') + '</div></section>' + (done ? '<section class="dialog-block"><span>RECORDED OUTCOME</span><h3>已结算记录</h3><p>' + escapeHtml(state.sceneResults[id] && state.sceneResults[id].note || '该节点已经结算；轨道不会重复叠加。') + '</p></section>' : sceneResolutionControls(scene)) + '<section class="dialog-block"><span>PLAYER MAP · 安全投送</span><h3>' + (scenePublished ? '玩家地图已显示本场景' : '玩家地图尚未显示本场景') + '</h3><p>只发送地点名称、场景表层、已公开线索与公开结算记录；主持目标和默认余波不会发送。</p></section><div class="scene-dialog-actions"><button type="button" data-publish-scene-dialog="' + id + '">' + (scenePublished ? '重新聚焦玩家地图' : '投送场景到玩家地图') + '</button><button class="primary-action" type="button" data-start-scene="' + id + '">' + (active ? '场景正在运行' : '开始场景并投送地图') + '</button><button type="button" data-complete-scene="' + id + '">' + (done ? '已结算 · 保留记录' : '按所选结果结算') + '</button></div></aside></div></div>';
     dialog.querySelector('[data-close-dialog]').addEventListener('click', function () { dialog.close(); });
     dialog.querySelectorAll('[data-npc]').forEach(function (button) { button.addEventListener('click', function () { dialog.close(); openNpc(button.getAttribute('data-npc')); }); });
     dialog.querySelectorAll('[data-handout]').forEach(function (button) { button.addEventListener('click', function () { dialog.close(); openHandout(button.getAttribute('data-handout')); }); });
@@ -2802,7 +2959,7 @@
     var labels = { trigger:'触发', scale:'规模', check:'检定', success:'成功', failure:'失败', clock:'时钟', counter:'反制', retreat:'撤退', boundary:'权限边界', knowledge:'知识', permission:'权限', cost:'代价', effect:'效果' };
     var entries = Object.keys(npc.servantTool).filter(function (key) { return npc.servantTool[key] != null && npc.servantTool[key] !== ''; });
     if (!entries.length) return '';
-    return '<section class="npc-dossier-section npc-servant-tool"><header><span>SERVANT TOOL · 规则 v2.0</span><h3>英灵专项工具</h3></header><dl>' + entries.map(function (key) {
+    return '<section class="npc-dossier-section npc-servant-tool"><header><span>SERVANT TOOL · 规则 v2.1</span><h3>英灵专项工具</h3></header><dl>' + entries.map(function (key) {
       var value = npc.servantTool[key];
       if (Array.isArray(value)) value = value.join('；');
       else if (typeof value === 'object') value = Object.keys(value).map(function (subkey) { return (labels[subkey] || subkey) + '：' + value[subkey]; }).join('；');
@@ -2830,7 +2987,7 @@
     var fields = [
       ['现在想要', npc.wants], ['真正害怕', npc.fears], ['确实知道', npc.knows], ['不会接受', npc.refuses], ['离场行动', npc.action], ['声线', npc.voice], ['轮回残留', npc.loop], ['当前位置', loc ? loc.name : '未知']
     ];
-    document.getElementById('npc-dialog-content').innerHTML = '<div class="npc-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="npc-dialog-hero"><div class="npc-dialog-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" alt="' + escapeHtml(npc.name) + '肖像"></div><div class="npc-dialog-copy"><span>' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span><h2>' + escapeHtml(npc.name) + '</h2><small>' + escapeHtml(npc.role) + '</small><p class="npc-intro">' + escapeHtml(npc.intro) + '</p></div></div><div class="npc-fields">' + fields.map(function (field) { return '<section class="npc-field"><span>' + field[0] + '</span><p>' + escapeHtml(field[1]) + '</p></section>'; }).join('') + '</div>' + npcRichDossierHtml(npc) + '<div class="npc-dialog-actions"><button type="button" data-toggle-active="' + id + '">' + (active ? '从玩家地图离场' : '登场到玩家地图') + '</button><button type="button" data-npc-action="' + id + '">' + (active ? '执行离场行动并移除' : '记录离场行动') + '</button><button type="button" data-copy-intro="' + id + '">复制开场玩家资料</button></div></div>';
+    document.getElementById('npc-dialog-content').innerHTML = '<div class="npc-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="npc-dialog-hero"><div class="npc-dialog-image"><img class="' + (servant ? 'servant-crop' : '') + '" style="--crop:' + (npc.crop || '50%') + '" src="' + npc.image + '" decoding="async" alt="' + escapeHtml(npc.name) + '肖像"></div><div class="npc-dialog-copy"><span>' + (servant ? 'HEROIC SPIRIT' : 'NPC DOSSIER') + '</span><h2>' + escapeHtml(npc.name) + '</h2><small>' + escapeHtml(npc.role) + '</small><p class="npc-intro">' + escapeHtml(npc.intro) + '</p></div></div><div class="npc-fields">' + fields.map(function (field) { return '<section class="npc-field"><span>' + field[0] + '</span><p>' + escapeHtml(field[1]) + '</p></section>'; }).join('') + '</div>' + npcRichDossierHtml(npc) + '<div class="npc-dialog-actions"><button type="button" data-toggle-active="' + id + '">' + (active ? '从玩家地图离场' : '登场到玩家地图') + '</button><button type="button" data-npc-action="' + id + '">' + (active ? '执行离场行动并移除' : '记录离场行动') + '</button><button type="button" data-copy-intro="' + id + '">复制开场玩家资料</button></div></div>';
     dialog.querySelector('[data-close-dialog]').addEventListener('click', function () { dialog.close(); });
     dialog.querySelector('[data-toggle-active]').addEventListener('click', function () {
       toggleNpcMapPresence(id, locId);
@@ -2857,16 +3014,16 @@
       var scene = byId(data.scenes, sceneId);
       return scene ? '<button type="button" data-related-scene="' + sceneId + '"><strong>' + sceneId + '</strong> · ' + escapeHtml(scene.title) + '</button>' : '';
     }).join('');
-    document.getElementById('handout-dialog-content').innerHTML = '<div class="handout-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="handout-dialog-art"><img src="' + item.image + '" alt="' + escapeHtml(item.title) + '完整视觉手卡"></div><div class="handout-dialog-copy"><span>PLAYER SAFE · ' + item.id + ' · ' + escapeHtml(item.day) + '</span><h2>' + escapeHtml(item.title) + '</h2><small class="handout-dialog-source">' + escapeHtml(item.source || 'PLAYER SAFE 资料') + '</small><p class="handout-dialog-lead">' + escapeHtml(item.body) + '</p><section class="handout-dialog-facts"><h3>' + escapeHtml(item.factLabel || '资料要点') + '</h3><ul>' + facts + '</ul></section>' + (item.playerPrompt ? '<section class="handout-player-prompt"><span>玩家可见 · 可操作提示</span><p>' + escapeHtml(item.playerPrompt) + '</p></section>' : '') + '<section class="handout-keeper-panel"><div class="handout-trigger"><span>守秘人触发条件</span><strong>' + escapeHtml(item.trigger) + '</strong></div><div class="handout-keeper-note"><span>守秘人提示 · 不随投屏发送</span><p>' + escapeHtml(item.keeperNote || '按当前场景进度发放。') + '</p></div>' + (relatedScenes ? '<div class="handout-related-scenes"><span>关联场景</span><div>' + relatedScenes + '</div></div>' : '') + '</section><div class="handout-dialog-actions"><button type="button" data-broadcast="' + id + '">' + (sent ? '再次发到玩家投屏' : '确认发到玩家投屏') + '</button><button type="button" data-open-player="' + id + '">打开并投送此卡</button><button type="button" data-copy-link="' + id + '">复制投屏地址</button>' + (sent ? '<button class="danger-action" type="button" data-retract="' + id + '">撤回投屏</button>' : '') + '</div></div></div>';
+    document.getElementById('handout-dialog-content').innerHTML = '<div class="handout-dialog-shell"><button class="dialog-x" type="button" data-close-dialog aria-label="关闭">×</button><div class="handout-dialog-art"><img src="' + item.image + '" decoding="async" alt="' + escapeHtml(item.title) + '完整视觉手卡"></div><div class="handout-dialog-copy"><span>PLAYER SAFE · ' + item.id + ' · ' + escapeHtml(item.day) + '</span><h2>' + escapeHtml(item.title) + '</h2><small class="handout-dialog-source">' + escapeHtml(item.source || 'PLAYER SAFE 资料') + '</small><p class="handout-dialog-lead">' + escapeHtml(item.body) + '</p><section class="handout-dialog-facts"><h3>' + escapeHtml(item.factLabel || '资料要点') + '</h3><ul>' + facts + '</ul></section>' + (item.playerPrompt ? '<section class="handout-player-prompt"><span>玩家可见 · 可操作提示</span><p>' + escapeHtml(item.playerPrompt) + '</p></section>' : '') + '<section class="handout-keeper-panel"><div class="handout-trigger"><span>守秘人触发条件</span><strong>' + escapeHtml(item.trigger) + '</strong></div><div class="handout-keeper-note"><span>守秘人提示 · 不随投屏发送</span><p>' + escapeHtml(item.keeperNote || '按当前场景进度发放。') + '</p></div>' + (relatedScenes ? '<div class="handout-related-scenes"><span>关联场景</span><div>' + relatedScenes + '</div></div>' : '') + '</section><div class="handout-dialog-actions"><button type="button" data-broadcast="' + id + '">' + (sent ? '再次发到玩家投屏' : '确认发到玩家投屏') + '</button><button type="button" data-open-player="' + id + '">打开并投送此卡</button><button type="button" data-copy-link="' + id + '">复制投屏地址</button>' + (sent ? '<button class="danger-action" type="button" data-retract="' + id + '">撤回投屏</button>' : '') + '</div></div></div>';
     dialog.querySelector('[data-close-dialog]').addEventListener('click', function () { dialog.close(); });
     dialog.querySelector('[data-broadcast]').addEventListener('click', function () { deliverHandout(item); dialog.close(); });
     dialog.querySelector('[data-open-player]').addEventListener('click', function () {
-      openPlayerWindow('player.html?mode=single', 'ng-handout-' + id);
+      openPlayerWindow('player.html?mode=single' + (campaignId ? '&campaign=' + encodeURIComponent(campaignId) : ''), 'ng-handout-' + id);
       deliverHandout(item);
       dialog.close();
     });
     dialog.querySelector('[data-copy-link]').addEventListener('click', function () {
-      copyText(new URL('player.html?mode=projection', window.location.href).href, '已复制安全投屏地址；打开后仍需由控制台投送');
+      copyText(new URL('player.html?mode=projection' + (campaignId ? '&campaign=' + encodeURIComponent(campaignId) : ''), window.location.href).href, '已复制安全投屏地址；打开后仍需由控制台投送');
     });
     dialog.querySelectorAll('[data-related-scene]').forEach(function (button) { button.addEventListener('click', function () { dialog.close(); openScene(button.getAttribute('data-related-scene')); }); });
     var retractButton = dialog.querySelector('[data-retract]');
@@ -2911,6 +3068,14 @@
   }
 
   function exportState() {
+    if (campaignId && window.NGCampaign) {
+      window.NGCampaign.exportCampaign(campaignId).then(function (payload) {
+        if (window.NG_RESILIENCE) window.NG_RESILIENCE.downloadJson('零之圣杯-在线团房-' + new Date().toISOString().slice(0,10) + '.json', payload);
+        else downloadJson(payload, '零之圣杯-在线团房-' + new Date().toISOString().slice(0,10) + '.json');
+        showToast('在线团房权威备份已导出');
+      }).catch(reportRoomSaveFailure);
+      return;
+    }
     var payload = {
       exportedAt:new Date().toISOString(),
       campaign:data.id,
@@ -2940,8 +3105,16 @@
         if (Number(payload.schemaVersion || payload.state && payload.state.schemaVersion || 1) > STATE_SCHEMA_VERSION) throw new Error('newer-schema');
         var imported = payload.state || payload;
         if (!imported || !imported.dayId || !imported.trackers) throw new Error('invalid');
+        var migratedState = migrateState(imported);
+        if (campaignId && window.NGCampaign) {
+          showToast('正在把本机存档一次性导入在线团房…');
+          window.NGCampaign.importCampaign(campaignId, { state:migratedState, characters:migratedState.roster || [] }).then(function () {
+            return roomTransport && roomTransport.requestResync();
+          }).then(function () { showToast('本机存档已导入在线团房；原本机数据仍保留'); }).catch(reportRoomSaveFailure);
+          return;
+        }
         undoStack.push(clone(state));
-        state = migrateState(imported);
+        state = migratedState;
         var migratedFrom = Number(imported.schemaVersion || 1);
         addLog('导入战役备份' + (migratedFrom < STATE_SCHEMA_VERSION ? '并迁移 v' + migratedFrom + ' → v' + STATE_SCHEMA_VERSION : ''));
         var active = state.activeHandoutId ? byId(data.handouts, state.activeHandoutId) : null;
@@ -3178,10 +3351,10 @@
       sendPlayerMessage({ type:'curtain' });
     });
     document.getElementById('player-window-button').addEventListener('click', function () {
-      openPlayerWindow('player.html?mode=projection', 'ng-projection');
+      openPlayerWindow('player.html?mode=projection' + (campaignId ? '&campaign=' + encodeURIComponent(campaignId) : ''), 'ng-projection');
     });
     document.getElementById('session-menu-button').addEventListener('click', function () {
-      var menu = document.getElementById('session-menu'); var opening = menu.hidden; menu.hidden = !opening; this.setAttribute('aria-expanded', String(opening));
+      var menu = document.getElementById('session-menu'); var opening = menu.hidden; menu.hidden = !opening; this.setAttribute('aria-expanded', String(opening)); this.setAttribute('aria-label', opening ? '关闭战役菜单' : '打开战役菜单');
     });
     document.getElementById('export-button').addEventListener('click', exportState);
     document.getElementById('import-button').addEventListener('click', function () { document.getElementById('import-file').click(); });
@@ -3244,8 +3417,110 @@
     });
   }
 
+  var roomChatWidget = null;
+
+  function applyRoomSnapshot(payload) {
+    if (roomStateDirty || remoteSaveInFlight) return;
+    var snapshot = payload && payload.snapshot && typeof payload.snapshot === 'object' ? payload.snapshot : null;
+    var storedState = snapshot && snapshot.state;
+    var remoteState = storedState && storedState.keeper && typeof storedState.keeper === 'object' ? storedState.keeper : storedState;
+    /* A newly created room deliberately starts with an empty keeper snapshot.
+       Build the locked module's fresh state, then still merge submitted
+       campaign characters below. */
+    state = migrateState(remoteState && typeof remoteState === 'object' && remoteState.dayId ? remoteState : freshState());
+    var roomCharacters = Array.isArray(payload.characters) ? payload.characters : [];
+    state.characterInbox = roomCharacters.filter(function (record) { return record && record.status === 'submitted' && record.data; }).map(function (record) {
+      return normalizeSubmission({ id:record.id, sentAt:record.updatedAt || record.createdAt, character:record.data });
+    }).filter(Boolean).slice(0, 40);
+    roomCharacters.filter(function (record) { return record && record.status === 'approved' && record.data; }).forEach(function (record) {
+      var approved = normalizeCharacter(record.data, false);
+      if (!approved) return;
+      var index = state.roster.findIndex(function (item) { return item.id === approved.id; });
+      if (index === -1) state.roster.unshift(approved); else state.roster[index] = approved;
+    });
+    authoritativeRoomState = clone(state);
+    roomStateDirty = false;
+    restoreProjectedHandout();
+    renderAll();
+    var saveStatus = document.getElementById('save-status');
+    if (saveStatus) saveStatus.textContent = '已同步团房 · v' + String(snapshot.version || roomTransport && roomTransport.version || 0);
+  }
+
+  function handleRoomEvent(event) {
+    var kind = safeText(event && (event.kind || event.type), 80);
+    if (kind === 'character.submit' || kind === 'character.submitted' || kind === 'character.review' || kind === 'character.reviewed') {
+      roomTransport.requestResync();
+      return;
+    }
+    if (!nullGrailAdapter) return;
+    var message = nullGrailAdapter.messageFromEvent(event, 'host');
+    if (!message) return;
+    if (message.type === 'snapshot-update') {
+      var remoteState = message.snapshot && (message.snapshot.state || message.snapshot);
+      if (remoteState && remoteState.dayId && !remoteSaveTimer && !remoteSaveInFlight && !roomStateDirty) applyRoomSnapshot({ snapshot:{ state:remoteState, version:roomTransport.version } });
+      else if (!remoteSaveTimer && !remoteSaveInFlight && !roomStateDirty) roomTransport.requestResync();
+      return;
+    }
+    message.protocol = MESSAGE_PROTOCOL;
+    handleIncomingPlayerMessage(message);
+  }
+
+  function setupCampaignRoom() {
+    if (!campaignId || !window.NGCampaign) return;
+    var connection = document.getElementById('gm-room-connection');
+    connection.hidden = false;
+    document.body.classList.add('online-room-mode', 'room-offline');
+    roomTransport = window.NGCampaign.createRoomTransport({ campaignId:campaignId, role:'host' });
+    roomTransport.on('status', function (status) {
+      connection.textContent = '团房 · ' + status.label;
+      connection.className = 'room-connection-status state-' + status.state;
+      document.body.classList.toggle('room-offline', !status.writable);
+      if (!status.writable) {
+        var saveStatus = document.getElementById('save-status');
+        if (saveStatus) saveStatus.textContent = '离线 · 禁止修改团房';
+        if (roomStateDirty && !remoteSaveInFlight) reportRoomSaveFailure({ kind:'offline', message:'团房连接已中断；未确认的修改已回滚。' });
+      } else if (roomTransport.version) {
+        document.getElementById('save-status').textContent = '在线 · 已同步 v' + roomTransport.version;
+      }
+    });
+    roomTransport.on('snapshot', applyRoomSnapshot);
+    roomTransport.on('event', handleRoomEvent);
+    roomTransport.on('presence', function (presence) { connection.title = '当前在线成员：' + String((presence.members || []).filter(function (member) { return member.online !== false; }).length); });
+    roomTransport.on('error', function (error) {
+      if (error && (error.kind === 'offline' || error.kind === 'network')) return;
+      showToast(error && error.message || '团房同步暂时不可用');
+    });
+    var chatRoot = document.getElementById('gm-campaign-chat');
+    chatRoot.hidden = false;
+    roomChatWidget = window.NGCampaign.mountChat({ element:chatRoot, transport:roomTransport, campaignId:campaignId, canDelete:true, unreadElement:'#gm-room-unread' });
+    roomTransport.connect().catch(function (error) { showToast(error && error.message || '暂时无法连接团房'); });
+  }
+
+  var mobileMoreButton = document.getElementById('mobile-more-button');
+  var mobileMoreMenu = document.getElementById('mobile-more-menu');
+  if (mobileMoreButton && mobileMoreMenu) {
+    mobileMoreButton.addEventListener('click', function () {
+      var opening = mobileMoreMenu.hidden;
+      mobileMoreMenu.hidden = !opening;
+      mobileMoreButton.setAttribute('aria-expanded', String(opening));
+    });
+    mobileMoreMenu.addEventListener('click', function (event) {
+      var viewButton = event.target.closest('[data-view]');
+      if (viewButton) { mobileMoreMenu.hidden = true; mobileMoreButton.setAttribute('aria-expanded', 'false'); }
+      if (event.target.closest('[data-open-tracker]')) {
+        var trackerRail = document.querySelector('.tracker-rail');
+        trackerRail.classList.remove('collapsed');
+        document.getElementById('tracker-collapse').setAttribute('aria-expanded', 'true');
+        mobileMoreMenu.hidden = true;
+        mobileMoreButton.setAttribute('aria-expanded', 'false');
+      }
+      if (event.target.closest('[data-open-room-chat]') && roomChatWidget) { roomChatWidget.open(); mobileMoreMenu.hidden = true; mobileMoreButton.setAttribute('aria-expanded', 'false'); }
+    });
+  }
+
   if (window.matchMedia('(max-width: 1040px)').matches) document.querySelector('.tracker-rail').classList.add('collapsed');
   bindStaticEvents();
+  setupCampaignRoom();
   sendPlayerMessage({ type:'keeper-ready' });
   renderAll();
   openView(currentView);

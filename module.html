@@ -1,20 +1,32 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="night">
 <head>
+  <meta name="ng-deployment-mode" content="redirect">
+  <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
+  <link rel="canonical" href="https://43-161-252-149.sslip.io/module.html">
+  <script src="deployment.js?v=20260714g"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="夜航模组馆作品档案：阅读模组介绍、地图、规则与配套资源。">
-  <meta name="theme-color" content="#0b1019">
-  <meta name="ng-api-base" content="https://desktop-1e8cufv.tail362686.ts.net">
+  <meta name="theme-color" id="module-theme-color" content="#0b1019">
+  <meta name="ng-api-base" content="">
+  <meta property="og:title" id="module-og-title" content="模组档案 · 夜航模组馆">
+  <meta property="og:description" id="module-og-description" content="浏览模组介绍、地图、规则与配套资源。">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:site_name" content="夜航模组馆">
+  <meta property="og:image" id="module-og-image" content="assets/art/hero-null-grail.webp?v=20260714g">
+  <meta property="og:image:width" id="module-og-image-width" content="1915">
+  <meta property="og:image:height" id="module-og-image-height" content="821">
+  <meta property="og:image:alt" id="module-og-image-alt" content="夜航模组馆模组档案">
+  <meta name="twitter:card" content="summary_large_image">
   <title>模组档案 · 夜航模组馆</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="module.css?v=20260713f">
-  <link rel="stylesheet" href="font-size.css?v=20260713b">
-  <script src="font-size.js?v=20260713b" defer></script>
+  <link rel="stylesheet" href="module.css?v=20260714g">
+  <link rel="stylesheet" href="design-system.css?v=20260714g">
+  <link rel="stylesheet" href="font-size.css?v=20260714g">
+  <script src="font-size.js?v=20260714g" defer></script>
 </head>
-<body class="module-page">
+<body class="ds-page module-page">
   <a class="skip-link" href="#module-main">跳到模组内容</a>
   <div class="module-ambient ambient-one" aria-hidden="true"></div>
   <div class="module-ambient ambient-two" aria-hidden="true"></div>
@@ -46,6 +58,7 @@
 
     <div id="module-content" hidden>
       <section class="module-hero" aria-labelledby="module-title">
+        <div class="module-hero-visual" id="module-hero-visual" hidden aria-hidden="true"><img id="module-hero-image" width="1915" height="821" alt="" decoding="async" fetchpriority="high"></div>
         <div class="module-hero-copy">
           <div class="module-flags"><span id="module-number">ARCHIVE</span><span id="module-type">战役模组</span><span id="module-status">已发布</span></div>
           <p class="module-eyebrow" id="module-english">COMMUNITY MODULE</p>
@@ -55,6 +68,7 @@
         </div>
         <aside class="module-actions" aria-label="模组入口">
           <p>MODULE ENTRANCES</p>
+          <a class="campaign-action" id="campaign-action" href="campaign.html?module=null-grail" hidden><span>进入在线团房</span><small>创建团房或凭邀请加入《零之圣杯》 ↗</small></a>
           <a class="primary-action" id="workspace-action" href="studio.html" hidden><span>进入创作者工作台</span><small>编辑信息、地图、规则与车卡器 →</small></a>
           <a id="keeper-action" href="gm.html" hidden><span>打开守秘人控制台</span><small>开团、人物、线索与判定 →</small></a>
           <a id="player-action" href="player.html" hidden><span>进入玩家面板</span><small>角色卡与判定请求 →</small></a>
@@ -105,8 +119,10 @@
 
   <footer class="module-footer"><a href="index.html#archive">← 返回所有模组</a><span>NOCTURNE ARCHIVE · COMMUNITY WORKS</span></footer>
   <div class="module-toast" id="module-toast" role="status" aria-live="polite"></div>
-  <script src="modules-data.js?v=20260713k"></script>
-  <script src="site-auth.js?v=20260713u"></script>
-  <script src="module.js?v=20260713u"></script>
+  <script src="site-config.js?v=20260714g"></script>
+  <script src="resilience.js?v=20260714g"></script>
+  <script src="modules-data.js?v=20260714g"></script>
+  <script src="site-auth.js?v=20260714g"></script>
+  <script src="module.js?v=20260714g"></script>
 </body>
 </html>

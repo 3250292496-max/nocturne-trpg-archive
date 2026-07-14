@@ -1,6 +1,11 @@
 (function () {
   'use strict';
 
+  var versions = window.NG_SITE_CONFIG && window.NG_SITE_CONFIG.versions || {
+    rulesetId:'null-grail-core-d20-v2.1',
+    rulesetLabel:'《零之圣杯》通用圣杯战争规则 · 规则版本 2.1'
+  };
+
   window.NG_STATIC_MODULES = [{
     id: 'null-grail',
     number: '001',
@@ -9,8 +14,8 @@
     summary: '七日轮回的圣杯战争里，你们是系统无法命名的空白变量。',
     description: '东湖市跨年夜，天空像玻璃一样裂开。规则书、零门槛站内车卡、进阶 Excel 车卡、玩家手册、公开资料与地图共同组成这份可直接开团的完整作品档案。',
     systems: ['fate', 'agnostic'],
-    rulesetId: 'null-grail-core-d20-v2.1',
-    systemLabel: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
+    rulesetId: versions.rulesetId,
+    systemLabel: versions.rulesetLabel,
     type: 'campaign',
     typeLabel: '完整长篇战役模组',
     players: '3–5 人（4 人最佳）',
@@ -19,6 +24,22 @@
     difficulty: '进阶',
     tone: 'gold',
     accent: '#d1ad6c',
+    coverImage: 'assets/art/hero-null-grail.webp',
+    bannerImage: 'assets/art/hero-null-grail.webp',
+    ogImage: 'assets/art/hero-null-grail.webp',
+    coverWidth: 1915,
+    coverHeight: 821,
+    coverFocus: '70% 50%',
+    themeColor: '#d1ad6c',
+    visualIdentity: {
+      coverImage: 'assets/art/hero-null-grail.webp',
+      bannerImage: 'assets/art/hero-null-grail.webp',
+      ogImage: 'assets/art/hero-null-grail.webp',
+      ogWidth: 1915,
+      ogHeight: 821,
+      themeColor: '#d1ad6c',
+      focus: { x: 70, y: 50 }
+    },
     icon: 'grail',
     tags: ['轮回', '都市异闻', '角色抉择', '完整工具链'],
     highlights: ['零门槛站内车卡', '玩家公开资料', '守秘人加密控制台'],
@@ -84,7 +105,7 @@
   // Rulesets are selectable dependencies for modules. They are not module
   // records and must never inherit a module owner's authorship or badge.
   window.NG_RULESETS = [{
-    id: 'null-grail-core-d20-v2.1',
+    id: versions.rulesetId,
     title: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',
     shortTitle: '零之圣杯 · 通用规则 2.1',
     systemLabel: '《零之圣杯》通用圣杯战争规则 · 规则版本 2.1',

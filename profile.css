@@ -92,6 +92,25 @@ body.profile-page {
 .profile-primary:hover { transform: translateY(-1px); }
 .profile-primary:disabled { opacity: .55; cursor: wait; }
 .profile-form > p { margin: 0; color: var(--profile-muted); font-size: 13px; line-height: 1.8; }
+.security-grid { margin-top: 28px; }
+.security-grid .profile-panel { margin-top: 0; }
+.compact-security-form { padding-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.compact-security-form > small { margin-top: -8px; color: var(--profile-muted); font-size: 12px; line-height: 1.7; }
+.security-static-note { margin: 0; padding: 16px; border: 1px solid rgba(209,173,108,.28); border-left: 3px solid var(--profile-gold); color: #cbd2da; background: rgba(209,173,108,.06); font-size: 14px; line-height: 1.8; }
+.session-revoke { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 24px; }
+.session-revoke strong { color: var(--profile-paper); font: 600 15px "Noto Serif SC", serif; }
+.session-revoke p { margin: 6px 0 0; color: var(--profile-muted); font-size: 13px; line-height: 1.7; }
+.profile-secondary, .profile-danger { min-height: 44px; padding: 0 16px; border: 1px solid rgba(209,173,108,.36); color: var(--profile-gold); background: transparent; font: 600 13px inherit; cursor: pointer; }
+.profile-danger { border-color: rgba(215,123,127,.48); color: #efa3a6; }
+.profile-secondary:hover { background: rgba(209,173,108,.08); }
+.profile-danger:hover { background: rgba(215,123,127,.08); }
+.profile-secondary:disabled, .profile-danger:disabled { opacity: .55; cursor: wait; }
+.privacy-facts { display: grid; gap: 0; margin: 0; }
+.privacy-facts > div { padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.privacy-facts > div:first-child { padding-top: 0; }
+.privacy-facts dt { color: var(--profile-paper); font-weight: 600; }
+.privacy-facts dd { margin: 6px 0 0; color: var(--profile-muted); font-size: 13px; line-height: 1.75; }
+.privacy-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .avatar-editor { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 18px; align-items: center; padding: 18px; border: 1px solid rgba(255,255,255,.09); background: rgba(4,10,17,.28); }
 .avatar-preview { display: grid; width: 92px; height: 92px; overflow: hidden; place-items: center; border: 1px solid rgba(209,173,108,.55); border-radius: 50%; color: var(--profile-gold); background: rgba(209,173,108,.08); font: 700 30px "Noto Serif SC", serif; }
 .avatar-editor-copy > strong { display: block; color: var(--profile-paper); font: 600 15px "Noto Serif SC", serif; }
@@ -176,4 +195,6 @@ body.profile-page {
   .key-control { flex-wrap: wrap; }
   .key-control input { flex-basis: 100%; }
   .key-control button { min-height: 40px; flex: 1; }
+  .session-revoke { align-items: stretch; flex-direction: column; }
+  .privacy-actions > button { flex: 1 1 100%; }
 }

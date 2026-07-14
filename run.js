@@ -56,6 +56,10 @@
       settings.headers = Object.assign({}, settings.headers || {}, { 'Content-Type':'application/json' });
       settings.body = JSON.stringify(settings.body);
     }
+    if (window.NG_RESILIENCE && window.NG_RESILIENCE.request) {
+      settings.retry = String(settings.method || 'GET').toUpperCase() === 'GET';
+      return window.NG_RESILIENCE.request(target, settings);
+    }
     return window.fetch(target, settings).then(function (response) {
       return response.text().then(function (raw) {
         var payload = {};
@@ -131,8 +135,16 @@
     return result;
   }
   function saveState() {
-    try { window.localStorage.setItem(stateKey(), JSON.stringify(sessionState)); }
-    catch (error) { showToast('浏览器存储空间不足，本次更改未保存。'); }
+    var key = stateKey();
+    var saved = window.NG_RESILIENCE && window.NG_RESILIENCE.storage
+      ? window.NG_RESILIENCE.storage.set(key, sessionState, {
+        scope:'local-run:' + currentModule.id,
+        label:'本机开团记录',
+        filename:(currentModule.id || 'module') + '-开团恢复-' + new Date().toISOString().slice(0,10) + '.json'
+      })
+      : (function () { try { window.localStorage.setItem(key, JSON.stringify(sessionState)); return true; } catch (error) { return false; } }());
+    if (!saved) showToast('浏览器存储空间不足，本次更改未保存；请立即导出恢复文件。');
+    return saved;
   }
   function itemId(item, index, prefix) { return String(item && item.id || prefix + '-' + index); }
   function logAction(label, detail) {
