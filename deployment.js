@@ -20,7 +20,8 @@
 
   function leafName(pathname) {
     var clean = String(pathname || '').replace(/\/+$/, '');
-    return clean.slice(clean.lastIndexOf('/') + 1) || 'index.html';
+    var filename = clean.slice(clean.lastIndexOf('/') + 1) || 'index.html';
+    return /\.html$/i.test(filename) ? filename : 'index.html';
   }
 
   function primaryUrl(source) {
