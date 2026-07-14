@@ -4,17 +4,17 @@
   <meta name="ng-deployment-mode" content="redirect">
   <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
   <link rel="canonical" href="https://43-161-252-149.sslip.io/campaign.html">
-  <script src="deployment.js?v=20260714g"></script>
+  <script src="deployment.js?v=20260714h"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#090d14">
   <meta name="description" content="夜航模组馆在线团房：为《零之圣杯》创建战役、邀请玩家、同步角色与团务并安全归档。">
   <meta name="robots" content="noindex,nofollow">
   <title>在线团房 · 夜航模组馆</title>
-  <link rel="stylesheet" href="campaign.css?v=20260714g">
-  <link rel="stylesheet" href="design-system.css?v=20260714g">
-  <link rel="stylesheet" href="font-size.css?v=20260714g">
-  <script src="font-size.js?v=20260714g" defer></script>
+  <link rel="stylesheet" href="campaign.css?v=20260714h">
+  <link rel="stylesheet" href="design-system.css?v=20260714h">
+  <link rel="stylesheet" href="font-size.css?v=20260714h">
+  <script src="font-size.js?v=20260714h" defer></script>
 </head>
 <body class="ds-page campaign-page">
   <a class="skip-link" href="#campaign-main">跳到团房内容</a>
@@ -28,7 +28,7 @@
 
   <main id="campaign-main">
     <section class="campaign-hero" aria-labelledby="campaign-title">
-      <img src="assets/art/hero-null-grail.webp?v=20260714g" width="1915" height="821" sizes="100vw" fetchpriority="high" decoding="async" alt="雨夜东湖市中的零之圣杯人物群像">
+      <img src="assets/art/hero-null-grail.webp?v=20260714h" width="1915" height="821" sizes="100vw" fetchpriority="high" decoding="async" alt="雨夜东湖市中的零之圣杯人物群像">
       <div class="campaign-hero-shade"></div>
       <div class="campaign-hero-copy">
         <p>NULL GRAIL · ONLINE ROOM BETA</p>
@@ -44,7 +44,7 @@
       <div class="campaign-panel join-panel">
         <form id="join-form">
           <label><span>邀请链接或令牌</span><input id="join-token" name="token" autocomplete="off" spellcheck="false" placeholder="打开邀请链接后会自动填入，也可以在这里粘贴"></label>
-          <label><span>团内昵称</span><input id="join-nickname" name="nickname" maxlength="60" autocomplete="nickname" required placeholder="其他成员在房间内看到的名字"></label>
+          <label><span>团内昵称</span><input id="join-nickname" name="nickname" maxlength="40" autocomplete="nickname" required placeholder="其他成员在房间内看到的名字"></label>
           <button class="campaign-primary" type="submit">加入并进入玩家页 <span>↗</span></button>
           <p class="form-status" id="join-status" role="status"></p>
         </form>
@@ -68,7 +68,8 @@
         <section class="campaign-panel create-panel" aria-labelledby="create-title">
           <header><p>NEW ROOM</p><h3 id="create-title">创建《零之圣杯》团房</h3></header>
           <form id="create-campaign-form">
-            <label><span>团房名称</span><input id="campaign-title-input" name="title" maxlength="120" placeholder="例如：周五夜航 · 第一轮"></label>
+            <label><span>团房名称</span><input id="campaign-title-input" name="title" minlength="2" maxlength="80" required aria-describedby="campaign-title-help" placeholder="例如：周五夜航 · 第一轮"></label>
+            <small class="field-help" id="campaign-title-help">必填，2–80 个字符；名称会显示给每一位团员。</small>
             <input id="campaign-module-input" name="moduleId" type="hidden" value="null-grail">
             <div class="locked-versions"><span>模组 <b>v3.2</b></span><span>规则 <b>v2.1</b></span><span>仅主持／玩家</span></div>
             <button class="campaign-primary" type="submit" disabled>创建在线团房</button>
@@ -86,23 +87,36 @@
     <section class="campaign-section room-detail" id="room" aria-labelledby="room-title" hidden>
       <header><div><p>CAMPAIGN LOBBY</p><h2 id="room-title">团房大厅</h2></div><button id="close-room-detail" type="button">返回团房列表</button></header>
       <div class="room-summary-bar">
-        <div><span id="room-status-dot"></span><strong id="room-status">读取中</strong></div>
-        <dl><div><dt>模组</dt><dd id="room-module-version">v3.2</dd></div><div><dt>规则</dt><dd id="room-rules-version">v2.1</dd></div><div><dt>状态版本</dt><dd id="room-state-version">0</dd></div></dl>
-        <div class="room-open-actions"><a id="open-room-console" class="campaign-primary" href="gm.html">打开主持台</a><a id="open-room-player" class="campaign-secondary" href="player.html">打开玩家页</a></div>
+        <div class="room-connection-state"><span id="room-status-dot"></span><div><strong id="room-status">读取中</strong><small id="room-connection-status" role="status">正在连接房间服务</small></div></div>
+        <dl><div><dt>模组</dt><dd id="room-module-version">v3.2</dd></div><div><dt>规则</dt><dd id="room-rules-version">v2.1</dd></div><div><dt>身份</dt><dd id="room-role">—</dd></div><div><dt>在线</dt><dd id="room-online-count">—</dd></div><div><dt>状态版本</dt><dd id="room-state-version">0</dd></div></dl>
+        <div class="room-open-actions"><a id="open-room-console" class="campaign-primary" href="gm.html">打开主持台</a><a id="open-room-player" class="campaign-secondary" href="player.html">打开玩家页</a><button id="room-reconnect" type="button">手动重连</button></div>
       </div>
 
       <div class="room-detail-grid">
-        <section class="campaign-panel members-panel" aria-labelledby="members-title"><header><p>MEMBERS</p><h3 id="members-title">成员与角色</h3><span id="member-count">0 人</span></header><div id="room-members"></div></section>
+        <section class="campaign-panel opening-checklist" id="opening-checklist" hidden aria-labelledby="opening-checklist-title"><header><p>START HERE</p><h3 id="opening-checklist-title">开团清单</h3><span>按任意顺序完成</span></header>
+          <ol>
+            <li id="checklist-invite"><span>1</span><div><strong>把邀请交给玩家</strong><small id="checklist-invite-copy">生成一条仅本次可见的新邀请链接并复制。</small></div><button id="checklist-create-invite" type="button">生成并复制邀请</button></li>
+            <li><span>2</span><div><strong>打开已绑定的主持控制台</strong><small>控制台会自动读取此团房的模组、规则和同步连接。</small></div><a id="checklist-open-console" href="gm.html">打开主持台</a></li>
+            <li><span>3</span><div><strong>预览玩家看到的页面</strong><small>用于确认公开视图、角色卡入口和在线连接。</small></div><a id="checklist-open-player" href="player.html">打开玩家页</a></li>
+            <li><span>4</span><div><strong>确认成员与连接</strong><small id="checklist-members-copy">等待房间服务报告在线成员。</small></div><button id="checklist-view-members" type="button">查看成员</button></li>
+          </ol>
+        </section>
+        <section class="campaign-panel room-settings-panel" id="room-settings-panel" hidden aria-labelledby="room-settings-title"><header><p>ROOM SETTINGS</p><h3 id="room-settings-title">房间名称</h3></header>
+          <form id="rename-room-form"><label><span>团房名称</span><input id="rename-room-title" name="title" minlength="2" maxlength="80" required aria-describedby="rename-room-title-help"></label><small class="field-help" id="rename-room-title-help">必填，2–80 个字符。归档后的团房不能改名。</small><button type="submit">保存名称</button><p class="form-status" id="rename-status" role="status"></p></form>
+        </section>
+        <section class="campaign-panel members-panel" id="members-panel" aria-labelledby="members-title"><header><p>MEMBERS</p><h3 id="members-title">成员与角色</h3><span id="member-count">0 人</span></header><div id="room-members"></div></section>
         <section class="campaign-panel invite-panel" id="invite-panel" aria-labelledby="invite-title"><header><p>INVITATIONS</p><h3 id="invite-title">邀请玩家</h3></header>
           <form id="create-invite-form"><label><span>有效天数</span><input name="expiresInDays" type="number" min="1" max="30" value="7"></label><label><span>最多使用</span><input name="maxUses" type="number" min="1" max="20" value="8"></label><button type="submit">生成新邀请</button></form>
           <div class="new-invite" id="new-invite" hidden><label><span>新邀请链接（离开后不再显示令牌）</span><input id="new-invite-url" readonly></label><button id="copy-invite" type="button">复制链接</button></div>
           <div id="room-invites"></div><p class="form-status" id="invite-status" role="status"></p>
         </section>
-        <section class="campaign-panel transfer-panel" id="transfer-panel" aria-labelledby="transfer-title"><header><p>ARCHIVE &amp; RECOVERY</p><h3 id="transfer-title">导入、导出、归档与恢复</h3></header>
-          <p id="transfer-copy">旧本机战役只会在你选择文件并确认后上传；导入成功前不会删除原文件或本机存档。</p>
-          <div class="transfer-actions"><button id="export-room" type="button">导出团房 JSON</button><button id="choose-room-import" type="button">一次性导入本机存档</button><input id="room-import-file" type="file" accept="application/json,.json" hidden></div>
-          <div class="import-preview" id="import-preview" hidden><strong id="import-preview-title">待导入文件</strong><p id="import-preview-copy"></p><button id="confirm-room-import" type="button">确认导入这个快照</button><button id="cancel-room-import" type="button">取消</button></div>
-          <button class="archive-room-button" id="archive-room" type="button">归档团房</button><p class="form-status" id="transfer-status" role="status"></p>
+        <section class="campaign-panel transfer-panel" id="transfer-panel" aria-labelledby="transfer-title"><header><p>BACKUP &amp; LIFECYCLE</p><h3 id="transfer-title">备份、恢复与结束</h3></header>
+          <p>恢复团房备份只能在这里完成：先由服务器预检，再确认写入。恢复前不会删除原文件或本机存档。</p>
+          <div class="transfer-actions"><button id="export-room" type="button">导出团房备份</button><button id="choose-room-import" type="button">选择要恢复的备份</button><input id="room-import-file" type="file" accept="application/json,.json" hidden></div>
+          <div class="import-preview" id="import-preview" hidden><strong id="import-preview-title">待恢复备份</strong><p id="import-preview-copy"></p><button id="confirm-room-import" type="button">确认恢复这个备份</button><button id="cancel-room-import" type="button">取消</button></div>
+          <div class="lifecycle-actions"><button class="archive-room-button" id="archive-room" type="button">归档团房</button><button id="restore-room" type="button" hidden>恢复为准备中</button></div>
+          <section class="permanent-delete-panel" id="permanent-delete-panel" hidden aria-labelledby="permanent-delete-title"><h4 id="permanent-delete-title">永久删除已归档团房</h4><p>删除会让成员会话失效，并清除快照、角色、聊天和历史数据。请先导出团房备份。</p><button class="danger-button" id="delete-room" type="button">永久删除团房</button><div id="delete-room-confirmation" hidden><label><span>输入完整团房名 <strong id="delete-room-title"></strong> 以确认</span><input id="delete-room-title-input" autocomplete="off" spellcheck="false"></label><div><button class="danger-button" id="confirm-delete-room" type="button" disabled>确认永久删除</button><button id="cancel-delete-room" type="button">取消</button></div></div></section>
+          <p class="form-status" id="transfer-status" role="status"></p>
         </section>
         <section class="campaign-panel guest-panel" id="guest-panel" hidden aria-labelledby="guest-title"><header><p>ACCOUNT BINDING</p><h3 id="guest-title">绑定访客身份</h3></header><p>登录账号后可把当前访客成员和角色绑定到账号，之后可以在其他设备继续。</p><button id="bind-campaign" type="button">绑定到当前账号</button><p class="form-status" id="bind-status" role="status"></p></section>
       </div>
@@ -112,9 +126,9 @@
   <footer class="campaign-footer"><span>夜航模组馆 · 在线团房测试版</span><p>房间仅提供全团文字聊天；不包含语音、视频、私聊、附件或复杂战棋。</p></footer>
   <div class="campaign-toast" id="campaign-toast" role="status" aria-live="polite"></div>
 
-<script src="site-config.js?v=20260714g"></script>
-<script src="resilience.js?v=20260714g"></script>
-<script src="site-auth.js?v=20260714g"></script>
+<script src="site-config.js?v=20260714h"></script>
+<script src="resilience.js?v=20260714h"></script>
+<script src="site-auth.js?v=20260714h"></script>
 <script src="campaign-client.js?v=20260714h"></script>
 <script src="campaign.js?v=20260714h"></script>
 </body>

@@ -11,6 +11,14 @@
   function noop() {}
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function safeText(value, maximum) { return String(value == null ? '' : value).replace(/\u0000/g, '').trim().slice(0, maximum); }
+  /* Do not shorten values that the server must validate. In particular, room
+     names and member nicknames should produce a useful validation error rather
+     than appear to save after a client-side truncation. */
+  function inputText(value) {
+    var text = String(value == null ? '' : value).replace(/\u0000/g, '');
+    if (typeof text.normalize === 'function') text = text.normalize('NFKC');
+    return text.trim();
+  }
   function makeId(prefix) {
     if (root.crypto && typeof root.crypto.randomUUID === 'function') return prefix + '-' + root.crypto.randomUUID();
     var random = root.crypto && typeof root.crypto.getRandomValues === 'function'
@@ -97,10 +105,13 @@
     var input = options || {};
     return request('/api/campaigns', {
       method:'POST', retry:false,
-      body:{ title:safeText(input.title, 120), moduleId:safeText(input.moduleId, 80) || DEFAULT_MODULE_ID }
+      body:{ title:inputText(input.title), moduleId:safeText(input.moduleId, 80) || DEFAULT_MODULE_ID }
     });
   }
-  function getCampaign(id) { return request('/api/campaigns/' + encodeURIComponent(id)); }
+  function getCampaign(id, options) {
+    var preview = options && options.preview === true;
+    return request('/api/campaigns/' + encodeURIComponent(id) + (preview ? '?preview=1' : ''));
+  }
   function mutationIdentity(options, prefix) {
     var input = options || {};
     var baseVersion = Number(input.baseVersion !== undefined ? input.baseVersion : input.version);
@@ -113,9 +124,23 @@
     var identity = mutationIdentity(options, 'archive');
     return request('/api/campaigns/' + encodeURIComponent(id) + '/archive', { method:'POST', retry:false, body:identity });
   }
+  function renameCampaign(id, title, options) {
+    var identity = mutationIdentity(options, 'campaign-rename');
+    return request('/api/campaigns/' + encodeURIComponent(id), {
+      method:'PATCH', retry:false,
+      body:{ title:inputText(title), commandId:identity.commandId, baseVersion:identity.baseVersion }
+    });
+  }
   function restoreCampaign(id, options) {
-    var identity = mutationIdentity(options, 'restore');
+    var identity = mutationIdentity(options, 'campaign-restore');
     return request('/api/campaigns/' + encodeURIComponent(id) + '/restore', { method:'POST', retry:false, body:identity });
+  }
+  function deleteCampaign(id, title, options) {
+    var identity = mutationIdentity(options, 'campaign-delete');
+    return request('/api/campaigns/' + encodeURIComponent(id), {
+      method:'DELETE', retry:false,
+      body:{ confirmationTitle:inputText(title), title:inputText(title), commandId:identity.commandId, baseVersion:identity.baseVersion }
+    });
   }
   function createInvite(id, options) {
     var input = options || {};
@@ -143,12 +168,16 @@
   function joinCampaign(token, nickname) {
     return request('/api/campaigns/join', {
       method:'POST', retry:false,
-      body:{ token:safeText(token, 512), nickname:safeText(nickname, 60) }
+      body:{ token:safeText(token, 512), nickname:inputText(nickname) }
     });
   }
   function bindCampaign(id) { return request('/api/campaigns/' + encodeURIComponent(id) + '/bind', { method:'POST', retry:false, body:{} }); }
-  function getSnapshot(id, sinceVersion) {
-    var query = Number.isFinite(Number(sinceVersion)) ? '?sinceVersion=' + encodeURIComponent(String(Math.max(0, Number(sinceVersion)))) : '';
+  function getSnapshot(id, sinceVersion, options) {
+    var query = new URLSearchParams();
+    if (Number.isFinite(Number(sinceVersion))) query.set('sinceVersion', String(Math.max(0, Number(sinceVersion))));
+    if (options && options.preview === true) query.set('preview', '1');
+    query = query.toString();
+    query = query ? '?' + query : '';
     return request('/api/campaigns/' + encodeURIComponent(id) + '/snapshot' + query);
   }
   function sendCampaignCommand(id, type, payload, options) {
@@ -243,8 +272,9 @@
     root.removeEventListener('message', this.messageListener);
   };
 
-  function websocketUrl(campaignId) {
+  function websocketUrl(campaignId, preview) {
     var resolved = new URL(apiUrl('/api/campaigns/' + encodeURIComponent(campaignId) + '/socket'), root.location && root.location.href || undefined);
+    if (preview === true) resolved.searchParams.set('preview', '1');
     resolved.protocol = resolved.protocol === 'https:' ? 'wss:' : 'ws:';
     return resolved.href;
   }
@@ -253,6 +283,7 @@
     var input = options || {};
     this.campaignId = safeText(input.campaignId, 120);
     this.role = input.role === 'host' ? 'host' : 'player';
+    this.preview = input.preview === true;
     this.protocol = PROTOCOL;
     this.version = Math.max(0, Number(input.version || 0));
     this.socket = null;
@@ -345,7 +376,7 @@
     return new Promise(function (resolve, reject) {
       var settled = false;
       var socket;
-      try { socket = new root.WebSocket(websocketUrl(self.campaignId), self.protocol); }
+      try { socket = new root.WebSocket(websocketUrl(self.campaignId, self.preview), self.protocol); }
       catch (error) { self.setStatus('failed', { message:error.message }); reject(error); return; }
       self.socket = socket;
       socket.addEventListener('open', function () {
@@ -362,6 +393,10 @@
         if (!settled) { settled = true; reject(new Error('websocket_connection_failed')); }
       });
       socket.addEventListener('close', function () {
+        /* A forced reconnect replaces `self.socket` before the old close event
+           arrives. Detached sockets must not reject commands on the new
+           connection or schedule a second retry loop. */
+        if (self.socket !== socket) return;
         self.rejectPending('连接已中断，未确认的操作没有保存。');
         if (self.disposed) { self.setStatus('closed'); return; }
         self.setStatus('offline', { message:'连接已中断；离线期间不能修改团房状态。' });
@@ -373,7 +408,7 @@
     var self = this;
     if (self.connectPromise) return self.connectPromise;
     self.setStatus('syncing');
-    self.connectPromise = getSnapshot(self.campaignId, self.version).then(function (payload) {
+    self.connectPromise = getSnapshot(self.campaignId, self.version, { preview:self.preview }).then(function (payload) {
       self.applySnapshot(payload);
       return self.openSocket();
     }).catch(function (error) {
@@ -386,7 +421,27 @@
   RoomTransport.prototype.requestResync = function () {
     var self = this;
     if (self.disposed) return Promise.resolve(null);
-    return getSnapshot(self.campaignId, self.version).then(function (payload) { self.applySnapshot(payload); return payload; }).catch(function (error) { self.hub.emit('error', error); return null; });
+    return getSnapshot(self.campaignId, self.version, { preview:self.preview }).then(function (payload) { self.applySnapshot(payload); return payload; }).catch(function (error) { self.hub.emit('error', error); return null; });
+  };
+  RoomTransport.prototype.reconnect = function (options) {
+    var self = this;
+    var force = Boolean(options && options.force === true);
+    if (self.disposed) return Promise.reject(new Error('transport_disposed'));
+    if (self.reconnectTimer) {
+      root.clearTimeout(self.reconnectTimer);
+      self.reconnectTimer = null;
+    }
+    /* An already healthy socket only needs a fresh authoritative snapshot. This
+       avoids creating duplicate WebSockets when a user presses “重新连接”. */
+    if (self.isWritable() && !force) return self.requestResync();
+    self.reconnectAttempt = 0;
+    if (self.socket && self.socket.readyState !== 3) {
+      if (self.socket.readyState < 2) {
+        try { self.socket.close(1000, 'manual_reconnect'); } catch (error) {}
+      }
+    }
+    self.socket = null;
+    return self.connect();
   };
   RoomTransport.prototype.scheduleReconnect = function () {
     var self = this;
@@ -509,7 +564,7 @@
       if (kind === 'character.reviewed' || kind === 'character.review') return role === 'player' ? { type:'character-ack', submissionId:payload.submissionId, characterId:payload.characterId, accepted:payload.accepted === true || payload.status === 'approved' || payload.status === 'accepted' } : null;
       if (kind === 'check.requested' || kind === 'check.request') return role === 'host' ? { type:'check-request', request:payload.request || payload } : null;
       if (kind === 'check.resolved' || kind === 'check.result') return role === 'player' ? { type:'check-result', result:payload.result || payload } : null;
-      if (kind === 'state.replaced' || kind === 'state.replace' || kind === 'state.updated') return { type:'snapshot-update', snapshot:payload.snapshot || payload };
+      if (kind === 'state.replaced' || kind === 'state.patched' || kind === 'state.replace' || kind === 'state.updated') return { type:'snapshot-update', snapshot:payload.snapshot || payload };
       if (kind === 'map.updated' || kind === 'map.update') return { type:'map-state', map:payload.map || payload, focusLocationId:payload.focusLocationId, openMap:payload.openMap === true };
       if (kind === 'handout.updated' || kind === 'handout.update') return payload.retracted ? { type:'retract', handoutId:payload.handoutId } : payload.handout ? { type:'show', handout:payload.handout } : null;
       if (kind === 'scene.updated' || kind === 'scene.update') return { type:'scene-state', scene:payload.scene || payload };
@@ -668,7 +723,9 @@
     createCampaign:createCampaign,
     getCampaign:getCampaign,
     archiveCampaign:archiveCampaign,
+    renameCampaign:renameCampaign,
     restoreCampaign:restoreCampaign,
+    deleteCampaign:deleteCampaign,
     createInvite:createInvite,
     revokeInvite:revokeInvite,
     rotateInvite:rotateInvite,
@@ -686,6 +743,7 @@
     createRoomTransport:function (options) { return new RoomTransport(options); },
     mountChat:mountChat,
     makeId:makeId,
-    safeText:safeText
+    safeText:safeText,
+    inputText:inputText
   });
 })(typeof window !== 'undefined' ? window : globalThis);

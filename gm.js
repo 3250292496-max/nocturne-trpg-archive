@@ -28,6 +28,7 @@
   var campaignId = window.NGCampaign && window.NGCampaign.campaignIdFromLocation();
   var localTransport = null;
   var roomTransport = null;
+  var gmRoomInfo = { campaign:null, member:null, onlineCount:null, transportStatus:null };
   var nullGrailAdapter = window.NGCampaign && window.NGCampaign.getAdapter('null-grail');
   var remoteSaveTimer = null;
   var remoteSaveInFlight = false;
@@ -969,7 +970,7 @@
       } else if (message.type === 'check-result' && message.result) {
         /* Keep a semantic audit event as well as the authoritative state
            snapshot. publicRoomProjection carries the same latest result so a
-           later state.replace cannot erase it on refresh/reconnect. */
+           later keeper patch cannot erase it on refresh/reconnect. */
         roomTransport.command('check.result', message.result).catch(reportRoomSaveFailure);
       }
       return;
@@ -1022,6 +1023,67 @@
     return true;
   }
 
+  function sameRoomValue(left, right) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+
+  /* The online room keeps one global event version for auditability, but a
+     player chat/character update must not force the keeper to overwrite the
+     whole campaign snapshot. Persist only changed keeper roots and the full
+     player-safe projection. */
+  function roomKeeperPatch(base, next) {
+    var before = base && typeof base === 'object' ? base : {};
+    var after = next && typeof next === 'object' ? next : {};
+    var keys = Object.keys(before).concat(Object.keys(after)).filter(function (key, index, values) { return values.indexOf(key) === index; });
+    var patch = {};
+    keys.forEach(function (key) {
+      if (!sameRoomValue(before[key], after[key])) patch[key] = clone(after[key] === undefined ? null : after[key]);
+    });
+    return patch;
+  }
+
+  function applyRoomKeeperPatch(base, patch) {
+    var output = clone(base && typeof base === 'object' ? base : freshState());
+    Object.keys(patch || {}).forEach(function (key) { output[key] = clone(patch[key]); });
+    return output;
+  }
+
+  function keeperStateFromRoomPayload(payload) {
+    var snapshot = payload && payload.snapshot && typeof payload.snapshot === 'object' ? payload.snapshot : payload;
+    var stored = snapshot && snapshot.state && typeof snapshot.state === 'object' ? snapshot.state : snapshot;
+    var keeper = stored && stored.keeper && typeof stored.keeper === 'object' ? stored.keeper : stored;
+    return migrateState(keeper && typeof keeper === 'object' && keeper.dayId ? keeper : freshState());
+  }
+
+  function roomConflict(message) {
+    var error = new Error(message || '团房状态已被其他操作更新；已保留这次修改的恢复副本。');
+    error.kind = 'conflict';
+    error.code = 'room_patch_conflict';
+    return error;
+  }
+
+  function sendRoomPatch(pendingState) {
+    var patch = roomKeeperPatch(authoritativeRoomState, pendingState);
+    var projection = publicRoomProjection();
+    return roomTransport.command('state.patch', {
+      patch:{ keeper:patch, public:projection, replacePublic:true }
+    });
+  }
+
+  function retryRoomPatchAfterConflict(error, pendingState) {
+    if (!error || error.kind !== 'conflict' || !roomTransport || !sameRoomValue(state, pendingState)) return Promise.reject(error);
+    return roomTransport.requestResync().then(function (payload) {
+      if (!payload) throw roomConflict('无法重新读取团房最新状态；已保留这次修改的恢复副本。');
+      var latest = keeperStateFromRoomPayload(payload);
+      var patch = roomKeeperPatch(authoritativeRoomState, pendingState);
+      var conflictingKey = Object.keys(patch).find(function (key) { return !sameRoomValue(authoritativeRoomState && authoritativeRoomState[key], latest[key]); });
+      if (conflictingKey) throw roomConflict('“' + conflictingKey + '”已在其他设备更新；已保留这次修改的恢复副本。');
+      authoritativeRoomState = clone(latest);
+      state = applyRoomKeeperPatch(latest, patch);
+      return sendRoomPatch(state).then(function (ack) { return { ack:ack, savedState:clone(state) }; });
+    });
+  }
+
   function scheduleRoomSave(delay) {
     window.clearTimeout(remoteSaveTimer);
     remoteSaveTimer = window.setTimeout(function () {
@@ -1038,15 +1100,16 @@
     }
     var saveStatus = document.getElementById('save-status');
     var pendingState = clone(state);
-    var pendingProjection = publicRoomProjection();
-    var envelope = nullGrailAdapter && nullGrailAdapter.stateEnvelope
-      ? nullGrailAdapter.stateEnvelope(pendingState, pendingProjection)
-      : { keeper:pendingState, public:pendingProjection };
     remoteSaveInFlight = true;
-    roomTransport.command('state.replace', { state:envelope }).then(function (ack) {
-      authoritativeRoomState = clone(pendingState);
-      roomStateDirty = JSON.stringify(state) !== JSON.stringify(pendingState);
-      if (saveStatus) saveStatus.textContent = '已保存到团房 · v' + String(ack.version || roomTransport.version);
+    sendRoomPatch(pendingState).then(function (ack) {
+      return { ack:ack, savedState:pendingState };
+    }).catch(function (error) {
+      return retryRoomPatchAfterConflict(error, pendingState);
+    }).then(function (result) {
+      var savedState = result.savedState;
+      authoritativeRoomState = clone(savedState);
+      roomStateDirty = !sameRoomValue(state, savedState);
+      if (saveStatus) saveStatus.textContent = '已保存到团房 · v' + String(result.ack && result.ack.version || roomTransport.version);
       if (window.NG_RESILIENCE) window.NG_RESILIENCE.clearPersistenceError();
     }).catch(reportRoomSaveFailure).finally(function () {
       remoteSaveInFlight = false;
@@ -1116,6 +1179,99 @@
     toast.classList.add('show');
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(function () { toast.classList.remove('show'); }, 2200);
+  }
+
+  /* Room chrome deliberately reads only the room projection. It never adds
+     keeper data to the shared transport or to the player-safe payload. */
+  function gmCampaignFromPayload(payload) { return payload && (payload.campaign || payload.room) || {}; }
+  function gmMemberFromPayload(payload) { return payload && (payload.member || payload.currentMember) || null; }
+  function gmOnlineCount(payload, campaign) {
+    var members = payload && (payload.members || campaign && campaign.members);
+    if (!Array.isArray(members)) return null;
+    return members.filter(function (member) { return member && member.online === true; }).length;
+  }
+  function gmRoomVersion(payload, campaign) {
+    var snapshot = payload && payload.snapshot || {};
+    var version = roomTransport && Number(roomTransport.version);
+    if (!Number.isSafeInteger(version) || version < 0) version = Number(snapshot.version);
+    if (!Number.isSafeInteger(version) || version < 0) version = Number(campaign && campaign.version);
+    return Number.isSafeInteger(version) && version >= 0 ? version : 0;
+  }
+  function renderGmRoomContext() {
+    if (!campaignId) return;
+    var context = document.getElementById('gm-room-context');
+    if (!context) return;
+    var campaign = gmRoomInfo.campaign || {};
+    var member = gmRoomInfo.member || {};
+    var title = safeText(campaign.title, 120) || '在线团房';
+    var role = member.role === 'player' ? '玩家' : '主持人';
+    var moduleVersion = safeText(campaign.moduleVersion || campaign.contentVersion, 32) || '3.2';
+    var rulesVersion = safeText(campaign.rulesetVersion, 32) || '2.1';
+    var version = gmRoomVersion(gmRoomInfo.payload, campaign);
+    var status = gmRoomInfo.transportStatus || {};
+    var roomStatus = campaign.status === 'archived' ? '已归档' : status.label || '正在检测连接';
+    var onlineText = typeof gmRoomInfo.onlineCount === 'number' ? String(gmRoomInfo.onlineCount) + ' 人在线' : '在线人数检测中';
+    document.getElementById('gm-room-title').textContent = title;
+    document.getElementById('gm-room-meta').textContent = role + ' · 《零之圣杯》v' + moduleVersion + ' · 规则 v' + rulesVersion + ' · 状态版本 ' + version + ' · ' + onlineText + ' · ' + roomStatus;
+    var returnLink = document.getElementById('gm-return-lobby');
+    returnLink.href = 'campaign.html?campaign=' + encodeURIComponent(campaignId) + '#room';
+    var reconnect = document.getElementById('gm-room-reconnect');
+    reconnect.disabled = !roomTransport || status.state === 'connecting' || status.state === 'syncing' || status.state === 'reconnecting';
+    context.hidden = false;
+  }
+  function applyGmRoomContext(payload) {
+    var campaign = gmCampaignFromPayload(payload);
+    if (campaign && Object.keys(campaign).length) gmRoomInfo.campaign = campaign;
+    var member = gmMemberFromPayload(payload);
+    if (member) gmRoomInfo.member = member;
+    var count = gmOnlineCount(payload, campaign);
+    if (count !== null) gmRoomInfo.onlineCount = count;
+    gmRoomInfo.payload = payload || gmRoomInfo.payload;
+    renderGmRoomContext();
+  }
+  function loadGmRoomContext() {
+    if (!campaignId || !window.NGCampaign || typeof window.NGCampaign.getCampaign !== 'function') return Promise.resolve(null);
+    return window.NGCampaign.getCampaign(campaignId).then(function (payload) {
+      applyGmRoomContext(payload);
+      return payload;
+    }).catch(function () {
+      renderGmRoomContext();
+      return null;
+    });
+  }
+  function redirectToRoomRestore() {
+    if (!campaignId) return false;
+    var url = new URL('campaign.html', window.location.href);
+    url.searchParams.set('campaign', campaignId);
+    url.searchParams.set('restore', '1');
+    url.hash = 'room';
+    window.location.assign(url.href);
+    return true;
+  }
+  function setupGmRoomChrome() {
+    var standalone = document.getElementById('gm-standalone-cta');
+    if (!campaignId) {
+      if (standalone) standalone.hidden = false;
+      document.body.classList.add('standalone-mode');
+      return;
+    }
+    document.body.classList.add('online-room-mode');
+    var importButton = document.getElementById('import-button');
+    if (importButton) importButton.textContent = '在大厅恢复团房备份';
+    var reconnect = document.getElementById('gm-room-reconnect');
+    if (reconnect) reconnect.addEventListener('click', function () {
+      if (!roomTransport) return;
+      reconnect.disabled = true;
+      roomTransport.reconnect().then(function () {
+        return loadGmRoomContext();
+      }).then(function () {
+        showToast('团房已重新同步');
+      }).catch(function (error) {
+        showToast(error && error.message || '暂时无法重新连接团房');
+      }).finally(function () { renderGmRoomContext(); });
+    });
+    renderGmRoomContext();
+    loadGmRoomContext();
   }
 
   function startServerResourceDownload(resourceId) {
@@ -3096,6 +3252,10 @@
   }
 
   function importState(file) {
+    /* Online restoration has a single server-validated entry point in the
+       lobby. Keeping the file picker there avoids two import flows with
+       different version and character validation. */
+    if (campaignId) { redirectToRoomRestore(); return; }
     var reader = new FileReader();
     reader.onload = function () {
       try {
@@ -3106,13 +3266,6 @@
         var imported = payload.state || payload;
         if (!imported || !imported.dayId || !imported.trackers) throw new Error('invalid');
         var migratedState = migrateState(imported);
-        if (campaignId && window.NGCampaign) {
-          showToast('正在把本机存档一次性导入在线团房…');
-          window.NGCampaign.importCampaign(campaignId, { state:migratedState, characters:migratedState.roster || [] }).then(function () {
-            return roomTransport && roomTransport.requestResync();
-          }).then(function () { showToast('本机存档已导入在线团房；原本机数据仍保留'); }).catch(reportRoomSaveFailure);
-          return;
-        }
         undoStack.push(clone(state));
         state = migratedState;
         var migratedFrom = Number(imported.schemaVersion || 1);
@@ -3357,7 +3510,10 @@
       var menu = document.getElementById('session-menu'); var opening = menu.hidden; menu.hidden = !opening; this.setAttribute('aria-expanded', String(opening)); this.setAttribute('aria-label', opening ? '关闭战役菜单' : '打开战役菜单');
     });
     document.getElementById('export-button').addEventListener('click', exportState);
-    document.getElementById('import-button').addEventListener('click', function () { document.getElementById('import-file').click(); });
+    document.getElementById('import-button').addEventListener('click', function () {
+      if (campaignId) { redirectToRoomRestore(); return; }
+      document.getElementById('import-file').click();
+    });
     document.getElementById('import-file').addEventListener('change', function (event) { if (event.target.files[0]) importState(event.target.files[0]); event.target.value = ''; });
     document.getElementById('new-session-button').addEventListener('click', function () {
       commit('开始新的游戏场次', function (draft) { draft.reflowsThisSession = 0; draft.sessionIndex = (draft.sessionIndex || 0) + 1; });
@@ -3421,6 +3577,7 @@
 
   function applyRoomSnapshot(payload) {
     if (roomStateDirty || remoteSaveInFlight) return;
+    applyGmRoomContext(payload);
     var snapshot = payload && payload.snapshot && typeof payload.snapshot === 'object' ? payload.snapshot : null;
     var storedState = snapshot && snapshot.state;
     var remoteState = storedState && storedState.keeper && typeof storedState.keeper === 'object' ? storedState.keeper : storedState;
@@ -3468,12 +3625,13 @@
   function setupCampaignRoom() {
     if (!campaignId || !window.NGCampaign) return;
     var connection = document.getElementById('gm-room-connection');
-    connection.hidden = false;
     document.body.classList.add('online-room-mode', 'room-offline');
     roomTransport = window.NGCampaign.createRoomTransport({ campaignId:campaignId, role:'host' });
     roomTransport.on('status', function (status) {
       connection.textContent = '团房 · ' + status.label;
       connection.className = 'room-connection-status state-' + status.state;
+      gmRoomInfo.transportStatus = status;
+      renderGmRoomContext();
       document.body.classList.toggle('room-offline', !status.writable);
       if (!status.writable) {
         var saveStatus = document.getElementById('save-status');
@@ -3485,7 +3643,11 @@
     });
     roomTransport.on('snapshot', applyRoomSnapshot);
     roomTransport.on('event', handleRoomEvent);
-    roomTransport.on('presence', function (presence) { connection.title = '当前在线成员：' + String((presence.members || []).filter(function (member) { return member.online !== false; }).length); });
+    roomTransport.on('presence', function (presence) {
+      gmRoomInfo.onlineCount = (presence.members || []).filter(function (member) { return member && member.online !== false; }).length;
+      connection.title = '当前在线成员：' + String(gmRoomInfo.onlineCount);
+      renderGmRoomContext();
+    });
     roomTransport.on('error', function (error) {
       if (error && (error.kind === 'offline' || error.kind === 'network')) return;
       showToast(error && error.message || '团房同步暂时不可用');
@@ -3520,6 +3682,7 @@
 
   if (window.matchMedia('(max-width: 1040px)').matches) document.querySelector('.tracker-rail').classList.add('collapsed');
   bindStaticEvents();
+  setupGmRoomChrome();
   setupCampaignRoom();
   sendPlayerMessage({ type:'keeper-ready' });
   renderAll();

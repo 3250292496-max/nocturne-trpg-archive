@@ -51,6 +51,7 @@
   var channel = null;
   var localTransport = null;
   var roomTransport = null;
+  var playerRoomInfo = { campaign:null, member:null, onlineCount:null, transportStatus:null, payload:null };
   var nullGrailAdapter = window.NGCampaign && window.NGCampaign.getAdapter('null-grail');
   var roomChatWidget = null;
   var character = null;
@@ -70,6 +71,10 @@
   var liveCombat = null;
   var selectedMapLocationId = null;
   var mode = new URLSearchParams(location.search).get('mode');
+  var playerPreview = new URLSearchParams(location.search).get('preview') === '1';
+  var playerWelcomeStep = 0;
+  var playerWelcomeKey = campaignId ? 'ng-player-room-welcome:v1:' + campaignId : '';
+  var playerNicknameKey = campaignId ? 'ng-player-room-nickname:v1:' + campaignId : '';
   var curtain = document.getElementById('curtain');
   var view = document.getElementById('handout-view');
   var mapView = document.getElementById('player-map-view');
@@ -111,6 +116,236 @@
   function showBuilderError(message) { var element = document.getElementById('builder-error'); element.textContent = message || ''; element.hidden = !message; }
   function clearBuilderError() { showBuilderError(''); }
   function downloadJson(filename, payload) { var blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' }); var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href); }
+
+  /* This page only renders room metadata returned by the campaign projection.
+     No keeper state is read into the player page for the context strip. */
+  function playerCampaignFromPayload(payload) { return payload && (payload.campaign || payload.room) || {}; }
+  function playerMemberFromPayload(payload) { return payload && (payload.member || payload.currentMember) || null; }
+  function playerOnlineCount(payload, campaign) {
+    var members = payload && (payload.members || campaign && campaign.members);
+    if (!Array.isArray(members)) return null;
+    return members.filter(function (member) { return member && member.online === true; }).length;
+  }
+  function playerRoomVersion(payload, campaign) {
+    var snapshot = payload && payload.snapshot || {};
+    var version = roomTransport && Number(roomTransport.version);
+    if (!Number.isSafeInteger(version) || version < 0) version = Number(snapshot.version);
+    if (!Number.isSafeInteger(version) || version < 0) version = Number(campaign && campaign.version);
+    return Number.isSafeInteger(version) && version >= 0 ? version : 0;
+  }
+  function playerIsGuestMember() {
+    var member = playerRoomInfo.member || {};
+    return member.role === 'player' && (member.isGuest === true || member.needsAccountBinding === true);
+  }
+  function roomStatusCopy() {
+    var status = playerRoomInfo.transportStatus || {};
+    if (status.state === 'online') return '已连接，正在同步最新团房状态。';
+    if (status.state === 'connecting' || status.state === 'syncing' || status.state === 'reconnecting') return '正在连接团房服务器，请稍候。';
+    if (status.state === 'offline' || status.state === 'failed') return '暂时无法连接；你仍可先填写角色卡，恢复连接后再提交。';
+    return '正在读取房间与连接状态…';
+  }
+  function renderPlayerRoomContext() {
+    if (!campaignId) return;
+    var context = document.getElementById('player-room-context');
+    if (!context) return;
+    var campaign = playerRoomInfo.campaign || {};
+    var member = playerRoomInfo.member || {};
+    var title = safeTrim(campaign.title, 120) || '在线团房';
+    var role = playerPreview ? '玩家预览' : (member.role === 'host' ? '主持人' : '玩家');
+    var moduleVersion = safeTrim(campaign.moduleVersion || campaign.contentVersion, 32) || '3.2';
+    var rulesVersion = safeTrim(campaign.rulesetVersion, 32) || '2.1';
+    var version = playerRoomVersion(playerRoomInfo.payload, campaign);
+    var roomState = campaign.status === 'archived' ? '已归档' : (playerRoomInfo.transportStatus && playerRoomInfo.transportStatus.label || '正在检测连接');
+    var onlineText = typeof playerRoomInfo.onlineCount === 'number' ? String(playerRoomInfo.onlineCount) + ' 人在线' : '在线人数检测中';
+    document.getElementById('player-room-title').textContent = title;
+    document.getElementById('player-room-meta').textContent = role + ' · 《零之圣杯》v' + moduleVersion + ' · 规则 v' + rulesVersion + ' · 状态版本 ' + version + ' · ' + onlineText + ' · ' + roomState;
+    document.getElementById('player-return-lobby').href = 'campaign.html?campaign=' + encodeURIComponent(campaignId) + '#room';
+    var reconnect = document.getElementById('player-room-reconnect');
+    var status = playerRoomInfo.transportStatus || {};
+    reconnect.disabled = !roomTransport || status.state === 'connecting' || status.state === 'syncing' || status.state === 'reconnecting';
+    context.hidden = false;
+    renderPlayerAccountBinding();
+    renderPlayerWelcomeConnection();
+  }
+  function applyPlayerRoomContext(payload) {
+    var campaign = playerCampaignFromPayload(payload);
+    if (campaign && Object.keys(campaign).length) playerRoomInfo.campaign = campaign;
+    var member = playerMemberFromPayload(payload);
+    if (member) playerRoomInfo.member = member;
+    var count = playerOnlineCount(payload, campaign);
+    if (count !== null) playerRoomInfo.onlineCount = count;
+    playerRoomInfo.payload = payload || playerRoomInfo.payload;
+    renderPlayerRoomContext();
+    prefillPlayerWelcomeNickname();
+  }
+  function loadPlayerRoomContext() {
+    if (!campaignId || !window.NGCampaign || typeof window.NGCampaign.getCampaign !== 'function') return Promise.resolve(null);
+    return window.NGCampaign.getCampaign(campaignId, { preview:playerPreview }).then(function (payload) {
+      applyPlayerRoomContext(payload);
+      return payload;
+    }).catch(function () {
+      renderPlayerRoomContext();
+      return null;
+    });
+  }
+  function renderPlayerAccountBinding() {
+    var panel = document.getElementById('player-account-bind');
+    if (!panel) return;
+    var shouldShow = Boolean(campaignId && mode !== 'projection' && playerIsGuestMember());
+    panel.hidden = !shouldShow;
+    if (!shouldShow) return;
+    var auth = window.NG_AUTH;
+    var user = auth && typeof auth.currentUser === 'function' ? auth.currentUser() : null;
+    var signedIn = document.getElementById('player-account-bind-signed-in');
+    var form = document.getElementById('player-account-bind-form');
+    signedIn.hidden = !user;
+    form.hidden = Boolean(user);
+    if (user) document.getElementById('player-account-bind-user').textContent = '已登录为 ' + (user.displayName || user.account || '当前账号') + '。绑定后可在其他设备继续。';
+  }
+  function setPlayerBindStatus(message, kind) {
+    var status = document.getElementById('player-account-bind-status');
+    if (!status) return;
+    status.textContent = message || '';
+    status.className = 'player-account-bind-status' + (kind ? ' ' + kind : '');
+  }
+  function bindPlayerGuestToAccount() {
+    if (!campaignId || !window.NGCampaign || typeof window.NGCampaign.bindCampaign !== 'function') return Promise.reject(new Error('当前页面无法绑定团房账号。'));
+    setPlayerBindStatus('正在绑定当前访客身份与角色…');
+    return window.NGCampaign.bindCampaign(campaignId).then(function () {
+      setPlayerBindStatus('访客身份和角色已绑定到当前账号。', 'success');
+      /* The live socket was authenticated with the now-revoked guest cookie.
+         Establish a fresh account-backed socket before the next submission so
+         a successful one-click binding does not fail on its first command. */
+      return roomTransport ? roomTransport.reconnect({ force:true }).catch(function () { return null; }) : null;
+    }).then(function () {
+      return loadPlayerRoomContext();
+    });
+  }
+  function bindPlayerAccountEvents() {
+    var form = document.getElementById('player-account-bind-form');
+    var current = document.getElementById('player-bind-current-account');
+    if (form) form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var auth = window.NG_AUTH;
+      if (!auth || typeof auth.login !== 'function') { setPlayerBindStatus('账号服务暂不可用；请回到团房大厅登录。', 'error'); return; }
+      var submit = form.querySelector('[type="submit"]');
+      submit.disabled = true;
+      setPlayerBindStatus('正在登录并绑定…');
+      auth.login(form.elements.account.value, form.elements.password.value).then(function () {
+        form.elements.password.value = '';
+        return bindPlayerGuestToAccount();
+      }).catch(function (error) {
+        setPlayerBindStatus(error && error.message || '登录或绑定没有成功，请检查账号后重试。', 'error');
+      }).finally(function () { submit.disabled = false; renderPlayerAccountBinding(); });
+    });
+    if (current) current.addEventListener('click', function () {
+      current.disabled = true;
+      bindPlayerGuestToAccount().catch(function (error) {
+        setPlayerBindStatus(error && error.message || '绑定没有成功，请稍后重试。', 'error');
+      }).finally(function () { current.disabled = false; renderPlayerAccountBinding(); });
+    });
+    var auth = window.NG_AUTH;
+    if (auth && typeof auth.subscribe === 'function') auth.subscribe(function () { renderPlayerAccountBinding(); });
+    if (auth && typeof auth.ready === 'function') auth.ready().then(function () { renderPlayerAccountBinding(); });
+  }
+  function storageValue(key) { try { return key ? window.localStorage.getItem(key) || '' : ''; } catch (error) { return ''; } }
+  function storeValue(key, value) { try { if (key) window.localStorage.setItem(key, value); } catch (error) {} }
+  function preferredPlayerNickname() {
+    var member = playerRoomInfo.member || {};
+    return safeTrim(storageValue(playerNicknameKey), 40) || safeTrim(member.displayName || member.nickname, 40) || safeTrim(character && character.playerName, 40);
+  }
+  function prefillPlayerWelcomeNickname() {
+    var field = document.getElementById('player-welcome-nickname');
+    if (field && !field.value) field.value = preferredPlayerNickname();
+  }
+  function setPlayerWelcomeStep(step) {
+    var dialog = document.getElementById('player-room-welcome');
+    if (!dialog) return;
+    playerWelcomeStep = Math.max(0, Math.min(2, Number(step) || 0));
+    Array.prototype.forEach.call(dialog.querySelectorAll('[data-player-welcome-step]'), function (section) {
+      section.hidden = Number(section.getAttribute('data-player-welcome-step')) !== playerWelcomeStep;
+    });
+    document.getElementById('player-welcome-progress').textContent = String(playerWelcomeStep + 1) + ' / 3';
+    if (playerWelcomeStep === 0) prefillPlayerWelcomeNickname();
+    if (playerWelcomeStep === 1) renderPlayerWelcomeConnection();
+    if (playerWelcomeStep === 2) {
+      var continuing = Boolean(character && character.name);
+      document.getElementById('player-welcome-ready-title').textContent = continuing ? '准备继续你的角色卡' : '准备开始角色卡';
+      document.getElementById('player-welcome-ready-copy').textContent = continuing ? '已找到这台设备上的角色草稿。你可以继续编辑，确认后直接提交给当前团房的主持人。' : '你会在这页按六步完成角色卡，并直接提交给当前团房的主持人。';
+    }
+  }
+  function renderPlayerWelcomeConnection() {
+    var dialog = document.getElementById('player-room-welcome');
+    if (!dialog || !dialog.open || playerWelcomeStep !== 1) return;
+    var campaign = playerRoomInfo.campaign || {};
+    var title = safeTrim(campaign.title, 120) || '当前团房';
+    document.getElementById('player-welcome-room-copy').textContent = '房间：' + title + '。' + roomStatusCopy();
+    document.getElementById('player-welcome-connection-status').textContent = roomStatusCopy();
+  }
+  function openPlayerWelcome() {
+    var dialog = document.getElementById('player-room-welcome');
+    if (!dialog || !campaignId || playerPreview || mode === 'projection' || storageValue(playerWelcomeKey) === 'done' || dialog.open) return;
+    setPlayerWelcomeStep(0);
+    /* Keep the welcome card non-modal: realtime handouts, chat and reconnect
+       controls must remain usable while a new player reads the guide. */
+    if (typeof dialog.show === 'function') dialog.show();
+    else dialog.setAttribute('open', '');
+  }
+  function closePlayerWelcome() {
+    var dialog = document.getElementById('player-room-welcome');
+    if (!dialog) return;
+    storeValue(playerWelcomeKey, 'done');
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+    var desk = document.getElementById('player-tools');
+    if (desk) desk.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+  function bindPlayerWelcomeEvents() {
+    var nicknameNext = document.getElementById('player-welcome-nickname-next');
+    nicknameNext.addEventListener('click', function () {
+      var rawNickname = String(document.getElementById('player-welcome-nickname').value || '').replace(/\u0000/g, '');
+      var nickname = typeof rawNickname.normalize === 'function' ? rawNickname.normalize('NFKC').trim() : rawNickname.trim();
+      if (!nickname || Array.from(nickname).length > 40) { document.getElementById('player-welcome-nickname-status').textContent = '昵称需要为 1–40 个字符。'; return; }
+      storeValue(playerNicknameKey, nickname);
+      setField('character-player-name', nickname);
+      updateBuilderCompletion();
+      document.getElementById('player-welcome-nickname-status').textContent = '';
+      setPlayerWelcomeStep(1);
+    });
+    document.getElementById('player-welcome-check-again').addEventListener('click', function () {
+      if (roomTransport) roomTransport.reconnect().finally(function () { loadPlayerRoomContext(); });
+      else loadPlayerRoomContext();
+      renderPlayerWelcomeConnection();
+    });
+    document.getElementById('player-welcome-connection-next').addEventListener('click', function () { setPlayerWelcomeStep(2); });
+    document.getElementById('player-welcome-finish').addEventListener('click', closePlayerWelcome);
+  }
+  function reconnectPlayerRoom() {
+    if (!roomTransport) return;
+    var button = document.getElementById('player-room-reconnect');
+    button.disabled = true;
+    roomTransport.reconnect().then(function () {
+      return loadPlayerRoomContext();
+    }).then(function () {
+      showSync('团房已重新同步');
+    }).catch(function (error) {
+      showSync(error && error.message || '暂时无法重新连接团房');
+    }).finally(function () { renderPlayerRoomContext(); });
+  }
+  function setupPlayerRoomChrome() {
+    var standalone = document.getElementById('player-standalone-cta');
+    if (!campaignId) {
+      if (standalone) standalone.hidden = false;
+      document.body.classList.add('standalone-mode');
+      return;
+    }
+    document.body.classList.add('online-room-mode');
+    bindPlayerAccountEvents();
+    bindPlayerWelcomeEvents();
+    document.getElementById('player-room-reconnect').addEventListener('click', reconnectPlayerRoom);
+    renderPlayerRoomContext();
+    loadPlayerRoomContext().finally(openPlayerWelcome);
+  }
 
   function normalizePayload(value) {
     if (!value || typeof value !== 'object') return null;
@@ -1466,6 +1701,7 @@
   }
 
   function applyPlayerRoomSnapshot(payload) {
+    applyPlayerRoomContext(payload);
     if (nullGrailAdapter) nullGrailAdapter.messagesFromSnapshot(payload).forEach(function (message) {
       message.protocol = MESSAGE_PROTOCOL;
       handleMessage(message);
@@ -1516,21 +1752,29 @@
     if (!campaignId || !window.NGCampaign) return;
     var connection = document.getElementById('player-room-connection');
     var note = document.getElementById('player-transport-note');
-    connection.hidden = false;
-    note.textContent = '在线团房模式 · 服务器是唯一权威来源；离线期间不能提交角色、判定或聊天。角色草稿仍可导出恢复。';
+    note.textContent = playerPreview
+      ? '玩家安全投影预览 · 此页仅使用玩家可见状态，不读取主持人数据。'
+      : '在线团房模式 · 服务器是唯一权威来源；离线期间不能提交角色、判定或聊天。角色草稿仍可导出恢复。';
     document.body.classList.add('online-room-mode', 'room-offline');
+    if (playerPreview) document.body.classList.add('player-preview-mode');
     renderLiveRoomState();
-    roomTransport = window.NGCampaign.createRoomTransport({ campaignId:campaignId, role:'player' });
+    roomTransport = window.NGCampaign.createRoomTransport({ campaignId:campaignId, role:'player', preview:playerPreview });
     roomTransport.on('status', function (status) {
       connection.textContent = '团房 · ' + status.label;
       connection.className = 'room-connection-status state-' + status.state;
+      playerRoomInfo.transportStatus = status;
+      renderPlayerRoomContext();
       document.body.classList.toggle('room-offline', !status.writable);
       if (status.writable) showSync('在线团房已连接 · 状态 v' + roomTransport.version);
       else if (status.state === 'offline' || status.state === 'failed') showSync('团房离线 · 重新连接前不能提交状态命令');
     });
     roomTransport.on('snapshot', applyPlayerRoomSnapshot);
     roomTransport.on('event', handlePlayerRoomEvent);
-    roomTransport.on('presence', function (presence) { connection.title = '当前在线成员：' + String((presence.members || []).filter(function (member) { return member.online !== false; }).length); });
+    roomTransport.on('presence', function (presence) {
+      playerRoomInfo.onlineCount = (presence.members || []).filter(function (member) { return member && member.online !== false; }).length;
+      connection.title = '当前在线成员：' + String(playerRoomInfo.onlineCount);
+      renderPlayerRoomContext();
+    });
     roomTransport.on('error', function (error) { if (error && error.kind !== 'offline') showSync(error.message || '团房同步暂时不可用'); });
     var chatRoot = document.getElementById('player-campaign-chat');
     chatRoot.hidden = false;
@@ -1655,6 +1899,7 @@
   if (mode === 'projection') document.body.classList.add('projection-mode');
   else if (mode === 'builder') { document.body.classList.add('builder-mode'); document.getElementById('projection-note').hidden = true; document.title = '零之圣杯 v2.1 · 傻瓜车卡'; }
   else document.getElementById('projection-note').hidden = true;
+  setupPlayerRoomChrome();
   setupCampaignRoom();
   document.getElementById('fullscreen-button').addEventListener('click', function () { if (!document.fullscreenElement) { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); } else if (document.exitFullscreen) document.exitFullscreen(); });
 }());

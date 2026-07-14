@@ -6,7 +6,7 @@
  */
 @font-face {
   font-family: "Nocturne Sans";
-  src: url("assets/fonts/nocturne-sans-sc.woff2?v=20260714g") format("woff2-variations"),
+  src: url("assets/fonts/nocturne-sans-sc.woff2?v=20260714h") format("woff2-variations"),
        local("Noto Sans SC"), local("Noto Sans CJK SC"), local("Source Han Sans SC");
   font-display: swap;
   font-style: normal;
@@ -15,7 +15,7 @@
 
 @font-face {
   font-family: "Nocturne Serif";
-  src: url("assets/fonts/nocturne-serif-sc.woff2?v=20260714g") format("woff2-variations"),
+  src: url("assets/fonts/nocturne-serif-sc.woff2?v=20260714h") format("woff2-variations"),
        local("Noto Serif SC"), local("Noto Serif CJK SC"), local("Source Han Serif SC");
   font-display: swap;
   font-style: normal;
