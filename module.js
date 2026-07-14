@@ -62,7 +62,13 @@
   function renderMap(resource) {
     var url = resourceUrl(resource);
     if (isImage(resource)) {
-      return '<a class="map-card" href="' + escapeHtml(url) + '" target="_blank" rel="noreferrer"><img src="' + escapeHtml(url) + '" alt="' + escapeHtml(resource.title || resource.fileName) + '"><div><strong>' + escapeHtml(resource.title || resource.fileName) + '</strong><small>打开原图 ↗</small></div></a>';
+      var knownEastlakeMap = /(?:^|\/)eastlake-map\.webp(?:$|[?#])/i.test(url);
+      var suppliedWidth = Number(resource.width);
+      var suppliedHeight = Number(resource.height);
+      var width = Number.isFinite(suppliedWidth) && suppliedWidth > 0 ? Math.min(10000, Math.round(suppliedWidth)) : (knownEastlakeMap ? 1586 : 0);
+      var height = Number.isFinite(suppliedHeight) && suppliedHeight > 0 ? Math.min(10000, Math.round(suppliedHeight)) : (knownEastlakeMap ? 992 : 0);
+      var dimensions = width && height ? ' width="' + width + '" height="' + height + '"' : '';
+      return '<a class="map-card" href="' + escapeHtml(url) + '" target="_blank" rel="noreferrer"><img src="' + escapeHtml(url) + '"' + dimensions + ' alt="' + escapeHtml(resource.title || resource.fileName) + '" loading="lazy" decoding="async"><div><strong>' + escapeHtml(resource.title || resource.fileName) + '</strong><small>打开原图 ↗</small></div></a>';
     }
     return '<a class="map-card map-file" href="' + escapeHtml(url) + '"><span class="resource-format">' + escapeHtml(extension(resource)) + '</span><strong>' + escapeHtml(resource.title || resource.fileName) + '</strong><small>下载地图资料 ↓</small></a>';
   }
@@ -114,6 +120,41 @@
   function render(module) {
     loadedModule = module;
     document.title = (module.title || '模组档案') + ' · 夜航模组馆';
+    var summary = module.summary || '浏览模组介绍、地图、规则与配套资源。';
+    var visualIdentity = module.visualIdentity && typeof module.visualIdentity === 'object' ? module.visualIdentity : {};
+    var cover = visualIdentity.coverImage || module.coverImage || module.cover || '';
+    var visual = visualIdentity.bannerImage || module.bannerImage || module.banner || cover || (module.id === 'null-grail' ? 'assets/art/hero-null-grail.webp' : '');
+    var shareVisual = visualIdentity.ogImage || module.ogImage || visual || cover;
+    var focusData = visualIdentity.focus && typeof visualIdentity.focus === 'object' ? visualIdentity.focus : {};
+    var focus = Number.isFinite(Number(focusData.x)) && Number.isFinite(Number(focusData.y))
+      ? Math.max(0, Math.min(100, Number(focusData.x))) + '% ' + Math.max(0, Math.min(100, Number(focusData.y))) + '%'
+      : visualIdentity.coverFocus || module.coverFocus || module.bannerFocus || '50% 50%';
+    var accentValue = String(visualIdentity.themeColor || module.themeColor || module.accent || '');
+    var accent = /^#[0-9a-f]{6}$/i.test(accentValue) ? accentValue : '#d1ad6c';
+    document.body.style.setProperty('--module-accent', accent);
+    byId('module-theme-color').setAttribute('content', accent);
+    byId('module-og-title').setAttribute('content', (module.title || '模组档案') + ' · 夜航模组馆');
+    byId('module-og-description').setAttribute('content', summary);
+    byId('module-og-image-alt').setAttribute('content', (module.title || '模组') + '封面');
+    if (visual) {
+      var heroImage = byId('module-hero-image');
+      heroImage.src = visual;
+      heroImage.style.objectPosition = focus;
+      var coverWidth = Number(module.coverWidth);
+      var coverHeight = Number(module.coverHeight);
+      if (Number.isFinite(coverWidth) && coverWidth > 0 && Number.isFinite(coverHeight) && coverHeight > 0) {
+        heroImage.width = Math.min(10000, Math.round(coverWidth));
+        heroImage.height = Math.min(10000, Math.round(coverHeight));
+      } else if (module.id === 'null-grail') {
+        heroImage.width = 1915;
+        heroImage.height = 821;
+      }
+      byId('module-hero-visual').hidden = false;
+      byId('module-og-image').setAttribute('content', shareVisual);
+      byId('module-og-image-width').setAttribute('content', String(Number(visualIdentity.ogWidth || module.ogWidth) || (visualIdentity.ogImage || module.ogImage ? 1200 : heroImage.width || 1915)));
+      byId('module-og-image-height').setAttribute('content', String(Number(visualIdentity.ogHeight || module.ogHeight) || (visualIdentity.ogImage || module.ogImage ? 630 : heroImage.height || 821)));
+      document.querySelector('.module-hero').classList.add('has-visual');
+    }
     text('module-number', 'ARCHIVE · ' + String(module.number || module.id || '').toUpperCase());
     text('module-type', module.typeLabel, '完整战役模组');
     text('module-status', module.status === 'draft' ? '草稿' : '已发布');
@@ -133,6 +174,8 @@
     byId('module-tags').innerHTML = (module.tags || []).map(function (tag) { return '<span>' + escapeHtml(tag) + '</span>'; }).join('');
     renderResources(module.resources || []);
     if (module.id === 'null-grail') {
+      byId('campaign-action').href = 'campaign.html?module=' + encodeURIComponent(module.id);
+      byId('campaign-action').hidden = false;
       byId('keeper-action').hidden = false;
       byId('player-action').hidden = false;
     } else {
@@ -155,13 +198,9 @@
   var modulePath = '/api/modules/' + encodeURIComponent(moduleId);
   var moduleUrl = auth && auth.apiUrl ? auth.apiUrl(modulePath) : modulePath;
   var moduleCredentials = auth && auth.apiCredentials ? auth.apiCredentials(modulePath) : 'same-origin';
-  window.fetch(moduleUrl, { credentials: moduleCredentials, cache: 'no-store' })
-    .then(function (response) {
-      return response.json().catch(function () { return {}; }).then(function (payload) {
-        if (!response.ok) throw new Error(payload.message || '无法读取这份模组档案。');
-        return payload.module || payload;
-      });
-    }).then(render).catch(function (error) {
+  window.NG_RESILIENCE.request(moduleUrl, { credentials: moduleCredentials, cache: 'no-store', timeoutMs:8000 })
+    .then(function (payload) { return payload.module || payload; })
+    .then(render).catch(function (error) {
       var fallback = staticModules().find(function (module) { return module.id === moduleId; });
       if (fallback) render(fallback);
       else fail(error);

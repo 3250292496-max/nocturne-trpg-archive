@@ -10,22 +10,21 @@
   var LEGACY_STATIC_SESSION_KEY = 'nocturne-auth:session:v1';
   var LEGACY_STATIC_OWNER_PROFILE_KEY = 'nocturne-auth:owner-profile:v1';
   var MAX_AVATAR_DATA_LENGTH = 180 * 1024;
+  // The historical static mirror exposed a built-in owner verifier. Keep only
+  // the identifiers needed to reject stale/reserved local records; privileged
+  // identity is now issued exclusively by the configured account service.
   var OWNER_ID = 'site-owner-3250292496';
   var OWNER_ACCOUNT = '3250292496';
-  var OWNER_CREDENTIAL = {
-    iterations: 310000,
-    salt: '5Y0Fou3lK66puFVPxOmQ5w',
-    digest: 'cCxF0flDVFKflB-bYU4DrOqQaYBhn0vFWiV-__CF5b8'
-  };
 
   var apiBaseMeta = document.querySelector('meta[name="ng-api-base"]');
   var configuredApiBase = cleanApiBase(window.NG_API_BASE || (apiBaseMeta && apiBaseMeta.content) || '');
+  var readOnlyMirror = window.NG_DEPLOYMENT_MODE === 'readonly' || window.NG_READ_ONLY_MIRROR === true;
 
   var state = {
     user: null,
     ready: false,
     storageAvailable: true,
-    mode: window.location.protocol === 'file:' ? 'static' : 'server'
+    mode: readOnlyMirror ? 'readonly' : (window.location.protocol === 'file:' ? 'static' : 'server')
   };
   var listeners = [];
   var staticStorageListenerBound = false;
@@ -322,20 +321,8 @@
   }
 
   function unlockVaultWithPassword(password) {
-    return passwordDigest(password, OWNER_CREDENTIAL).then(function (digest) {
-      if (digest !== OWNER_CREDENTIAL.digest) throw authError('站长账号密码不正确。', 401, 'invalid_credentials');
-      var existing = vaultRecord();
-      var record = existing || createVaultRecord();
-      return deriveVaultMaterial(password, record).then(function (material) {
-        return rememberVaultMaterial(material).then(function (key) {
-          if (existing) return decryptVault(existing, key).then(function (keys) { return { key: key, keys: keys }; });
-          return encryptVault({}, record, key).then(function () { return { key: key, keys: {} }; });
-        });
-      });
-    }).catch(function (error) {
-      clearVaultMaterial();
-      throw error;
-    });
+    clearVaultMaterial();
+    return Promise.reject(authError('只读静态镜像不包含站长凭证；请前往正式站点登录。', 501, 'backend_required'));
   }
 
   function vaultState() {
@@ -487,13 +474,11 @@
   }
 
   function staticUserById(id) {
-    if (id === OWNER_ID) return ownerUser();
     return staticUsers().find(function (user) { return user && user.id === id; }) || null;
   }
 
   function staticUserByAccount(account) {
     var key = accountKey(account);
-    if (key === OWNER_ACCOUNT) return ownerUser();
     return staticUsers().find(function (user) { return user && user.accountKey === key; }) || null;
   }
 
@@ -518,15 +503,6 @@
   }
 
   function saveStaticUser(user) {
-    if (user.id === OWNER_ID) {
-      storageWrite(STATIC_OWNER_PROFILE_KEY, {
-        displayName: user.displayName,
-        bio: user.bio || '',
-        avatar: avatarDataUrl(user.avatar) || '',
-        updatedAt: user.updatedAt
-      });
-      return ownerUser();
-    }
     var users = staticUsers();
     var index = users.findIndex(function (candidate) { return candidate && candidate.id === user.id; });
     if (index < 0) throw authError('本机账号已经失效，请重新注册。', 401, 'authentication_required');
@@ -537,23 +513,6 @@
 
   function staticProfilePayload(user) {
     var works = [];
-    var nullGrailWork = null;
-    if (user && user.id === OWNER_ID) {
-      nullGrailWork = {
-        id: 'null-grail',
-        title: '《零之圣杯》',
-        edition: 'v3.2',
-        relationship: '网站作者 / 作品所有者',
-        status: 'published',
-        updatedAt: '2026-07-13T00:00:00.000Z',
-        accessKey: null,
-        accessKeyConfigured: false,
-        accessKeyRotatable: false,
-        accessKeyVaultState: 'locked',
-        secretUnavailableOnStatic: true
-      };
-      works.push(nullGrailWork);
-    }
     try {
       var localModules = JSON.parse(window.localStorage.getItem('nocturne-studio:modules:v1') || '[]');
       if (Array.isArray(localModules)) localModules.forEach(function (module) {
@@ -572,18 +531,7 @@
         });
       });
     } catch (error) {}
-    var finalize = function () {
-      return { ok: true, user: publicStaticUser(user), works: works, persistent: true, deviceLocal: true };
-    };
-    if (!nullGrailWork) return Promise.resolve(finalize());
-    return vaultState().then(function (vault) {
-      var savedKey = vault.keys['null-grail'] || '';
-      nullGrailWork.accessKey = savedKey || null;
-      nullGrailWork.accessKeyConfigured = Boolean(savedKey);
-      nullGrailWork.accessKeyVaultState = savedKey ? 'stored' : vault.state;
-      nullGrailWork.accessKeySource = savedKey ? 'local-vault' : 'public-static';
-      return finalize();
-    });
+    return Promise.resolve({ ok: true, user: publicStaticUser(user), works: works, persistent: true, deviceLocal: true });
   }
 
   function requireStaticUser() {
@@ -598,20 +546,13 @@
 
   function staticLogin(account, password) {
     var user = staticUserByAccount(account);
-    var credential = user && user.id === OWNER_ID ? OWNER_CREDENTIAL : user && user.credential;
+    var credential = user && user.credential;
     if (!user || !credential) return Promise.reject(authError('账号或密码不正确。', 401, 'invalid_credentials'));
     return passwordDigest(password, credential).then(function (digest) {
       if (digest !== credential.digest) throw authError('账号或密码不正确。', 401, 'invalid_credentials');
       setStaticSession(user);
-      if (user.id !== OWNER_ID) {
-        clearVaultMaterial();
-        return setUser(publicStaticUser(user));
-      }
-      return unlockVaultWithPassword(password).catch(function () {
-        // A damaged or stale local vault must not prevent the site owner from
-        // signing in. The profile page will offer an explicit unlock retry.
-        return null;
-      }).then(function () { return setUser(publicStaticUser(user)); });
+      clearVaultMaterial();
+      return setUser(publicStaticUser(user));
     });
   }
 
@@ -624,9 +565,12 @@
     if (!/^[A-Za-z0-9_.-]{4,32}$/.test(normalizedAccount)) {
       return Promise.reject(authError('账号需为 4–32 位英文字母、数字、点、短横线或下划线。', 400, 'invalid_registration'));
     }
+    if (accountKey(normalizedAccount) === OWNER_ACCOUNT) {
+      return Promise.reject(authError('这个账号保留给正式站点站长，静态镜像不能注册。', 409, 'account_reserved'));
+    }
     if (!name) return Promise.reject(authError('请填写显示名称。', 400, 'invalid_registration'));
-    if (secret.length < 8 || secret.length > 128) {
-      return Promise.reject(authError('密码长度需为 8–128 位。', 400, 'invalid_registration'));
+    if (secret.length < 12 || secret.length > 128) {
+      return Promise.reject(authError('密码长度需为 12–128 位。', 400, 'invalid_registration'));
     }
     if (staticUserByAccount(normalizedAccount)) {
       return Promise.reject(authError('这个账号已经存在。', 409, 'account_exists'));
@@ -705,26 +649,54 @@
       settings.headers = Object.assign({}, settings.headers, { 'Content-Type': 'application/json' });
       settings.body = JSON.stringify(settings.body);
     }
-    return window.fetch(apiUrl(path), settings).then(function (response) {
-      var contentType = String(response.headers.get('Content-Type') || '').toLowerCase();
-      return response.text().then(function (text) {
-        var payload = {};
-        if (text && contentType.indexOf('application/json') >= 0) {
-          try { payload = JSON.parse(text); }
-          catch (error) { throw authError('账号服务返回了损坏的数据。', response.status, 'invalid_json'); }
-        } else if (text && contentType.indexOf('application/json') < 0) {
-          var nonJson = authError('当前地址没有运行账号服务。', response.status, 'non_json_response');
-          nonJson.contentType = contentType;
-          throw nonJson;
+    var method = String(settings.method || 'GET').toUpperCase();
+    var maxAttempts = method === 'GET' ? 2 : 1;
+
+    function attempt(index) {
+      var controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timeoutId = controller ? window.setTimeout(function () { controller.abort(); }, 10000) : 0;
+      var attemptSettings = Object.assign({}, settings);
+      if (controller) attemptSettings.signal = controller.signal;
+
+      return window.fetch(apiUrl(path), attemptSettings).then(function (response) {
+        var contentType = String(response.headers.get('Content-Type') || '').toLowerCase();
+        return response.text().then(function (text) {
+          var payload = {};
+          if (text && contentType.indexOf('application/json') >= 0) {
+            try { payload = JSON.parse(text); }
+            catch (error) { throw authError('账号服务返回了损坏的数据。', response.status, 'invalid_json'); }
+          } else if (text && contentType.indexOf('application/json') < 0) {
+            var nonJson = authError('当前地址没有运行账号服务。', response.status, 'non_json_response');
+            nonJson.contentType = contentType;
+            throw nonJson;
+          }
+          if (!response.ok) {
+            var requestError = authError(payload.message || '请求没有成功，请稍后重试。', response.status, payload.code || 'request_failed');
+            requestError.payload = payload;
+            throw requestError;
+          }
+          return payload;
+        });
+      }).catch(function (error) {
+        var normalized = error;
+        if (error && error.name === 'AbortError') {
+          normalized = authError('账号服务响应超时，请检查网络后重试。', 0, 'timeout');
+        } else if (error instanceof TypeError) {
+          normalized = authError('无法连接账号服务，请检查网络连接。', 0, 'offline');
         }
-        if (!response.ok) {
-          var requestError = authError(payload.message || '请求没有成功，请稍后重试。', response.status, payload.code || 'request_failed');
-          requestError.payload = payload;
-          throw requestError;
+        var transient = normalized && (normalized.code === 'timeout' || normalized.code === 'offline' || normalized.status >= 500);
+        if (transient && index + 1 < maxAttempts) {
+          return new Promise(function (resolve) { window.setTimeout(resolve, 250); }).then(function () {
+            return attempt(index + 1);
+          });
         }
-        return payload;
+        throw normalized;
+      }).finally(function () {
+        if (timeoutId) window.clearTimeout(timeoutId);
       });
-    });
+    }
+
+    return attempt(0);
   }
 
   function canUseStaticFallback(error) {
@@ -764,6 +736,7 @@
   }
 
   function refresh() {
+    if (state.mode === 'readonly') return Promise.resolve(setUser(null));
     if (state.mode === 'static') return staticRefresh();
     return request('/api/auth/me').then(function (payload) {
       return setUser(payload.authenticated ? payload.user : null);
@@ -777,6 +750,7 @@
   }
 
   function login(account, password) {
+    if (state.mode === 'readonly') return backendRequired();
     if (state.mode === 'static') return staticLogin(account, password);
     return request('/api/auth/login', {
       method: 'POST',
@@ -789,6 +763,7 @@
   }
 
   function register(account, displayName, password) {
+    if (state.mode === 'readonly') return backendRequired();
     if (state.mode === 'static') return staticRegister(account, displayName, password);
     return request('/api/auth/register', {
       method: 'POST',
@@ -801,6 +776,7 @@
   }
 
   function logout() {
+    if (state.mode === 'readonly') return Promise.resolve(setUser(null));
     if (state.mode === 'static') return staticLogout();
     return request('/api/auth/logout', { method: 'POST' }).then(function () {
       setUser(null);
@@ -808,12 +784,31 @@
     });
   }
 
+  function changePassword(currentPassword, newPassword) {
+    if (state.mode === 'static' || state.mode === 'readonly') return backendRequired();
+    return request('/api/auth/password', {
+      method: 'PUT',
+      body: { currentPassword: currentPassword, newPassword: newPassword }
+    });
+  }
+
+  function revokeAllSessions() {
+    if (state.mode === 'readonly') return backendRequired();
+    if (state.mode === 'static') return staticLogout();
+    return request('/api/auth/sessions', { method: 'DELETE' }).then(function (payload) {
+      setUser(null);
+      return payload;
+    });
+  }
+
   function profile() {
+    if (state.mode === 'readonly') return backendRequired();
     if (state.mode === 'static') return staticProfile();
     return request('/api/profile');
   }
 
   function updateProfile(displayName, bio, avatar) {
+    if (state.mode === 'readonly') return backendRequired();
     if (state.mode === 'static') return staticUpdateProfile(displayName, bio, avatar);
     return request('/api/profile', {
       method: 'PATCH',
@@ -825,7 +820,7 @@
   }
 
   function applyForAuthor(statement) {
-    if (state.mode === 'static') return backendRequired();
+    if (state.mode === 'static' || state.mode === 'readonly') return backendRequired();
     return request('/api/author/apply', {
       method: 'POST',
       body: { statement: statement }
@@ -836,12 +831,13 @@
   }
 
   function listAuthorApplications() {
+    if (state.mode === 'readonly') return backendRequired();
     if (state.mode === 'static') return Promise.resolve({ ok: true, applications: [], persistent: true, deviceLocal: true });
     return request('/api/author/applications');
   }
 
   function reviewAuthorApplication(userId, decision) {
-    if (state.mode === 'static') return backendRequired();
+    if (state.mode === 'static' || state.mode === 'readonly') return backendRequired();
     return request('/api/author/applications/' + encodeURIComponent(userId), {
       method: 'PATCH',
       body: { decision: decision }
@@ -976,6 +972,9 @@
     if (footnote && state.mode === 'static') {
       footnote.textContent = '本机账号会长期保存在当前浏览器中，密码只保存不可逆校验值；清除网站数据或更换浏览器、设备后不会同步。此登录不会替代《零之圣杯》的独立作品密钥。';
     }
+    if (footnote && state.mode === 'readonly') {
+      footnote.textContent = '当前为只读镜像。账号、创作与在线开团操作只在同域 HTTPS 主站提供。';
+    }
   }
 
   function setBusy(form, active) {
@@ -1086,6 +1085,9 @@
     apiUrl: apiUrl,
     apiCredentials: apiCredentials,
     capabilities: function () {
+      if (state.mode === 'readonly') {
+        return { persistent: false, deviceLocal: false, authorReview: false, workKeys: false, creatorWrites: false };
+      }
       return state.mode === 'static'
         ? { persistent: state.storageAvailable, deviceLocal: true, authorReview: false, workKeys: false, creatorWrites: false }
         : { persistent: true, authorReview: true, workKeys: true, creatorWrites: true };
@@ -1094,6 +1096,8 @@
     login: login,
     register: register,
     logout: logout,
+    changePassword: changePassword,
+    revokeAllSessions: revokeAllSessions,
     profile: profile,
     updateProfile: updateProfile,
     applyForAuthor: applyForAuthor,

@@ -1,23 +1,33 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="night">
 <head>
+  <meta name="ng-deployment-mode" content="redirect">
+  <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
+  <link rel="canonical" href="https://43-161-252-149.sslip.io/">
+  <script src="deployment.js?v=20260714g"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="夜航模组馆——发现社区模组，并从每份模组的独立档案进入玩家资料、开团控制台或创作者工作台。">
   <meta name="theme-color" content="#0b1019">
-  <meta name="ng-api-base" content="https://desktop-1e8cufv.tail362686.ts.net">
+  <meta name="ng-api-base" content="">
   <meta property="og:title" content="夜航模组馆 · Nocturne Archive">
   <meta property="og:description" content="把尚未发生的冒险，先收进一盏灯里。">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:site_name" content="夜航模组馆">
+  <meta property="og:image" content="assets/art/hero-null-grail.webp?v=20260714g">
+  <meta property="og:image:width" content="1915">
+  <meta property="og:image:height" content="821">
+  <meta property="og:image:alt" content="雨夜东湖市中的白发少女、调查者与七骑英灵">
+  <meta name="twitter:card" content="summary_large_image">
   <title>夜航模组馆 · Nocturne Archive</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b1019'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='%23d1ad6c' stroke-width='2'/%3E%3Cpath d='M32 14l4.8 13.2L50 32l-13.2 4.8L32 50l-4.8-13.2L14 32l13.2-4.8z' fill='%23e6d8b8'/%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260713f">
-  <link rel="stylesheet" href="font-size.css?v=20260713b">
-  <script src="font-size.js?v=20260713b" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20260714g">
+  <link rel="stylesheet" href="design-system.css?v=20260714g">
+  <link rel="stylesheet" href="font-size.css?v=20260714g">
+  <script src="font-size.js?v=20260714g" defer></script>
 </head>
-<body>
+<body class="ds-page home-page">
   <a class="skip-link" href="#main-content">跳到主要内容</a>
   <div class="page-progress" aria-hidden="true"><span id="page-progress-bar"></span></div>
   <div class="ambient ambient-a" aria-hidden="true"></div>
@@ -53,7 +63,7 @@
       </nav>
 
       <div class="header-tools">
-        <button class="account-button" id="account-button" type="button" aria-haspopup="dialog" aria-controls="auth-dialog">
+        <button class="account-button" id="account-button" type="button" aria-label="登录或注册账号" aria-haspopup="dialog" aria-controls="auth-dialog">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 20c.7-4 2.9-6 6.5-6s5.8 2 6.5 6"></path></svg>
           <span id="account-button-label">登录 / 注册</span>
         </button>
@@ -61,7 +71,7 @@
           <span class="profile-avatar" id="profile-avatar" aria-hidden="true">航</span>
           <span class="profile-copy"><strong id="profile-name">夜航者</strong><small>个人中心</small></span>
         </a>
-        <button class="audience-button" id="audience-button" type="button" aria-haspopup="dialog">
+        <button class="audience-button" id="audience-button" type="button" aria-label="选择阅读模式" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 20c.7-4 2.9-6 6.5-6s5.8 2 6.5 6"></path></svg>
           <span id="audience-label">选择阅读模式</span>
         </button>
@@ -73,26 +83,24 @@
     </div>
   </header>
 
-  <main id="main-content">
+  <main id="main-content" tabindex="-1">
     <section class="hero shell" aria-labelledby="hero-title">
       <div class="hero-copy reveal">
         <p class="eyebrow"><span></span> PRIVATE TRPG COLLECTION · 001</p>
         <h1 id="hero-title">把尚未发生的冒险，<br><em>先收进一盏灯里。</em></h1>
         <p class="hero-lead">这里完整收纳《零之圣杯》：一部关于轮回、抉择与未知的原创跑团模组。愿每一位夜航者，都能在故事落幕前找到自己的航标。</p>
         <div class="hero-actions">
-          <button class="button button-primary" id="player-entry-button" type="button">玩家安全入口 <span aria-hidden="true">↗</span></button>
-      <a class="button button-keeper" href="studio.html"><span aria-hidden="true">◇</span> 管理我的模组</a>
-          <a class="button button-ghost" id="random-entry" href="module.html?id=null-grail"><span class="spark" aria-hidden="true">✦</span> 进入《零之圣杯》</a>
+          <button class="button button-primary hero-primary-action" id="player-entry-button" type="button">浏览模组 <span aria-hidden="true">↓</span></button>
         </div>
         <dl class="hero-stats" aria-label="档案馆概览">
           <div><dt id="published-count">01</dt><dd>个完整模组</dd></div>
           <div><dt>01</dt><dd>个持续世界</dd></div>
-          <div><dt>v3.2</dt><dd>战役内容</dd></div>
+          <div><dt id="campaign-content-version">v3.2</dt><dd>战役内容</dd></div>
         </dl>
       </div>
 
       <div class="hero-art reveal" aria-label="本月主灯：零之圣杯">
-        <img class="hero-key-art" src="assets/art/hero-null-grail.webp" alt="雨夜东湖市中的白发少女、调查者与七骑英灵">
+        <img class="hero-key-art" src="assets/art/hero-null-grail.webp?v=20260714g" width="1915" height="821" alt="雨夜东湖市中的白发少女、调查者与七骑英灵" decoding="async" fetchpriority="high">
         <div class="star-map" aria-hidden="true">
           <span class="star star-1"></span><span class="star star-2"></span><span class="star star-3"></span><span class="star star-4"></span><span class="star star-5"></span>
           <i class="line line-1"></i><i class="line line-2"></i><i class="line line-3"></i>
@@ -121,9 +129,34 @@
       </div>
     </section>
 
+    <section class="role-paths shell reveal" aria-labelledby="role-paths-title">
+      <header class="role-paths-heading">
+        <p class="eyebrow"><span></span> CHOOSE YOUR COURSE</p>
+        <h2 id="role-paths-title">今晚从哪里启航？</h2>
+        <p>浏览档案之后，再按你在桌边的位置进入对应空间。</p>
+      </header>
+      <div class="role-path-grid">
+        <a class="role-path-card role-path-player" href="campaign.html#join">
+          <span class="role-path-mark" aria-hidden="true">人</span>
+          <span><small>PLAYER · 邀请加入</small><strong>我是玩家</strong><em>凭主持人的邀请进入团房，提交角色并接收公开内容。</em></span>
+          <b aria-hidden="true">↗</b>
+        </a>
+        <a class="role-path-card role-path-host" href="campaign.html#host">
+          <span class="role-path-mark" aria-hidden="true">团</span>
+          <span><small>HOST · 在线开团</small><strong>我是主持人</strong><em>创建或继续《零之圣杯》团房，管理成员与进度。</em></span>
+          <b aria-hidden="true">↗</b>
+        </a>
+        <a class="role-path-card role-path-creator" href="studio.html">
+          <span class="role-path-mark" aria-hidden="true">作</span>
+          <span><small>CREATOR · 作品管理</small><strong>我是创作者</strong><em>整理模组资料、配置开团台，并预览公开档案。</em></span>
+          <b aria-hidden="true">↗</b>
+        </a>
+      </div>
+    </section>
+
     <section class="keeper-showcase shell reveal" id="console" aria-labelledby="console-title">
       <div class="keeper-showcase-art">
-        <img src="assets/art/night-06.webp" alt="第六夜川风洋宅围攻与三碎片会议场景">
+        <img src="assets/art/night-06.webp?v=20260714g" width="1672" height="941" alt="第六夜川风洋宅围攻与三碎片会议场景" loading="lazy" decoding="async">
         <span>AUTHOR EDITION · FULL SPOILERS</span>
       </div>
       <div class="keeper-showcase-copy">
@@ -147,7 +180,7 @@
     <section class="systems shell" id="tools" aria-label="规则、车卡与默认工具">
       <a class="system-gate" href="module.html?id=null-grail">
         <span class="gate-icon gate-rules" aria-hidden="true">册</span>
-        <span><small>OPTIONAL RULESET · 主模组配套</small><strong>零之圣杯通用规则 v2.0</strong></span>
+        <span><small>OPTIONAL RULESET · 主模组配套</small><strong id="ruleset-version-label">零之圣杯通用规则 v2.1</strong></span>
         <i aria-hidden="true">查看 ↗</i>
       </a>
       <a class="system-gate" href="player.html?mode=builder">
@@ -237,7 +270,7 @@
 
       <article class="world-feature reveal">
         <div class="world-map" aria-hidden="true">
-          <img class="world-map-art" src="assets/art/eastlake-map.webp" alt="">
+          <img class="world-map-art" src="assets/art/eastlake-map.webp?v=20260714g" width="1586" height="992" alt="" loading="lazy" decoding="async">
           <svg viewBox="0 0 620 510" preserveAspectRatio="xMidYMid slice">
             <defs><filter id="soft-glow"><feGaussianBlur stdDeviation="4" result="blur"></feGaussianBlur><feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter></defs>
             <path class="river" d="M-20 370C90 330 110 260 198 272s105 106 210 73 118-113 245-79"></path>
@@ -279,7 +312,7 @@
         <div class="note-list reveal">
           <article>
             <time datetime="2026-07-13">2026.07.13</time>
-            <div><span>版本记录</span><h3>《零之圣杯》战役内容 v3.2：让失败打开新的路径</h3><p>统一战役编排与跨册索引；检定和车卡仍以通用规则 v2.0 为准。</p></div>
+            <div><span>版本记录</span><h3>《零之圣杯》战役内容 v3.2：让失败打开新的路径</h3><p>统一战役编排与跨册索引；检定和车卡以通用规则 v2.1 为准。</p></div>
             <button type="button" data-open-entry="null-grail" aria-label="在零之圣杯模组中查看版本记录">↗</button>
           </article>
           <article>
@@ -390,8 +423,8 @@
       <form class="auth-form" id="register-form" data-auth-panel="register" hidden>
         <label for="register-account"><span>账号</span><input id="register-account" name="account" type="text" inputmode="text" autocomplete="username" placeholder="设置用于登录的账号" required></label>
         <label for="register-name"><span>用户昵称</span><input id="register-name" name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="大家将如何称呼你" required></label>
-        <label for="register-password"><span>密码</span><input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="至少 8 位字符" required></label>
-        <label for="register-password-confirm"><span>确认密码</span><input id="register-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="再次输入密码" required></label>
+        <label for="register-password"><span>密码</span><input id="register-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="至少 12 位字符" required></label>
+        <label for="register-password-confirm"><span>确认密码</span><input id="register-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="再次输入密码" required></label>
         <button class="button button-primary" type="submit">创建夜航账号 <span aria-hidden="true">↗</span></button>
         <p class="auth-error" id="register-error" role="alert" hidden></p>
       </form>
@@ -401,9 +434,11 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="access.js?v=20260713e"></script>
-  <script src="modules-data.js?v=20260713k"></script>
-  <script src="site-auth.js?v=20260713u"></script>
-  <script src="app.js?v=20260713u"></script>
+  <script src="site-config.js?v=20260714g"></script>
+  <script src="resilience.js?v=20260714g"></script>
+  <script src="access.js?v=20260714g"></script>
+  <script src="modules-data.js?v=20260714g"></script>
+  <script src="site-auth.js?v=20260714g"></script>
+  <script src="app.js?v=20260714g"></script>
 </body>
 </html>

@@ -35,12 +35,53 @@
     return new URL(path, document.baseURI).href;
   }
 
+  function networkRequest(url, options, retrySafe) {
+    var maxAttempts = retrySafe ? 2 : 1;
+
+    function attempt(index) {
+      var controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timeoutId = controller ? window.setTimeout(function () { controller.abort(); }, 10000) : 0;
+      var settings = Object.assign({}, options || {});
+      if (controller) settings.signal = controller.signal;
+
+      return window.fetch(url, settings).then(function (response) {
+        if (response.status >= 500 && index + 1 < maxAttempts) {
+          return new Promise(function (resolve) { window.setTimeout(resolve, 250); }).then(function () {
+            return attempt(index + 1);
+          });
+        }
+        return response;
+      }).catch(function (error) {
+        if (index + 1 < maxAttempts) {
+          return new Promise(function (resolve) { window.setTimeout(resolve, 250); }).then(function () {
+            return attempt(index + 1);
+          });
+        }
+        if (error && error.name === 'AbortError') {
+          var timeoutError = new Error('守秘认证服务响应超时。');
+          timeoutError.code = 'timeout';
+          throw timeoutError;
+        }
+        if (error instanceof TypeError) {
+          var offlineError = new Error('无法连接守秘认证服务。');
+          offlineError.code = 'offline';
+          throw offlineError;
+        }
+        throw error;
+      }).finally(function () {
+        if (timeoutId) window.clearTimeout(timeoutId);
+      });
+    }
+
+    return attempt(0);
+  }
+
   function loadManifest() {
     if (!manifestPromise) {
-      manifestPromise = window.fetch(entryUrl('secure/manifest.json'), {
+      manifestPromise = networkRequest(entryUrl('secure/manifest.json'), {
         credentials: 'same-origin',
         cache: 'no-store'
-      }).then(function (response) {
+      }, true).then(function (response) {
         if (!response.ok) throw new Error('无法读取加密资料清单（HTTP ' + response.status + '）。');
         return response.json();
       }).then(function (manifest) {
@@ -92,10 +133,10 @@
 
   function fetchCiphertext(entry) {
     if (!entry || !entry.path || !entry.iv) return Promise.reject(new Error('加密资料条目不完整。'));
-    return window.fetch(entryUrl(entry.path), {
+    return networkRequest(entryUrl(entry.path), {
       credentials: 'same-origin',
       cache: 'no-store'
-    }).then(function (response) {
+    }, true).then(function (response) {
       if (!response.ok) throw new Error('无法读取加密资料（HTTP ' + response.status + '）。');
       return response.arrayBuffer();
     });
@@ -138,12 +179,12 @@
     if (!passphrase) return Promise.resolve(false);
 
     if (!window.fetch) return Promise.resolve(false);
-    return window.fetch('/api/access', {
+    return networkRequest('/api/access', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: passphrase })
-    }).then(function (response) {
+    }, false).then(function (response) {
       if (isStaticResponse(response)) {
         mode = 'static';
         return verifyStaticKey(passphrase);
@@ -179,10 +220,10 @@
     if (role === 'player') {
       serverAuthorized = false;
       clearPassphrase();
-      if (window.fetch) window.fetch('/api/access', {
+      if (window.fetch) networkRequest('/api/access', {
         method: 'DELETE',
         credentials: 'same-origin'
-      }).catch(function () {});
+      }, false).catch(function () {});
     }
   }
 
@@ -203,10 +244,10 @@
 
   function checkServerSession() {
     if (!window.fetch) return Promise.resolve(false);
-    return window.fetch('/api/access/status', {
+    return networkRequest('/api/access/status', {
       credentials: 'same-origin',
       cache: 'no-store'
-    }).then(function (response) {
+    }, true).then(function (response) {
       if (isStaticResponse(response)) {
         mode = 'static';
         serverAuthorized = false;
@@ -297,10 +338,10 @@
     localStorage.removeItem(ROLE_KEY);
     clearPassphrase();
     serverAuthorized = false;
-    if (window.fetch) window.fetch('/api/access', {
+    if (window.fetch) networkRequest('/api/access', {
       method: 'DELETE',
       credentials: 'same-origin'
-    }).catch(function () {});
+    }, false).catch(function () {});
   }
 
   // Remove the old persistent access flag as soon as the upgraded script loads.

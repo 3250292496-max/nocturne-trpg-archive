@@ -17,7 +17,7 @@
       }
 
       var script = document.createElement('script');
-    script.src = source + '?v=20260713u';
+    script.src = source + '?v=20260714g';
       script.async = false;
       script.setAttribute('data-keeper-source', source);
       script.addEventListener('load', function () {
@@ -32,16 +32,23 @@
     });
   }
 
-  function loadKeeperApplication(access) {
+  function loadKeeperApplication(access, forceServer) {
     if (appLoaded) return Promise.resolve();
     if (appLoadPromise) return appLoadPromise;
 
-    var mode = access.getMode && access.getMode();
+    var mode = forceServer ? 'server' : access.getMode && access.getMode();
     if (mode !== 'server' && mode !== 'static') {
       return Promise.reject(new Error('Keeper access mode is not ready'));
     }
 
-    if (mode === 'server') {
+    var campaignId = forceServer && window.NGCampaign && window.NGCampaign.campaignIdFromLocation();
+    if (campaignId) {
+      appLoadPromise = window.NGCampaign.request('/api/campaigns/' + encodeURIComponent(campaignId) + '/console-data').then(function (payload) {
+        window.NG_DATA = payload && payload.data;
+        if (!window.NG_DATA) throw new Error('Campaign console data was not loaded');
+        return loadScript('gm.js');
+      });
+    } else if (mode === 'server') {
       appLoadPromise = loadScript('gm-data.js').then(function () {
         if (!window.NG_DATA) throw new Error('Keeper data was not loaded');
         return loadScript('gm.js');
@@ -73,6 +80,22 @@
 
     var submit = form.querySelector('[type="submit"]');
     var submitMarkup = submit.innerHTML;
+    var campaignId = window.NGCampaign && window.NGCampaign.campaignIdFromLocation();
+    var protectedElements = ['.command-bar', '.side-nav', '#workspace', '.tracker-rail', '.mobile-nav'];
+
+    function setConsoleLocked(locked) {
+      protectedElements.forEach(function (selector) {
+        var element = document.querySelector(selector);
+        if (!element) return;
+        if (locked) {
+          element.setAttribute('inert', '');
+          element.setAttribute('aria-hidden', 'true');
+        } else {
+          element.removeAttribute('inert');
+          element.removeAttribute('aria-hidden');
+        }
+      });
+    }
 
     function setSubmitting(active) {
       submit.disabled = active;
@@ -80,6 +103,7 @@
     }
 
     function showGate(showError) {
+      setConsoleLocked(true);
       gate.hidden = false;
       gate.classList.remove('dismissed');
       error.hidden = !showError;
@@ -87,9 +111,10 @@
       if (showError) input.select();
     }
 
-    function revealApplication() {
-      return loadKeeperApplication(access).then(function () {
+    function revealApplication(forceServer) {
+      return loadKeeperApplication(access, forceServer === true).then(function () {
         error.hidden = true;
+        setConsoleLocked(false);
         gate.classList.add('dismissed');
         window.setTimeout(function () { gate.hidden = true; }, 260);
       }).catch(function () {
@@ -99,6 +124,35 @@
     }
 
     function resumeExistingAccess() {
+      if (campaignId && window.NGCampaign) {
+        input.disabled = true;
+        submit.disabled = true;
+        submit.textContent = '正在验证团房主持权限…';
+        return window.NGCampaign.getCampaign(campaignId).then(function (payload) {
+          var campaign = payload.campaign || payload.room || payload;
+          var member = payload.member || payload.currentMember || campaign.member || {};
+          var role = member.role || payload.role || campaign.role;
+          if (role !== 'host') {
+            var forbidden = new Error('只有这个团房的主持人可以打开守秘控制台。');
+            forbidden.code = 'forbidden';
+            throw forbidden;
+          }
+          return revealApplication(true);
+        }).catch(function (requestError) {
+          error.textContent = requestError && requestError.message || '无法验证团房主持权限，请返回团房大厅重新登录。';
+          error.hidden = false;
+          submit.hidden = true;
+          input.hidden = true;
+          form.querySelector('label').textContent = '在线团房权限验证失败';
+          var link = document.createElement('a');
+          link.href = 'campaign.html?campaign=' + encodeURIComponent(campaignId) + '#room';
+          link.className = 'primary-action';
+          link.textContent = '返回团房大厅';
+          form.appendChild(link);
+          return false;
+        });
+      }
+
       var mode = access.getMode && access.getMode();
       if (mode === 'server') {
         return access.checkServerSession().then(function (authorized) {
@@ -135,6 +189,7 @@
       });
     }
 
+    setConsoleLocked(true);
     gate.hidden = false;
     resumeExistingAccess();
 

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta name="ng-deployment-mode" content="redirect">
+  <meta name="ng-primary-origin" content="https://43-161-252-149.sslip.io">
+  <link rel="canonical" href="https://43-161-252-149.sslip.io/campaign.html">
+  <script src="deployment.js?v=20260714g"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d14">
+  <meta name="description" content="夜航模组馆在线团房：为《零之圣杯》创建战役、邀请玩家、同步角色与团务并安全归档。">
+  <meta name="robots" content="noindex,nofollow">
+  <title>在线团房 · 夜航模组馆</title>
+  <link rel="stylesheet" href="campaign.css?v=20260714g">
+  <link rel="stylesheet" href="design-system.css?v=20260714g">
+  <link rel="stylesheet" href="font-size.css?v=20260714g">
+  <script src="font-size.js?v=20260714g" defer></script>
+</head>
+<body class="ds-page campaign-page">
+  <a class="skip-link" href="#campaign-main">跳到团房内容</a>
+  <header class="campaign-header">
+    <a class="campaign-brand" href="index.html"><span aria-hidden="true">◇</span><div><strong>夜航模组馆</strong><small>ONLINE CAMPAIGNS</small></div></a>
+    <nav aria-label="团房导航"><a href="#join">加入团房</a><a href="#host">主持开团</a><a href="profile.html">账号</a></nav>
+    <div class="campaign-header-tools">
+      <span class="campaign-service-state" id="campaign-service-state" role="status">正在连接服务</span>
+    </div>
+  </header>
+
+  <main id="campaign-main">
+    <section class="campaign-hero" aria-labelledby="campaign-title">
+      <img src="assets/art/hero-null-grail.webp?v=20260714g" width="1915" height="821" sizes="100vw" fetchpriority="high" decoding="async" alt="雨夜东湖市中的零之圣杯人物群像">
+      <div class="campaign-hero-shade"></div>
+      <div class="campaign-hero-copy">
+        <p>NULL GRAIL · ONLINE ROOM BETA</p>
+        <h1 id="campaign-title">在同一场雨夜里，<br>真正一起开团。</h1>
+        <span>主持人创建团房并锁定《零之圣杯》v3.2 与规则 v2.1；玩家通过一次邀请加入，地图、手卡、判定、战斗、场记与聊天由服务器同步。</span>
+        <div><a class="campaign-primary" href="#host">我是主持人</a><a class="campaign-secondary" href="#join">我是玩家</a></div>
+      </div>
+      <dl class="campaign-version-lock"><div><dt>模组快照</dt><dd>v3.2</dd></div><div><dt>规则快照</dt><dd>v2.1</dd></div><div><dt>房间协议</dt><dd>ng-campaign-v1</dd></div></dl>
+    </section>
+
+    <section class="campaign-section join-section" id="join" aria-labelledby="join-title">
+      <header><div><p>PLAYER ENTRY</p><h2 id="join-title">通过邀请加入团房</h2></div><span>邀请默认 7 天有效、最多使用 8 次；令牌只会留在当前地址的 # 片段里。</span></header>
+      <div class="campaign-panel join-panel">
+        <form id="join-form">
+          <label><span>邀请链接或令牌</span><input id="join-token" name="token" autocomplete="off" spellcheck="false" placeholder="打开邀请链接后会自动填入，也可以在这里粘贴"></label>
+          <label><span>团内昵称</span><input id="join-nickname" name="nickname" maxlength="60" autocomplete="nickname" required placeholder="其他成员在房间内看到的名字"></label>
+          <button class="campaign-primary" type="submit">加入并进入玩家页 <span>↗</span></button>
+          <p class="form-status" id="join-status" role="status"></p>
+        </form>
+        <aside><strong>访客也可以先加入</strong><p>加入成功后，浏览器会得到只属于这个团房的安全会话。以后登录或注册，可把访客身份和角色绑定到账号。</p><small>邀请令牌不会写入查询参数、服务器日志或页面跳转地址。</small></aside>
+      </div>
+    </section>
+
+    <section class="campaign-section host-section" id="host" aria-labelledby="host-title">
+      <header><div><p>KEEPER LOBBY</p><h2 id="host-title">创建或继续主持团房</h2></div><span>主持人必须登录。服务器是在线团房的唯一权威来源，不会与本机战役双写。</span></header>
+      <div class="host-grid">
+        <section class="campaign-panel account-panel" aria-labelledby="account-title">
+          <header><p>ACCOUNT</p><h3 id="account-title">主持人账号</h3></header>
+          <div id="account-summary" hidden></div>
+          <form id="campaign-login-form">
+            <label><span>账号</span><input name="account" autocomplete="username" required></label>
+            <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label>
+            <button type="submit">登录后开团</button>
+            <p class="form-status" id="login-status" role="status"></p>
+          </form>
+        </section>
+        <section class="campaign-panel create-panel" aria-labelledby="create-title">
+          <header><p>NEW ROOM</p><h3 id="create-title">创建《零之圣杯》团房</h3></header>
+          <form id="create-campaign-form">
+            <label><span>团房名称</span><input id="campaign-title-input" name="title" maxlength="120" placeholder="例如：周五夜航 · 第一轮"></label>
+            <input id="campaign-module-input" name="moduleId" type="hidden" value="null-grail">
+            <div class="locked-versions"><span>模组 <b>v3.2</b></span><span>规则 <b>v2.1</b></span><span>仅主持／玩家</span></div>
+            <button class="campaign-primary" type="submit" disabled>创建在线团房</button>
+            <p class="form-status" id="create-status" role="status"></p>
+          </form>
+        </section>
+      </div>
+
+      <section class="campaign-room-list" aria-labelledby="room-list-title">
+        <header><div><p>YOUR CAMPAIGNS</p><h3 id="room-list-title">我的团房</h3></div><button id="refresh-campaigns" type="button">刷新</button></header>
+        <div id="campaign-list"><p class="campaign-empty">登录后会显示你主持或参加的团房。</p></div>
+      </section>
+    </section>
+
+    <section class="campaign-section room-detail" id="room" aria-labelledby="room-title" hidden>
+      <header><div><p>CAMPAIGN LOBBY</p><h2 id="room-title">团房大厅</h2></div><button id="close-room-detail" type="button">返回团房列表</button></header>
+      <div class="room-summary-bar">
+        <div><span id="room-status-dot"></span><strong id="room-status">读取中</strong></div>
+        <dl><div><dt>模组</dt><dd id="room-module-version">v3.2</dd></div><div><dt>规则</dt><dd id="room-rules-version">v2.1</dd></div><div><dt>状态版本</dt><dd id="room-state-version">0</dd></div></dl>
+        <div class="room-open-actions"><a id="open-room-console" class="campaign-primary" href="gm.html">打开主持台</a><a id="open-room-player" class="campaign-secondary" href="player.html">打开玩家页</a></div>
+      </div>
+
+      <div class="room-detail-grid">
+        <section class="campaign-panel members-panel" aria-labelledby="members-title"><header><p>MEMBERS</p><h3 id="members-title">成员与角色</h3><span id="member-count">0 人</span></header><div id="room-members"></div></section>
+        <section class="campaign-panel invite-panel" id="invite-panel" aria-labelledby="invite-title"><header><p>INVITATIONS</p><h3 id="invite-title">邀请玩家</h3></header>
+          <form id="create-invite-form"><label><span>有效天数</span><input name="expiresInDays" type="number" min="1" max="30" value="7"></label><label><span>最多使用</span><input name="maxUses" type="number" min="1" max="20" value="8"></label><button type="submit">生成新邀请</button></form>
+          <div class="new-invite" id="new-invite" hidden><label><span>新邀请链接（离开后不再显示令牌）</span><input id="new-invite-url" readonly></label><button id="copy-invite" type="button">复制链接</button></div>
+          <div id="room-invites"></div><p class="form-status" id="invite-status" role="status"></p>
+        </section>
+        <section class="campaign-panel transfer-panel" id="transfer-panel" aria-labelledby="transfer-title"><header><p>ARCHIVE &amp; RECOVERY</p><h3 id="transfer-title">导入、导出、归档与恢复</h3></header>
+          <p id="transfer-copy">旧本机战役只会在你选择文件并确认后上传；导入成功前不会删除原文件或本机存档。</p>
+          <div class="transfer-actions"><button id="export-room" type="button">导出团房 JSON</button><button id="choose-room-import" type="button">一次性导入本机存档</button><input id="room-import-file" type="file" accept="application/json,.json" hidden></div>
+          <div class="import-preview" id="import-preview" hidden><strong id="import-preview-title">待导入文件</strong><p id="import-preview-copy"></p><button id="confirm-room-import" type="button">确认导入这个快照</button><button id="cancel-room-import" type="button">取消</button></div>
+          <button class="archive-room-button" id="archive-room" type="button">归档团房</button><p class="form-status" id="transfer-status" role="status"></p>
+        </section>
+        <section class="campaign-panel guest-panel" id="guest-panel" hidden aria-labelledby="guest-title"><header><p>ACCOUNT BINDING</p><h3 id="guest-title">绑定访客身份</h3></header><p>登录账号后可把当前访客成员和角色绑定到账号，之后可以在其他设备继续。</p><button id="bind-campaign" type="button">绑定到当前账号</button><p class="form-status" id="bind-status" role="status"></p></section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="campaign-footer"><span>夜航模组馆 · 在线团房测试版</span><p>房间仅提供全团文字聊天；不包含语音、视频、私聊、附件或复杂战棋。</p></footer>
+  <div class="campaign-toast" id="campaign-toast" role="status" aria-live="polite"></div>
+
+<script src="site-config.js?v=20260714g"></script>
+<script src="resilience.js?v=20260714g"></script>
+<script src="site-auth.js?v=20260714g"></script>
+<script src="campaign-client.js?v=20260714h"></script>
+<script src="campaign.js?v=20260714h"></script>
+</body>
+</html>

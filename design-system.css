@@ -1,0 +1,288 @@
+/*
+ * Nocturne Archive shared design foundation
+ *
+ * Subsetted Noto SC faces are served from the same origin. Local and system
+ * fallbacks keep text immediately readable while the font is loading.
+ */
+@font-face {
+  font-family: "Nocturne Sans";
+  src: url("assets/fonts/nocturne-sans-sc.woff2?v=20260714g") format("woff2-variations"),
+       local("Noto Sans SC"), local("Noto Sans CJK SC"), local("Source Han Sans SC");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: "Nocturne Serif";
+  src: url("assets/fonts/nocturne-serif-sc.woff2?v=20260714g") format("woff2-variations"),
+       local("Noto Serif SC"), local("Noto Serif CJK SC"), local("Source Han Serif SC");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
+:root {
+  --reading-scale: 1;
+  --ds-bg: #0b1019;
+  --ds-bg-deep: #070b12;
+  --ds-surface: #121a26;
+  --ds-surface-raised: #182230;
+  --ds-paper: #e8dfcc;
+  --ds-paper-strong: #fff8e8;
+  --ds-muted: #9da9b5;
+  --ds-gold: #d1ad6c;
+  --ds-gold-soft: #f0d69f;
+  --ds-cyan: #79b9bd;
+  --ds-green: #69b49d;
+  --ds-red: #c96f6c;
+  --ds-line: rgba(226, 213, 185, .16);
+  --ds-line-strong: rgba(226, 213, 185, .34);
+  --ds-focus: #f0c77e;
+  --ds-radius-sm: 3px;
+  --ds-radius-md: 10px;
+  --ds-shadow-sm: 0 10px 30px rgba(0, 0, 0, .24);
+  --ds-shadow-lg: 0 30px 80px rgba(0, 0, 0, .36);
+  --ds-space-1: .25rem;
+  --ds-space-2: .5rem;
+  --ds-space-3: .75rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.5rem;
+  --ds-space-6: 2rem;
+  --ds-control-height: 2.75rem;
+  --ds-font-sans: "Nocturne Sans", "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  --ds-font-serif: "Nocturne Serif", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  --sans: var(--ds-font-sans);
+  --serif: var(--ds-font-serif);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  font-size: calc(16px * var(--reading-scale, 1));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body.ds-page {
+  min-width: 320px;
+  color: var(--paper, var(--ds-paper));
+  font-family: var(--ds-font-sans);
+  font-size: 1rem;
+  line-height: 1.7;
+  text-rendering: optimizeLegibility;
+}
+
+body.ds-page :where(p, li, dd) {
+  font-size: .875rem;
+}
+
+body.ds-page :where(label, label > span) {
+  font-size: .875rem;
+}
+
+body.ds-page :where(small, .eyebrow, [class*="eyebrow"], [class*="kicker"], [class*="caption"]) {
+  font-size: .75rem;
+}
+
+body.ds-page :where(button, input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  min-height: var(--ds-control-height);
+  font-family: var(--ds-font-sans);
+  font-size: .875rem;
+}
+
+body.ds-page :where(button, [role="button"]) {
+  min-width: var(--ds-control-height);
+}
+
+body.ds-page :where(.icon-button, .reading-size-toggle, .account-button, .audience-button, .profile-link, .dialog-close) {
+  min-width: var(--ds-control-height);
+  min-height: var(--ds-control-height);
+}
+
+body.ds-page :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  border-radius: var(--ds-radius-sm);
+}
+
+body.ds-page :where(button, [role="button"], input, textarea, select, a) {
+  outline: none;
+}
+
+body.ds-page :where(button, [role="button"], input, textarea, select, a):focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 3px;
+}
+
+body.ds-page :where(button, input, textarea, select):disabled,
+body.ds-page :where(button, [role="button"])[aria-disabled="true"] {
+  cursor: not-allowed;
+  filter: saturate(.45);
+  opacity: .52;
+}
+
+body.ds-page :where(button, [role="button"])[aria-busy="true"] {
+  cursor: progress;
+  opacity: .72;
+}
+
+body.ds-page :where(nav a, .button, [class*="-action"], [class*="text-button"]) {
+  min-height: var(--ds-control-height);
+  align-items: center;
+}
+
+body.ds-page :where([role="alert"], .error, [class*="-error"], [class*="error-"]) {
+  color: #f0aaa5;
+}
+
+body.ds-page :where([aria-busy="true"], [class*="loading"]) {
+  cursor: progress;
+}
+
+body.ds-page ::placeholder {
+  color: color-mix(in srgb, var(--muted, var(--ds-muted)) 78%, transparent);
+  opacity: 1;
+}
+
+body.ds-page dialog::backdrop {
+  background: rgba(1, 5, 10, .78);
+  backdrop-filter: blur(5px);
+}
+
+/* Shared persistent save failure banner, injected by resilience.js. */
+.ng-persistence-alert {
+  position: fixed;
+  z-index: 20000;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: max(1rem, env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  width: min(58rem, calc(100% - 2rem));
+  margin-inline: auto;
+  padding: 1rem 1.125rem;
+  border: 1px solid rgba(201, 111, 108, .72);
+  border-left: 4px solid var(--ds-red);
+  border-radius: var(--ds-radius-md);
+  background: color-mix(in srgb, #21151a 94%, transparent);
+  box-shadow: var(--ds-shadow-lg);
+  color: #fff2e8;
+  font: 600 .875rem/1.65 var(--ds-font-sans);
+  backdrop-filter: blur(18px);
+}
+
+.ng-persistence-alert[hidden] { display: none !important; }
+.ng-persistence-alert p { margin: 0; font-size: inherit !important; }
+.ng-persistence-alert > div { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
+.ng-persistence-alert button {
+  min-height: var(--ds-control-height);
+  padding: .5rem .875rem;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: var(--ds-radius-sm);
+  background: rgba(255, 255, 255, .06);
+  color: inherit;
+  font: 600 .8125rem/1.2 var(--ds-font-sans);
+  cursor: pointer;
+}
+.ng-persistence-alert [data-ng-persistence-export] {
+  border-color: var(--ds-gold);
+  background: var(--ds-gold);
+  color: #15181e;
+}
+.ng-persistence-alert button:focus-visible { outline: 3px solid var(--ds-focus); outline-offset: 3px; }
+
+.ng-mirror-banner {
+  position: relative;
+  z-index: 10000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem .75rem;
+  width: 100%;
+  padding: .65rem 1rem;
+  border-bottom: 1px solid rgba(209, 173, 108, .45);
+  background: #171a22;
+  color: #f0e5cf;
+  font: 500 .8125rem/1.5 var(--ds-font-sans);
+}
+
+.ng-mirror-banner strong { color: var(--ds-gold); }
+.ng-mirror-banner a { color: #fff7e8; text-decoration: underline; text-underline-offset: .2em; }
+.ng-mirror-banner a:focus-visible { outline: 3px solid var(--ds-focus); outline-offset: 3px; }
+
+/* COC7 keeps its field-green identity inside the shared night archive shell. */
+body.coc7-page,
+body.combat-page {
+  --ds-focus: #8ed4bd;
+  --green: #69b49d;
+}
+
+body.coc7-page :where(button, a):focus-visible,
+body.combat-page :where(button, a):focus-visible {
+  outline-color: var(--green);
+}
+
+/* Dense desk pages used sub-12px type historically; keep hierarchy, not strain. */
+body:is(.run-page, .coc7-page, .combat-page) :where(p, li, dd, label, label > span, .prose, .empty-state) {
+  font-size: .875rem !important;
+}
+
+body:is(.run-page, .coc7-page, .combat-page) :where(small, .eyebrow, [class*="eyebrow"], [class*="kicker"], [class*="caption"], [class*="meta"]) {
+  font-size: .75rem !important;
+}
+
+body:is(.run-page, .coc7-page, .combat-page) :where(button, input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  min-height: var(--ds-control-height) !important;
+  font-size: .875rem !important;
+}
+
+/* The live room desks previously compressed labels and hit areas for a
+   presentation-sized viewport. Keep them readable at laptop and phone scale. */
+body:is(.gm-page, .player-page, .campaign-page) :where(p, li, dd, label, label > span, .prose, .empty-state) {
+  font-size: .875rem !important;
+}
+
+body:is(.gm-page, .player-page, .campaign-page) :where(small, .eyebrow, [class*="eyebrow"], [class*="kicker"], [class*="caption"], [class*="meta"]) {
+  font-size: .75rem !important;
+}
+
+body:is(.gm-page, .player-page, .campaign-page) :where(button, input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  min-height: var(--ds-control-height) !important;
+  font-size: .875rem !important;
+}
+
+body:is(.gm-page, .player-page, .campaign-page) :where(button, [role="button"]) {
+  min-width: var(--ds-control-height) !important;
+}
+
+body:is(.gm-page, .player-page, .campaign-page) :where(nav a, [class*="-action"], [class*="-button"]) {
+  min-height: var(--ds-control-height) !important;
+}
+
+body:is(.profile-page, .studio-page) :where(label, label > span, input, textarea, select, button) {
+  font-size: .875rem;
+}
+
+@media (max-width: 640px) {
+  .ng-persistence-alert {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .ng-persistence-alert > div { justify-content: stretch; }
+  .ng-persistence-alert button { flex: 1 1 8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+@media print {
+  html { font-size: 16px; }
+  .ng-persistence-alert,
+  .ng-mirror-banner { display: none !important; }
+}

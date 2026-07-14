@@ -447,8 +447,21 @@
   function saveCurrent() {
     if (!current) return;
     current.updatedAt = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-    byId('coc-save-status').textContent = '已保存 ' + new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' });
+    var saved = false;
+    if (window.NG_RESILIENCE && window.NG_RESILIENCE.storage) {
+      saved = window.NG_RESILIENCE.storage.set(STORAGE_KEY, current, {
+        label:'COC7 角色卡', filename:'夜航模组馆-COC7-角色恢复.json'
+      });
+    } else {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); saved = true; }
+      catch (error) { saved = false; }
+    }
+    byId('coc-save-status').textContent = saved
+      ? '已保存 ' + new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' })
+      : '保存失败 · 请导出恢复文件';
+    byId('coc-save-status').classList.toggle('error', !saved);
+    if (!saved) showToast('浏览器无法保存这张角色卡，请立即导出恢复文件。', 5000);
+    return saved;
   }
 
   function syncEditableFields(shouldRender) {

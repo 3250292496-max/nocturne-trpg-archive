@@ -130,8 +130,13 @@
   }
   function saveState() {
     state.updatedAt = new Date().toISOString();
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch (error) { showToast('浏览器无法保存战斗状态；请检查站点存储权限', 5000); }
+    var saved = window.NG_RESILIENCE && window.NG_RESILIENCE.storage
+      ? window.NG_RESILIENCE.storage.set(STORAGE_KEY, state, {
+        scope:'local-combat', label:'COC7 战斗状态', filename:'COC7-战斗台恢复-' + new Date().toISOString().slice(0,10) + '.json'
+      })
+      : (function () { try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); return true; } catch (error) { return false; } }());
+    if (!saved) showToast('浏览器无法保存战斗状态；请立即导出恢复文件。', 5000);
+    return saved;
   }
   function activeScene(source) {
     var value = source || state;

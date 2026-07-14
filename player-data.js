@@ -1,6 +1,15 @@
 (function () {
   'use strict';
 
+  var versions = window.NG_SITE_CONFIG && window.NG_SITE_CONFIG.versions || {
+    playerProtocol: 'null-grail-player-v4',
+    characterProtocol: 'null-grail-character-v3',
+    checkProtocol: 'null-grail-check-v2',
+    campaignContentVersion: '3.2',
+    rulesetId: 'null-grail-core-d20-v2.1',
+    rulesetShortLabel: 'v2.1'
+  };
+
   function deepFreeze(value) {
     if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
     Object.keys(value).forEach(function (key) { deepFreeze(value[key]); });
@@ -312,13 +321,13 @@
   };
 
   window.NG_PLAYER_DATA = deepFreeze({
-    protocol: 'null-grail-player-v4',
-    characterProtocol: 'null-grail-character-v3',
+    protocol: versions.playerProtocol,
+    characterProtocol: versions.characterProtocol,
     characterCollectionProtocol: 'null-grail-character-collection-v3',
-    checkProtocol: 'null-grail-check-v2',
-    contentVersion: '2.0.0-character-library',
-    rulesetId: 'null-grail-core-d20-v2.0',
-    rulesVersion: 'v2.0 · 车卡与资源库增订版',
+    checkProtocol: versions.checkProtocol,
+    contentVersion: '2.1.0-character-library',
+    rulesetId: versions.rulesetId,
+    rulesVersion: versions.rulesetShortLabel,
     rulesDate: '2026-07-13',
     channelName: 'null-grail-player',
     publicMap: playerSafeMap,
@@ -383,7 +392,7 @@
       { id: 'severe', label: '失败', help: '总值不高于 DC-5；目标未达成并产生明确后果，但关键线索不会凭空消失。' }
     ],
     blankCharacter: {
-      protocol: 'null-grail-character-v3', rulesetId: 'null-grail-core-d20-v2.0', rulesetVersion: 'v2.0·车卡增订',
+      protocol: versions.characterProtocol, rulesetId: versions.rulesetId, rulesetVersion: versions.rulesetShortLabel,
       id: '', name: '', playerName: '', pronouns: '', origin: '', identity: '', wish: '', boundary: '',
       identityType: 'mortal', isMaster: false,
       attributes: { physique: 0, endurance: 0, agility: 0, perception: 0, knowledge: 0, will: 0, mana: 0 },
